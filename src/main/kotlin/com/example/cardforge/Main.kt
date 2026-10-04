@@ -216,9 +216,10 @@ class MainApp : Application() {
     private val flavor = TextArea()
     private val imageMode = ComboBox<ImageMode>()
     private val imageBleedOverFrame = CheckBox("Artwork bleeds over frame")
+    private val imageBleedOpacity = Slider(0.0, 1.0, 1.0)
+    private val imageBleedOpacityValue = Label("100%")
     private val statusChoice = ComboBox<CardStatus>()
-    private val collectionDescriptionLabel = TextField()
-    private val collectionCopyright = CheckBox("Show © before artist")
+    private lateinit var collectionSettingsPane: CollectionSettingsPane
     private val schemeChoice = ComboBox<ColorScheme>()
     private val templateChoice = ComboBox<CardTemplate>()
     private val collectionTemplateChoice = ComboBox<CardTemplate>()
@@ -355,6 +356,7 @@ class MainApp : Application() {
         stage.show()
         stage.centerOnScreen()
         Platform.runLater {
+            chooseRecentCollectionOnStartup(stage)
             // AppKit can ignore the Dock icon if it is changed before the JavaFX
             // window/application has entered its native event loop.
             setApplicationDockIcon()
@@ -1164,37 +1166,18 @@ class MainApp : Application() {
         }
 
         form.children.add(section("Collection"))
-        collectionDescriptionLabel.apply {
-            text = collectionPresentation.descriptionHeading
-            promptText = "ABILITY / DESCRIPTION"
-            textProperty().addListener { _, _, value ->
-                if (!suppressEditorUpdates) {
-                    collectionPresentation.descriptionHeading = value.ifBlank { "ABILITY / DESCRIPTION" }
-                    persistCollectionPresentation()
-                    render()
-                }
-            }
-            installDoubleClickReset(this) {
-                collectionPresentation.descriptionHeading = "ABILITY / DESCRIPTION"
-                suppressEditorUpdates = true
-                text = collectionPresentation.descriptionHeading
-                suppressEditorUpdates = false
+        collectionSettingsPane = CollectionSettingsPane(
+            initial = collectionPresentation,
+            onPresentationChanged = { value ->
+                collectionPresentation = value
                 persistCollectionPresentation()
                 render()
-            }
-        }
-        collectionCopyright.apply {
-            isSelected = collectionPresentation.showArtistCopyright
-            selectedProperty().addListener { _, _, value ->
-                if (!suppressEditorUpdates) {
-                    collectionPresentation.showArtistCopyright = value
-                    persistCollectionPresentation()
-                    render()
-                }
-            }
-        }
-        form.children.add(row("Description label", collectionDescriptionLabel))
-        form.children.add(collectionCopyright)
+            },
+            onApplyDefaultTemplateToAll = { applyCollectionDefaultTemplateToAll() },
+            onApplySetNameToAll = { applyCurrentSetNameToAll() },
+            onNormalizeCollectorTotals = { normalizeCollectorTotals() }
+        )
+        form.children.add(collectionSettingsPane)
         form.children.add(helperLabel("These presentation options belong to the collection and apply to every card."))
 
         form.children.add(section("Card Metadata"))
@@ -1307,6 +1290,13 @@ class MainApp : Application() {
             selectedProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
         }
         form.children.add(imageBleedOverFrame)
+        imageBleedOpacity.tooltip = Tooltip("Per-card opacity for artwork that extends over the frame; multiplied by the collection bleed opacity.")
+        imageBleedOpacity.valueProperty().addListener { _, _, value ->
+            imageBleedOpacityValue.text = "%.0f%%".format(value.toDouble() * 100.0)
+            if (!suppressEditorUpdates) updateFromEditor()
+        }
+        installSliderReset(imageBleedOpacity, 1.0)
+        form.children.add(sliderRow("Bleed opacity", imageBleedOpacity, imageBleedOpacityValue, "%.0f%%"))
         form.children.add(helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×."))
 
         val cropActions = HBox(8.0).apply {
@@ -1880,6 +1870,60 @@ class MainApp : Application() {
         if (allowRender && currentIndex in visibleImages.indices) render()
     }
 
+    private fun chooseRecentCollectionOnStartup(stage: Stage) {
+        if (collectionRoot != null) return
+        val recent = RecentCatalogs.list()
+        if (recent.isEmpty()) return
+        val dialog = Dialog<Path?>().apply {
+            title = "Open recent collection"
+            headerText = "Choose a recent collection, or browse for another directory."
+            dialogPane.buttonTypes.addAll(ButtonType("Browse…"), ButtonType.CANCEL)
+        }
+        val choice = ComboBox<Path>().apply {
+            items.setAll(recent)
+            value = recent.firstOrNull()
+            maxWidth = Double.MAX_VALUE
+        }
+        dialog.dialogPane.content = VBox(8.0, Label("Recent collections"), choice)
+        dialog.setResultConverter { button ->
+            if (button.buttonData == ButtonType.CANCEL.buttonData) null else choice.value
+        }
+        val selected = dialog.showAndWait().orElse(null)
+        if (selected != null) openCollectionPath(selected) else if (dialog.result == null) {
+            // Cancel means keep the empty workspace; Browse is available from the toolbar.
+        }
+    }
+
+    private fun collectionActions(): CollectionEditorActions? = database?.let { db ->
+        CollectionEditorActions(db) { allImages.toList() }
+    }
+
+    private fun applyCollectionDefaultTemplateToAll() {
+        val result = collectionActions()?.applyDefaultTemplateToAll() ?: return
+        cardDataCache.clear()
+        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        if (currentIndex in visibleImages.indices) select(currentIndex)
+        statusBarLabel.text = "Collection default template applied to ${result.changedCards} card(s)."
+    }
+
+    private fun applyCurrentSetNameToAll() {
+        val setName = currentData.setName.trim()
+        if (setName.isBlank()) { statusBarLabel.text = "Enter a set name on the selected card first."; return }
+        val result = collectionActions()?.applySetNameToAll(setName) ?: return
+        cardDataCache.clear()
+        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        if (currentIndex in visibleImages.indices) select(currentIndex)
+        statusBarLabel.text = "Set name applied to ${result.changedCards} card(s)."
+    }
+
+    private fun normalizeCollectorTotals() {
+        val result = collectionActions()?.normalizeCollectorTotals() ?: return
+        cardDataCache.clear()
+        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        if (currentIndex in visibleImages.indices) select(currentIndex)
+        statusBarLabel.text = "Collector-number totals fixed on ${result.changedCards} card(s)."
+    }
+
     private fun openDirectory(stage: Stage) {
         val directory = DirectoryChooser().apply { title = "Choose Image Directory" }.showDialog(stage)?.toPath() ?: return
         openCollectionPath(directory)
@@ -1911,10 +1955,10 @@ class MainApp : Application() {
                 try {
                     collectionTemplateChoice.items.setAll(templates)
                     collectionTemplateChoice.value = templates.firstOrNull { it.name == collectionDefaultTemplateName } ?: templates.firstOrNull()
-                    collectionDescriptionLabel.text = collectionPresentation.descriptionHeading
-                    collectionCopyright.isSelected = collectionPresentation.showArtistCopyright
+                    if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setPresentation(collectionPresentation)
                     refreshCollectionChoices()
                 } finally { suppressEditorUpdates = false }
+                RecentCatalogs.record(normalized)
                 startCollectionWatcher(normalized)
                 allImages.clear()
                 allImages.addAll(task.value.images)
@@ -2339,6 +2383,8 @@ class MainApp : Application() {
             templateOverride.isSelected = currentData.templateName.isNotBlank()
             imageMode.value = currentData.imageMode
             imageBleedOverFrame.isSelected = currentData.imageBleedOverFrame
+            imageBleedOpacity.value = currentData.imageBleedOpacity.coerceIn(0.0, 1.0)
+            imageBleedOpacityValue.text = "%.0f%%".format(imageBleedOpacity.value * 100.0)
             zoom.value = currentData.imageZoom.coerceIn(0.1, 4.0)
             populateColorPickersFromData()
             border.valueFactory.value = currentData.borderWidth
@@ -2537,6 +2583,7 @@ class MainApp : Application() {
         currentData.templateName = if (templateOverride.isSelected) (templateChoice.value?.name ?: currentData.templateName) else ""
         currentData.imageMode = imageMode.value ?: currentData.imageMode
         currentData.imageBleedOverFrame = imageBleedOverFrame.isSelected
+        currentData.imageBleedOpacity = imageBleedOpacity.value.coerceIn(0.0, 1.0)
         currentData.imageZoom = zoom.value
         currentData.imageOffsetX = currentActualPanX()
         currentData.imageOffsetY = currentActualPanY()
@@ -3260,8 +3307,7 @@ class MainApp : Application() {
         suppressEditorUpdates = true
         try {
             fields.values.forEach { it.clear() }
-            collectionDescriptionLabel.text = collectionPresentation.descriptionHeading
-            collectionCopyright.isSelected = collectionPresentation.showArtistCopyright
+            if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setPresentation(collectionPresentation)
             description.clear()
             flavor.clear()
             statusChoice.value = null
@@ -3270,6 +3316,8 @@ class MainApp : Application() {
             collectionTemplateChoice.value = templates.firstOrNull { it.name == collectionDefaultTemplateName } ?: templates.firstOrNull()
             templateOverride.isSelected = false
             imageMode.value = null
+            imageBleedOpacity.value = 1.0
+            imageBleedOpacityValue.text = "100%"
             backgroundOverlayChoice.value = overlays.firstOrNull { it.path == null } ?: overlays.firstOrNull()
             overlayPlacementChoice.value = OverlayPlacement.FRAMES_ONLY
             zoom.value = 1.0
