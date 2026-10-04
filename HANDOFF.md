@@ -61,7 +61,7 @@ UI/rendering behavior still requires desktop smoke testing.
 After the hardening pass:
 
 1. Browser orchestration is now split across `BrowserSelectionCoordinator`, `BrowserTileFactory`, and `BrowserPreviewCoordinator`. Prefer stabilizing this boundary before any deeper browser rewrite; the next structural target is remaining preview/export execution orchestration.
-2. Extract remaining preview/export execution orchestration where it reduces duplicated state or coupling.
+2. Export execution now lives in `ExportCoordinator`; the next structural work should focus on remaining preview orchestration only where it meaningfully reduces `MainApp` coupling.
 3. Continue routing persistence/undo/collection behavior through the existing helper classes rather than reintroducing state in `MainApp`.
 
 ## Important semantics to preserve
