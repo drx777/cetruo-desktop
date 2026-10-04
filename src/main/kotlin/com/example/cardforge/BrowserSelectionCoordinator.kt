@@ -11,6 +11,18 @@ import java.nio.file.Path
  * Card/image state remains owned by MainApp; this class only maps a selected Path to the
  * appropriate JavaFX list row and keeps scrolling behavior consistent between both modes.
  */
+object BrowserSelectionMapping {
+    fun rowForIndex(index: Int, grid: Boolean, columns: Int): Int {
+        if (index < 0) return -1
+        return if (grid) index / columns.coerceAtLeast(1) else index
+    }
+
+    fun firstIndexForRow(row: Int, grid: Boolean, columns: Int): Int {
+        if (row < 0) return -1
+        return if (grid) row * columns.coerceAtLeast(1) else row
+    }
+}
+
 class BrowserSelectionCoordinator<G>(
     private val listView: ListView<Path>,
     private val gridView: ListView<G>,
@@ -33,7 +45,7 @@ class BrowserSelectionCoordinator<G>(
         if (index !in paths.indices) return
 
         val view = activeList()
-        val row = if (isGridMode()) index / columns().coerceAtLeast(1) else index
+        val row = BrowserSelectionMapping.rowForIndex(index, isGridMode(), columns())
         Platform.runLater {
             if (force) {
                 view.scrollTo(row)
@@ -86,7 +98,7 @@ class BrowserSelectionCoordinator<G>(
             listView.selectionModel.select(path)
             listView.focusModel.focus(index)
         } else {
-            val row = index / columns().coerceAtLeast(1)
+            val row = BrowserSelectionMapping.rowForIndex(index, grid = true, columns = columns())
             gridView.selectionModel.select(row)
             gridView.focusModel.focus(row)
         }
