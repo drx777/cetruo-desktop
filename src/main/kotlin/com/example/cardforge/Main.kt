@@ -1969,9 +1969,16 @@ class MainApp : Application() {
                 templateImage = null
                 renderedCard = null
                 previewHost.children.clear()
-                buildFolderTree(normalized, normalized)
-                rebuildBrowserImmediately()
-                if (visibleImages.isNotEmpty()) select(0) else clearEditorForNoSelection()
+                StartupProfiler.measure("folder tree build") {
+                    buildFolderTree(normalized, normalized)
+                }
+                StartupProfiler.measure("browser rebuild/sort", detail = { "${visibleImages.size} visible" }) {
+                    rebuildBrowserImmediately()
+                    visibleImages.size
+                }
+                StartupProfiler.measure("first card select/render") {
+                    if (visibleImages.isNotEmpty()) select(0) else clearEditorForNoSelection()
+                }
                 val nestedNote = if (nestedCollectionRoots.isNotEmpty()) "; ${nestedCollectionRoots.size} nested collection(s) available" else ""
                 statusBarLabel.text = "Collection: ${normalized.fileName} • ${allImages.size} images • DB ${newDatabase.path.fileName}$nestedNote"
             } catch (e: Exception) {
@@ -2065,12 +2072,32 @@ class MainApp : Application() {
     private fun cardDataForSorting(path: Path): CardData {
         val normalized = path.toAbsolutePath().normalize()
         cardDataCache[normalized]?.let { return it }
-        val data = runCatching {
-            database?.dataSnapshotForPath(normalized) ?: newCardDefaults(normalized)
-        }.getOrDefault(newCardDefaults(normalized))
-        cardDataCache[normalized] = data.copy()
-        return data
+        val saved = runCatching { database?.dataSnapshotForPath(normalized) }.getOrNull()
+        if (saved != null) {
+            cardDataCache[normalized] = saved.copy()
+            return saved
+        }
+        // Browser sorting must stay metadata-only. newCardDefaults() intentionally performs
+        // image-derived scheme analysis, which is far too expensive to run for every unsaved
+        // image while sorting on the JavaFX application thread.
+        return lightweightCardData(normalized)
     }
+
+    private fun lightweightCardData(path: Path): CardData = CardData(
+        assetId = "",
+        status = CardStatus.NEW,
+        title = path.fileName?.toString()?.substringBeforeLast('.', path.fileName.toString()) ?: "",
+        cost = "",
+        typeLine = "",
+        rarity = "",
+        description = "",
+        flavorText = "",
+        artist = "",
+        setName = "",
+        collectorNumber = "",
+        stats = "",
+        templateName = ""
+    )
 
     private fun lastWord(value: String): String = value.trim().split(Regex("\\s+")).lastOrNull().orEmpty()
 
@@ -2247,7 +2274,7 @@ class MainApp : Application() {
         val relative = relativePath(path)
         val cached = snapshot[relative]
         if (cached != null) return cached
-        val data = database?.dataSnapshotForPath(path) ?: newCardDefaults(path).also { it.assetId = "" }
+        val data = database?.dataSnapshotForPath(path) ?: lightweightCardData(path)
         val json = runCatching { JsonSupport.mapper.writeValueAsString(data) }.getOrDefault("")
         val searchable = ("$relative ${path.fileName} ${data.assetId} ${data.status.name} $json").lowercase()
         if (snapshot === searchIndex) searchIndex[relative] = searchable
