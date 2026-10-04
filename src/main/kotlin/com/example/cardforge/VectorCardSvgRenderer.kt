@@ -177,7 +177,7 @@ object VectorCardSvgRenderer {
         val artUri = artworkHref ?: imageDataUri(image)
         val imageLayout = CardRenderer.imageLayout(image, data, template)
         val palette = CardVisualSystem.palette(data)
-        val visual = template.visualStyle
+        val visual = template.visualStyleFor(data.rarity)
         val outerClipId = "card-outer-clip"
         val artClipId = "card-art-clip"
         val bleedClipId = "card-bleed-clip"
