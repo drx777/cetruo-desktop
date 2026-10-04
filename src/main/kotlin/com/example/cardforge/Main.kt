@@ -155,6 +155,7 @@ class MainApp : Application() {
     private lateinit var scene: Scene
     private lateinit var appRoot: BorderPane
     private val sourceImageInspector = SourceImageInspector(MainApp::class.java) { uiTheme == UiTheme.DARK }
+    private val exportCoordinator = ExportCoordinator()
     private var watchService: WatchService? = null
     private var watchThread: Thread? = null
     private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
@@ -2656,14 +2657,16 @@ class MainApp : Application() {
         try {
             loadTemplateAndOverlay()
             val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
-            SvgExporter.export(
-                image = image,
-                data = currentData,
-                template = template,
-                target = target,
-                templateImage = templateImage,
-                backgroundOverlay = backgroundOverlayImage,
-                collectionPresentation = collectionPresentation
+            exportCoordinator.exportSvg(
+                target,
+                ExportCardInput(
+                    image = image,
+                    data = currentData,
+                    template = template,
+                    templateImage = templateImage,
+                    backgroundOverlay = backgroundOverlayImage,
+                    collectionPresentation = collectionPresentation
+                )
             )
             database?.recordActivity(currentData.assetId, "EXPORT_SVG", target.toAbsolutePath().toString())
             markExported()
@@ -2690,16 +2693,17 @@ class MainApp : Application() {
         try {
             loadTemplateAndOverlay()
             val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
-            val png = ExportRenderer.pngBytes(
-                image = image,
-                data = currentData,
-                template = template,
-                templateImage = templateImage,
-                backgroundOverlay = backgroundOverlayImage,
-                collectionPresentation = collectionPresentation,
-                scale = 1.0
+            exportCoordinator.exportPng(
+                target,
+                ExportCardInput(
+                    image = image,
+                    data = currentData,
+                    template = template,
+                    templateImage = templateImage,
+                    backgroundOverlay = backgroundOverlayImage,
+                    collectionPresentation = collectionPresentation
+                )
             )
-            Files.write(target, png)
             database?.recordActivity(currentData.assetId, "EXPORT_PNG", target.toAbsolutePath().toString())
             markExported()
             saveCurrent(showStatus = false)
@@ -2724,37 +2728,26 @@ class MainApp : Application() {
         val options = ExportUi.promptPdfOptions(stage) { slider, resetValue ->
             installSliderReset(slider, resetValue)
         } ?: return
-        val plans = buildPdfPlans(paths, options)
+        val plans = exportCoordinator.planPdf(paths, options) { path -> pdfCardSpec(path) }
         statusBarLabel.text = "Exporting ${paths.size} card(s) to PDF at ${"%.0f".format(options.scale * 100)}%…"
-        val task = object : Task<Unit>() {
-            override fun call() {
-                PdfContactSheetExporter.export(target, plans) { path ->
-                    val future = CompletableFuture<ByteArray>()
-                    Platform.runLater {
-                        try { future.complete(renderCardPngForPdf(path)) }
-                        catch (t: Throwable) { future.completeExceptionally(t) }
-                    }
-                    future.get()
-                }
-            }
-        }
-        task.setOnSucceeded {
-            database?.recordActivity(currentData.assetId, "EXPORT_PDF", target.toAbsolutePath().toString())
-            statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} full card(s)"
-        }
-        task.setOnFailed { showError("Could not export PDF", task.exception ?: RuntimeException("Unknown PDF export error")) }
-        Thread(task, "card-forge-pdf-export").apply { isDaemon = true }.start()
+        exportCoordinator.exportPdfAsync(
+            target = target,
+            plans = plans,
+            renderPngOnFxThread = { path -> renderCardPngForPdf(path) },
+            onSucceeded = {
+                database?.recordActivity(currentData.assetId, "EXPORT_PDF", target.toAbsolutePath().toString())
+                statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} full card(s)"
+            },
+            onFailed = { error -> showError("Could not export PDF", error) }
+        )
     }
 
-    private fun buildPdfPlans(paths: List<Path>, options: PdfExportOptions): List<PdfContactSheetExporter.PagePlan> {
-        val cards = paths.mapNotNull { path ->
-            val data = savedDataForPath(path)
-            val template = templateForData(data) ?: return@mapNotNull null
-            val widthPt = (template.width / 10.0) * 72.0 / 25.4
-            val heightPt = (template.height / 10.0) * 72.0 / 25.4
-            PdfContactSheetExporter.CardSpec(path, widthPt, heightPt)
-        }
-        return PdfContactSheetExporter.planA4(cards, options.scale, options.marginMm, options.gapMm)
+    private fun pdfCardSpec(path: Path): PdfContactSheetExporter.CardSpec? {
+        val data = savedDataForPath(path)
+        val template = templateForData(data) ?: return null
+        val widthPt = (template.width / 10.0) * 72.0 / 25.4
+        val heightPt = (template.height / 10.0) * 72.0 / 25.4
+        return PdfContactSheetExporter.CardSpec(path, widthPt, heightPt)
     }
 
     private fun renderCardPngForPdf(path: Path): ByteArray {
