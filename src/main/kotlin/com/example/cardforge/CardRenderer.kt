@@ -4,6 +4,7 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Cursor
 import javafx.scene.control.Label
+import javafx.scene.control.OverrunStyle
 import javafx.scene.image.Image
 import javafx.scene.image.ImageView
 import javafx.scene.input.MouseButton
@@ -42,7 +43,7 @@ object CardRenderer {
         showCropGuides: Boolean = false
     ): Rendered {
         val palette = CardVisualSystem.palette(data)
-        val visual = template.visualStyle
+        val visual = template.visualStyleFor(data.rarity)
         val root = StackPane().apply {
             styleClass.add("card-rendered")
             style = "-fx-background-color: transparent;"
@@ -123,8 +124,12 @@ object CardRenderer {
         val typeBox=railBox(template.typeBox,data.backgroundColor,palette.outerFrame,visual,fgOpacity);position(typeBox,template.typeBox)
         val typeSize=CardVisualSystem.fitFontSize(data.typeLine,18.0,13.0,template.typeText.width,template.typeText.height,true)
         val typeLabel=label(data.typeLine,typeSize,true,data.darkTextColor);place(typeLabel,template.typeText)
-        val raritySize=CardVisualSystem.fitFontSize(data.rarity,15.0,11.5,template.rarityText.width,template.rarityText.height,true)
-        val rarityLabel=label("◆ ${data.rarity}",raritySize,true,palette.outerFrame);place(rarityLabel,template.rarityText);content.children.addAll(typeBox,typeLabel,rarityLabel)
+        val rarityDisplay="◆ ${data.rarity}"
+        val raritySize=CardVisualSystem.fitFontSize(rarityDisplay,15.0,9.5,template.rarityText.width,template.rarityText.height,true)
+        val rarityLabel=label(rarityDisplay,raritySize,true,palette.outerFrame).apply {
+            isWrapText=false
+            textOverrun=OverrunStyle.CLIP
+        };place(rarityLabel,template.rarityText);content.children.addAll(typeBox,typeLabel,rarityLabel)
 
         val descOpacity=(data.panelOpacity.coerceIn(0.0,1.0)*fgOpacity).coerceIn(0.0,1.0)
         val descPanel=descriptionPanel(template.descriptionBox,data.panelColor,palette.outerFrame,visual,descOpacity);position(descPanel,template.descriptionBox);content.children.add(descPanel)
