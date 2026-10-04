@@ -1160,6 +1160,7 @@ class MainApp : Application() {
             onApplySetNameToAll = { applyCurrentSetNameToAll() },
             onNormalizeCollectorTotals = { normalizeCollectorTotals() }
         )
+        collectionSettingsPane.setCardCount(allImages.size)
         form.children.add(collectionSettingsPane)
         form.children.add(helperLabel("These presentation options belong to the collection and apply to every card."))
 
@@ -1874,10 +1875,24 @@ class MainApp : Application() {
     }
 
     private fun applyCollectionDefaultTemplateToAll() {
+        val selected = templateChoice.value ?: currentTemplate() ?: run {
+            statusBarLabel.text = "Choose a card template first."
+            return
+        }
         if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
-        val result = collectionActions()?.applyDefaultTemplateToAll() ?: return
+
+        val result = collectionActions()?.applyTemplateToAll(selected.name) ?: return
+        collectionDefaultTemplateName = selected.name
+        suppressEditorUpdates = true
+        try {
+            collectionTemplateChoice.value = selected
+        } finally {
+            suppressEditorUpdates = false
+        }
+
         refreshAfterCollectionMutation()
-        statusBarLabel.text = "Collection default template applied to ${result.changedCards} saved card(s); unsaved cards already follow the collection default."
+        statusBarLabel.text =
+            "Template '${selected.name}' is now the collection default; cleared overrides on ${result.changedCards} saved card(s)."
     }
 
     private fun applyCurrentSetNameToAll() {
@@ -1952,6 +1967,7 @@ class MainApp : Application() {
                 startCollectionWatcher(normalized)
                 allImages.clear()
                 allImages.addAll(task.value.images)
+                if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
                 migrateLegacySidecars(newDatabase, allImages)
                 visibleImages.clear()
                 currentIndex = -1
@@ -3274,6 +3290,7 @@ class MainApp : Application() {
 
         allImages.clear()
         allImages.addAll(result.images)
+        if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
         nestedCollectionRoots = result.nestedCollections
         nestedCollectionsSkipped = nestedCollectionRoots.size
         if (changed) {
@@ -3458,6 +3475,7 @@ class MainApp : Application() {
         collectionRoot = null
         allImages.clear()
         visibleImages.clear()
+        if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(0)
         currentIndex = -1
         renderedCard = null
         undoManager.clear()
