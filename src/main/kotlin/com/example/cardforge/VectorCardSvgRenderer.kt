@@ -57,18 +57,12 @@ object VectorCardSvgRenderer {
     private fun descriptionPanel(rect: TemplateRect, stroke: String, opacity: Double): String =
         """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="url(#card-panel-depth)" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2" filter="url(#card-panel-shadow)"/>"""
 
-    private fun jewelPath(rect: TemplateRect, cut: Double, inset: Double = 0.0): String {
-        val x = rect.x + inset
-        val y = rect.y + inset
-        val w = (rect.width - inset * 2).coerceAtLeast(1.0)
-        val h = (rect.height - inset * 2).coerceAtLeast(1.0)
-        val c = (cut - inset / 2.0).coerceIn(2.0, minOf(w, h) / 3.0)
-        return "M${fmt(x+c)} ${fmt(y)} L${fmt(x+w-c)} ${fmt(y)} L${fmt(x+w)} ${fmt(y+c)} L${fmt(x+w)} ${fmt(y+h-c)} L${fmt(x+w-c)} ${fmt(y+h)} L${fmt(x+c)} ${fmt(y+h)} L${fmt(x)} ${fmt(y+h-c)} L${fmt(x)} ${fmt(y+c)} Z"
-    }
-
     private fun statsJewel(rect: TemplateRect, fill: String, stroke: String, visual: TemplateVisualStyle, opacity: Double): String {
-        val inner = jewelPath(rect, visual.statsJewelCut, visual.statsJewelInset)
-        return """<path d="${jewelPath(rect, visual.statsJewelCut)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2.2"/><path d="${inner}" fill="none" stroke="${esc(CardVisualSystem.lighten(stroke,0.22))}" stroke-width="0.9" opacity="0.62"/>"""
+        val inset = visual.statsJewelInset.coerceAtLeast(2.0)
+        val innerRadius = (rect.radius - inset).coerceAtLeast(1.0)
+        val innerWidth = (rect.width - inset * 2).coerceAtLeast(1.0)
+        val innerHeight = (rect.height - inset * 2).coerceAtLeast(1.0)
+        return """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2.2"/><rect x="${fmt(rect.x+inset)}" y="${fmt(rect.y+inset)}" width="${fmt(innerWidth)}" height="${fmt(innerHeight)}" rx="${fmt(innerRadius)}" ry="${fmt(innerRadius)}" fill="none" stroke="${esc(CardVisualSystem.lighten(stroke,0.22))}" stroke-width="0.9" opacity="0.62"/>"""
     }
 
     private val fontRenderContext = FontRenderContext(null, true, true)
