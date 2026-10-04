@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.example.cardforge"
-version = "0.14.3"
+version = "0.14.4"
 
 kotlin {
     jvmToolchain(21)
