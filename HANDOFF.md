@@ -32,6 +32,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+Browser selection index/row mapping is now covered independently of JavaFX virtualization; viewport/cell scrolling still requires desktop smoke testing.
+
 Watcher scan-cycle reconciliation is now isolated in `FileIdentityReconciler` and covered for hash-based rename/move recovery versus unrelated remove/add replacements.
 
 Regression coverage now also protects collection-wide template application semantics: every card gets an explicit template, uninitialized cards are initialized, unrelated metadata is preserved, and the collection default is updated.
