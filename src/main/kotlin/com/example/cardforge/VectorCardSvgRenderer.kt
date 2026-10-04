@@ -2,6 +2,9 @@ package com.example.cardforge
 
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.Image
+import java.awt.Font
+import java.awt.font.FontRenderContext
+import java.awt.geom.PathIterator
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.util.Base64
@@ -48,37 +51,88 @@ object VectorCardSvgRenderer {
     private fun rect(rect: TemplateRect, fill: String, stroke: String, strokeWidth: Double, opacity: Double = 1.0): String =
         """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0, 1.0))}" stroke="${esc(stroke)}" stroke-width="${fmt(strokeWidth)}"/>"""
 
-    private fun wrap(text: String, maxChars: Int): List<String> {
+    private val fontRenderContext = FontRenderContext(null, true, true)
+
+    private fun awtFont(size: Double, bold: Boolean, italic: Boolean): Font {
+        var style = Font.PLAIN
+        if (bold) style = style or Font.BOLD
+        if (italic) style = style or Font.ITALIC
+        return Font("Georgia", style, size.coerceAtLeast(1.0).toInt())
+            .deriveFont(size.toFloat())
+    }
+
+    private fun wrap(text: String, maxWidth: Double, font: Font): List<String> {
         if (text.isBlank()) return listOf("")
+        fun width(value: String): Double =
+            font.getStringBounds(value, fontRenderContext).width
+
         return text.lines().flatMap { paragraph ->
             if (paragraph.isBlank()) return@flatMap listOf("")
             val words = paragraph.trim().split(Regex("\\s+"))
             val lines = mutableListOf<String>()
             var current = ""
             words.forEach { word ->
-                val candidate = if (current.isBlank()) word else "${current} ${word}"
-                if (candidate.length <= maxChars || current.isBlank()) current = candidate
-                else { lines += current; current = word }
+                val candidate = if (current.isBlank()) word else "$current $word"
+                if (current.isBlank() || width(candidate) <= maxWidth) {
+                    current = candidate
+                } else {
+                    lines += current
+                    current = word
+                }
             }
             if (current.isNotEmpty()) lines += current
             lines
         }
     }
 
-    private fun textBlock(text: String, spec: TemplateText, size: Double, color: String, bold: Boolean = false, italic: Boolean = false): String {
-        val maxChars = max(1, (spec.width / (size * 0.56)).toInt())
-        val lines = wrap(text, maxChars)
+    private fun shapePath(shape: java.awt.Shape): String {
+        val iterator = shape.getPathIterator(null)
+        val coords = DoubleArray(6)
+        val out = StringBuilder()
+        while (!iterator.isDone) {
+            when (iterator.currentSegment(coords)) {
+                PathIterator.SEG_MOVETO -> out.append("M").append(fmt(coords[0])).append(" ").append(fmt(coords[1]))
+                PathIterator.SEG_LINETO -> out.append("L").append(fmt(coords[0])).append(" ").append(fmt(coords[1]))
+                PathIterator.SEG_QUADTO -> out.append("Q")
+                    .append(fmt(coords[0])).append(" ").append(fmt(coords[1])).append(" ")
+                    .append(fmt(coords[2])).append(" ").append(fmt(coords[3]))
+                PathIterator.SEG_CUBICTO -> out.append("C")
+                    .append(fmt(coords[0])).append(" ").append(fmt(coords[1])).append(" ")
+                    .append(fmt(coords[2])).append(" ").append(fmt(coords[3])).append(" ")
+                    .append(fmt(coords[4])).append(" ").append(fmt(coords[5]))
+                PathIterator.SEG_CLOSE -> out.append("Z")
+            }
+            iterator.next()
+        }
+        return out.toString()
+    }
+
+    private fun textBlock(
+        text: String,
+        spec: TemplateText,
+        size: Double,
+        color: String,
+        bold: Boolean = false,
+        italic: Boolean = false
+    ): String {
+        val font = awtFont(size, bold, italic)
+        val lines = wrap(text, spec.width, font)
         val lineHeight = size * 1.16
         val blockHeight = lines.size * lineHeight
         val firstBaseline = spec.y + (spec.height - blockHeight) / 2.0 + size
-        val anchor = when (spec.align.uppercase()) { "CENTER" -> "middle"; "RIGHT" -> "end"; else -> "start" }
-        val x = when (spec.align.uppercase()) { "CENTER" -> spec.x + spec.width / 2.0; "RIGHT" -> spec.x + spec.width; else -> spec.x }
-        val weight = if (bold) "bold" else "normal"
-        val style = if (italic) "italic" else "normal"
-        val tspans = lines.mapIndexed { index, line ->
-            """<tspan x="${fmt(x)}" y="${fmt(firstBaseline + index * lineHeight)}">${esc(line)}</tspan>"""
+        return lines.mapIndexedNotNull { index, line ->
+            if (line.isEmpty()) return@mapIndexedNotNull null
+            val glyphs = font.createGlyphVector(fontRenderContext, line)
+            val bounds = glyphs.visualBounds
+            val x = when (spec.align.uppercase()) {
+                "CENTER" -> spec.x + (spec.width - bounds.width) / 2.0 - bounds.x
+                "RIGHT" -> spec.x + spec.width - bounds.width - bounds.x
+                else -> spec.x - bounds.x
+            }
+            val y = firstBaseline + index * lineHeight
+            val shape = glyphs.getOutline(x.toFloat(), y.toFloat())
+            """<path d="${shapePath(shape)}" fill="${esc(color)}"/>"""
         }.joinToString("")
-        return """<text font-family="Georgia,serif" font-size="${fmt(size)}" font-weight="${weight}" font-style="${style}" fill="${esc(color)}" text-anchor="${anchor}">${tspans}</text>"""
     }
 
     fun svgFor(
