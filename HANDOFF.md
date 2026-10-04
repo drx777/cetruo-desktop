@@ -12,6 +12,7 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Recently completed
 
+- Borderless one-card-per-page PDF export with card-sized pages and no surrounding page margin.
 - Startup performance fix: browser sorting no longer decodes source JPEGs on the JavaFX application thread.
 - Recent-catalog chooser and collection card/image count.
 - Collection-level bleed opacity and foreground opacity plus per-card bleed opacity.

@@ -4,7 +4,6 @@ Current follow-up work for the 0.14.x line.
 
 ## UX / browser
 
-- Add a PDF export mode with one card per page and no white page frame/margin around the card.
 
 ## Regression verification
 
@@ -25,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Borderless one-card-per-page PDF export added alongside the existing A4 contact-sheet PDF mode.
 - Browser preview cache validity now has regression coverage for source metadata and rendered-card signature changes.
 - Browser list/grid index-to-row selection mapping now has regression coverage, including zero-column safety.
 - Filesystem watcher identity reconciliation now has deterministic scan-cycle regression coverage for rename/move recovery and unrelated replacements.

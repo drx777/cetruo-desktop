@@ -23,6 +23,23 @@ object PdfContactSheetExporter {
     private const val DEFAULT_GAP_MM = 3.0
     private const val PT_PER_MM = 72.0 / 25.4
 
+    fun planSingleCardPages(cards: List<CardSpec>): List<PagePlan> =
+        cards.map { card ->
+            val page = PDRectangle(card.widthPt.toFloat(), card.heightPt.toFloat())
+            PagePlan(
+                slots = listOf(
+                    Slot(
+                        card = card,
+                        x = 0.0,
+                        y = 0.0,
+                        widthPt = card.widthPt,
+                        heightPt = card.heightPt
+                    )
+                ),
+                pageSize = page
+            )
+        }
+
     fun planA4(
         cards: List<CardSpec>,
         scale: Double = 1.0,

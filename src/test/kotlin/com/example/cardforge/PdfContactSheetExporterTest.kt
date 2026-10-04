@@ -44,4 +44,37 @@ class PdfContactSheetExporterTest {
         )
         assertEquals(2, pages.size)
     }
+    @Test
+    fun singleCardPagesUseExactCardDimensionsWithoutMargins() {
+        val first = PdfContactSheetExporter.CardSpec(Paths.get("first.png"), 180.0, 252.0)
+        val second = PdfContactSheetExporter.CardSpec(Paths.get("second.png"), 200.0, 280.0)
+
+        val pages = PdfContactSheetExporter.planSingleCardPages(listOf(first, second))
+
+        assertEquals(2, pages.size)
+
+        val firstPage = pages[0]
+        assertEquals(180f, firstPage.pageSize.width)
+        assertEquals(252f, firstPage.pageSize.height)
+        assertEquals(1, firstPage.slots.size)
+        assertEquals(0.0, firstPage.slots[0].x)
+        assertEquals(0.0, firstPage.slots[0].y)
+        assertEquals(180.0, firstPage.slots[0].widthPt)
+        assertEquals(252.0, firstPage.slots[0].heightPt)
+
+        val secondPage = pages[1]
+        assertEquals(200f, secondPage.pageSize.width)
+        assertEquals(280f, secondPage.pageSize.height)
+        assertEquals(1, secondPage.slots.size)
+        assertEquals(0.0, secondPage.slots[0].x)
+        assertEquals(0.0, secondPage.slots[0].y)
+        assertEquals(200.0, secondPage.slots[0].widthPt)
+        assertEquals(280.0, secondPage.slots[0].heightPt)
+    }
+
+    @Test
+    fun singleCardPagesReturnEmptyForNoCards() {
+        assertTrue(PdfContactSheetExporter.planSingleCardPages(emptyList()).isEmpty())
+    }
+
 }
