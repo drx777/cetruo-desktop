@@ -19,7 +19,7 @@ Kotlin + JavaFX desktop app for creating collectible-card layouts from a directo
 
 - Each selected collection gets its own `.cardforge.sqlite`.
 - Stable UUID-style asset IDs are independent of filenames.
-- Sidecars remain portable as `image.ext.card.json` files.
+- Sidecars are never written automatically; **Share sidecar** explicitly creates a portable `image.ext.card.json` file when needed.
 - Saves record revisions and activity history.
 - Switching cards, collections, and closing the app save the active card first.
 - Catalog/sidecar conflicts are resolved interactively.
@@ -46,7 +46,7 @@ Light schemes are listed before dark schemes and show a palette preview. `SCHEME
 - JSON geometry + paired SVG base files live under `templates/`.
 - SVG decorative overlays live under `overlays/`.
 - Overlay placement can be Frames Only or Over Content.
-- Templates are selectable per collection, with optional per-card overrides.
+- Templates are selectable per collection, with optional per-card overrides. A collection action clears all per-card overrides so every card follows the collection default.
 
 ## Export and contact sheets
 
@@ -54,6 +54,14 @@ Light schemes are listed before dark schemes and show a palette preview. `SCHEME
 - SVG export is a self-contained rendered-card SVG.
 - A4 contact-sheet PDF keeps cards at physical card size by default, with optional per-export scale, margin, and gap controls; compatible dimensions are grouped and A4 orientation is chosen for better packing.
 - The application also has a paged in-app contact-sheet viewer using the same canonical card previews. Browser view/previews use icon toggles instead of mode dropdowns.
+
+## Collection presentation
+
+- Collection-scoped bleed opacity controls only artwork outside the normal image aperture.
+- Collection foreground opacity controls title/type/description/P-T surface fills while borders and text remain crisp.
+- Description background opacity remains a per-card control and composes with collection foreground opacity.
+- Set name can be applied collection-wide and collector-number totals can be normalized by set membership.
+- Startup offers up to the five most recently opened catalogs.
 
 ## Editor UX
 
