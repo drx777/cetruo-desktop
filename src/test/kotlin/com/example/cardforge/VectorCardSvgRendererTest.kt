@@ -82,4 +82,27 @@ class VectorCardSvgRendererTest {
         assertTrue(svg.contains("""href="$href""""))
         assertTrue(svg.contains("""xlink:href="$href""""))
     }
+    @Test
+    fun rarityControlsOuterFrameAndStatsUseJewelGeometry() {
+        val svg = VectorCardSvgRenderer.svgFor(
+            image = image(),
+            data = CardData(rarity = "Rare"),
+            template = template(),
+            collectionPresentation = CollectionPresentation(),
+            artworkHref = "file:/tmp/art.png"
+        )
+
+        assertTrue(svg.contains("""stroke="#D6B45A""""))
+        assertTrue(svg.contains("card-background-material"))
+        assertTrue(svg.contains("card-panel-depth"))
+        assertTrue(svg.contains("""<path d="M"""))
+    }
+
+    @Test
+    fun templateVisualStyleRemainsOptionalForExistingTemplateJson() {
+        val visual = template().visualStyle
+        assertTrue(visual.rarityFrames)
+        assertTrue(visual.outerFrameInset > 0.0)
+        assertTrue(visual.statsJewelCut > 0.0)
+    }
 }
