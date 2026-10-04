@@ -2398,23 +2398,27 @@ class MainApp : Application() {
             ignoreNextUndoCapture = false
         }
         val normalizedCurrentPath = currentPath.toAbsolutePath().normalize()
+        val editorChanged = beforeSignature != afterSignature
         cardStore.put(normalizedCurrentPath, currentData)
-        // Card-preview thumbnails depend on editor state as well as source-file mtime.
-        // Invalidate the rendered preview immediately so list/grid/contact-sheet views
-        // cannot keep showing a stale card while the editor contains newer values.
-        browserPreviews.removeCard(normalizedCurrentPath)
         searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
 
-        // Keep rendered browser previews and card-name labels current without rebuilding
-        // cells for every keystroke. Only visible cells are recreated after the short pause.
-        thumbnailRefreshPause.stop()
-        thumbnailRefreshPause.setOnFinished {
-            if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalizedCurrentPath) {
-                imageList.refresh()
-                gridList.refresh()
+        if (editorChanged) {
+            // Card-preview thumbnails depend on editor state as well as source-file mtime.
+            // Only invalidate/rebuild browser cells when the editor actually changed data.
+            // Selection-triggered autosave must not evict otherwise valid thumbnails.
+            browserPreviews.removeCard(normalizedCurrentPath)
+
+            // Keep rendered browser previews and card-name labels current without rebuilding
+            // cells for every keystroke. Only visible cells are recreated after the short pause.
+            thumbnailRefreshPause.stop()
+            thumbnailRefreshPause.setOnFinished {
+                if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalizedCurrentPath) {
+                    imageList.refresh()
+                    gridList.refresh()
+                }
             }
+            thumbnailRefreshPause.playFromStart()
         }
-        thumbnailRefreshPause.playFromStart()
 
         if (renderPreview) render()
     }
@@ -2592,7 +2596,9 @@ class MainApp : Application() {
                     searchIndex.putAll(db.searchIndex())
                 }
             } else {
-                browserPreviews.removeCard(path.toAbsolutePath().normalize())
+                if (result.changed) {
+                    browserPreviews.removeCard(path.toAbsolutePath().normalize())
+                }
                 searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
                 cardStore.put(path, currentData)
             }
