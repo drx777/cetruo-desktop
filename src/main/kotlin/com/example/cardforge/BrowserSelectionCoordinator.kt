@@ -95,11 +95,14 @@ class BrowserSelectionCoordinator<G>(
         if (index !in paths.indices) return
 
         if (!isGridMode()) {
-            listView.selectionModel.select(path)
+            // The browser tiles render selection themselves. Changing the ListView selection
+            // causes JavaFX to repaint/recreate both old/new cells and can flash thumbnails.
+            // Keep only keyboard focus/viewport synchronization here.
+            listView.selectionModel.clearSelection()
             listView.focusModel.focus(index)
         } else {
             val row = BrowserSelectionMapping.rowForIndex(index, grid = true, columns = columns())
-            gridView.selectionModel.select(row)
+            gridView.selectionModel.clearSelection()
             gridView.focusModel.focus(row)
         }
         scrollToPath(path, forceScroll)
