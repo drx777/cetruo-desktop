@@ -162,7 +162,7 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
         detail = { "${it.size} entries" }
     ) {
         connection.createStatement().use { s ->
-            s.executeQuery("SELECT relative_path,asset_id,status,current_json FROM assets").use { r ->
+            s.executeQuery("SELECT relative_path,asset_id,status,current_json FROM assets WHERE relative_path NOT LIKE '.cardforge-missing/%'").use { r ->
                 buildMap {
                     while (r.next()) {
                         val p = r.getString(1)
