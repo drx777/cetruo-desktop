@@ -9,7 +9,7 @@ Current follow-up work for the 0.14.x line.
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits; cache validity rules are now covered automatically.
 - Verify the paged in-app contact sheet matches the live card preview.
-- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners; PDF page planning is now covered automatically.
+- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, text wrapping, overlays, and transparent pixels outside the card silhouette/corners; SVG/PDF now use the shared vector renderer and PDF page planning is covered automatically.
 - Verify list/grid viewport scrolling behavior with virtualized JavaFX cells; list/grid index-to-row mapping is now covered automatically.
 - Verify initial window sizing and macOS Dock/window icons in the packaged app; sizing math and required icon/CSS resources are now covered automatically.
 - Verify auto-save on card switch, collection switch, app close, and Cmd/Ctrl+S; save-success/failure gating is now covered automatically.
@@ -24,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- SVG and PDF export now use a shared vector card representation; Card Forge text/shapes/template/overlay remain vector while source artwork stays raster.
 - Initial window sizing math and packaged UI resource presence now have regression coverage.
 - PDF page planning now has expanded regression coverage for scale/margin/gap clamping, orientation choice, mixed-size grouping, and card preservation.
 - Explicit Save / Cmd/Ctrl+S now bypasses the thumbnail edit debounce and refreshes only the active card thumbnail immediately.
