@@ -103,6 +103,60 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
     fun assetRelativePath(assetId: String): String? = findAssetById(assetId)?.relativePath
     fun assetIdForPath(image: Path): String? = findAssetByPath(relative(image))?.assetId
 
+    /**
+     * Detach a catalog asset from a filesystem path that disappeared. The row and its history
+     * are retained under an internal tombstone path so a different file later created with the
+     * same filename cannot inherit the deleted card's metadata.
+     */
+    fun markMissing(image: Path): String? {
+        val relative = relative(image)
+        val record = findAssetByPath(relative) ?: return null
+        val tombstone = ".cardforge-missing/${record.assetId}/${relative.replace('\\', '/')}"
+        connection.prepareStatement("UPDATE assets SET relative_path=?,last_seen_at=? WHERE asset_id=?").use {
+            it.setString(1, tombstone)
+            it.setString(2, Instant.now().toString())
+            it.setString(3, record.assetId)
+            it.executeUpdate()
+        }
+        recordActivity(record.assetId, "MISSING", relative)
+        return record.assetId
+    }
+
+    /**
+     * Reattach a newly discovered file to a missing asset when the file content hash matches.
+     * This preserves identity across moves/renames while avoiding accidental metadata transfer
+     * when an unrelated file reuses an old filename.
+     */
+    fun reconcileAdded(image: Path): String? {
+        val absolute = image.toAbsolutePath().normalize()
+        val relative = relative(absolute)
+        findAssetByPath(relative)?.let { return it.assetId }
+
+        val hash = sha256(absolute)
+        val missing = connection.prepareStatement(
+            "SELECT asset_id FROM assets WHERE sha256=? AND relative_path LIKE '.cardforge-missing/%' ORDER BY last_seen_at DESC LIMIT 1"
+        ).use { statement ->
+            statement.setString(1, hash)
+            statement.executeQuery().use { result -> if (result.next()) result.getString(1) else null }
+        } ?: return null
+
+        val size = runCatching { Files.size(absolute) }.getOrDefault(0L)
+        val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(0L)
+        connection.prepareStatement(
+            "UPDATE assets SET relative_path=?,file_size=?,modified_at=?,sha256=?,last_seen_at=? WHERE asset_id=?"
+        ).use {
+            it.setString(1, relative)
+            it.setLong(2, size)
+            it.setLong(3, modified)
+            it.setString(4, hash)
+            it.setString(5, Instant.now().toString())
+            it.setString(6, missing)
+            it.executeUpdate()
+        }
+        recordActivity(missing, "REATTACHED", relative)
+        return missing
+    }
+
     fun searchIndex(): Map<String,String> = StartupProfiler.measure(
         "sqlite search index",
         detail = { "${it.size} entries" }
