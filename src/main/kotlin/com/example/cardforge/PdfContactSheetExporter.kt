@@ -111,14 +111,14 @@ object PdfContactSheetExporter {
         val close = svg.lastIndexOf("</svg>")
         require(openEnd > start && close > openEnd) { "Card SVG root is incomplete" }
         val opening = svg.substring(start, openEnd + 1)
-        val viewBox = Regex("""viewBox\\s*=\\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+        val viewBox = Regex("""viewBox\s*=\s*["\']([^"\']+)["\']""", RegexOption.IGNORE_CASE)
             .find(opening)?.groupValues?.getOrNull(1)
             ?: error("Card SVG is missing viewBox")
         return SvgBody(viewBox, svg.substring(openEnd + 1, close))
     }
 
     private fun scopedSvgBody(body: String, prefix: String): String {
-        val ids = Regex("""\\bid=["']([^"']+)["']""").findAll(body)
+        val ids = Regex("""\bid=["\']([^"\']+)["\']""").findAll(body)
             .map { it.groupValues[1] }
             .toSet()
         var scoped = body
