@@ -2816,7 +2816,8 @@ class MainApp : Application() {
             image = sourceImage,
             data = data,
             template = template,
-            collectionPresentation = collectionPresentation
+            collectionPresentation = collectionPresentation,
+            artworkHref = path.toAbsolutePath().normalize().toUri().toString()
         )
     }
 
