@@ -15,11 +15,15 @@ class CardUndoManager(private val limit: Int = 100) {
         redo.clear()
     }
 
-    fun capture(previous: CardData, current: CardData) {
-        if (previous == current) return
+    fun record(previous: CardData) {
         undo.addLast(previous.copy())
         while (undo.size > limit) undo.removeFirst()
         redo.clear()
+    }
+
+    fun capture(previous: CardData, current: CardData) {
+        if (previous == current) return
+        record(previous)
     }
 
     fun undo(current: CardData): CardData? {
