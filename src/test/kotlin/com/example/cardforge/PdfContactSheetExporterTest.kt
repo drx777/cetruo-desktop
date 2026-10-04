@@ -163,27 +163,33 @@ class PdfContactSheetExporterTest {
     }
 
     @Test
-    fun vectorPdfAcceptsLegacyXlinkArtworkImages() {
-        val root = Files.createTempDirectory("cardforge-vector-pdf-xlink")
-        val target = root.resolve("vector-xlink.pdf")
+    fun vectorPdfPreservesExternalArtworkImageResource() {
+        val root = Files.createTempDirectory("cardforge-vector-pdf-artwork")
+        val target = root.resolve("vector-artwork.pdf")
+        val artwork = root.resolve("artwork.png")
         val spec = card("vector.svg", width = 180.0, height = 252.0)
         val plans = PdfContactSheetExporter.planSingleCardPages(listOf(spec))
-        val pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z0iAAAAAASUVORK5CYII="
+        val pixel = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z0iAAAAAASUVORK5CYII="
+        )
+        Files.write(artwork, pixel)
+        val href = artwork.toUri().toString()
 
         PdfContactSheetExporter.exportVector(target, plans) {
             """
                 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
                      width="180" height="252" viewBox="0 0 180 252">
                   <image x="0" y="0" width="180" height="252"
-                         href="data:image/png;base64,$pixel"
-                         xlink:href="data:image/png;base64,$pixel"/>
+                         href="$href"
+                         xlink:href="$href"/>
                 </svg>
             """.trimIndent()
         }
 
         Loader.loadPDF(target.toFile()).use { document ->
             assertEquals(1, document.numberOfPages)
+            val page = document.getPage(0)
+            assertTrue(page.resources.xObjectNames.any(), "Artwork should survive as a PDF image resource")
         }
     }
-
 }
