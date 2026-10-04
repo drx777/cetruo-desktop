@@ -81,8 +81,14 @@ object VectorCardSvgRenderer {
         return """<text font-family="Georgia,serif" font-size="${fmt(size)}" font-weight="${weight}" font-style="${style}" fill="${esc(color)}" text-anchor="${anchor}">${tspans}</text>"""
     }
 
-    fun svgFor(image: Image, data: CardData, template: CardTemplate, collectionPresentation: CollectionPresentation): String {
-        val artUri = imageDataUri(image)
+    fun svgFor(
+        image: Image,
+        data: CardData,
+        template: CardTemplate,
+        collectionPresentation: CollectionPresentation,
+        artworkHref: String? = null
+    ): String {
+        val artUri = artworkHref ?: imageDataUri(image)
         val imageLayout = CardRenderer.imageLayout(image, data, template)
         val outerClipId = "card-outer-clip"
         val artClipId = "card-art-clip"
