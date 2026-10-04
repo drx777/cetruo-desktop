@@ -50,8 +50,8 @@ class CardVisualStyleTest {
     }
     @Test
     fun templateCanSwapSvgAndVisualStyleByRarityTier() {
-        val baseVisual = TemplateVisualStyle(outerFrameInset = 8.0)
-        val mythicVisual = TemplateVisualStyle(outerFrameInset = 13.0, innerFrameInset = 22.0)
+        val baseVisual = TemplateVisualStyle(rarityFrames = false)
+        val mythicVisual = TemplateVisualStyle(materialDepth = 4.0, rarityFrames = true)
         val template = CardTemplate(
             name = "Variant test",
             svgFile = "base.svg",
