@@ -1,10 +1,16 @@
 package com.example.cardforge
 
+import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
+import org.apache.batik.transcoder.TranscoderInput
+import org.apache.batik.transcoder.TranscoderOutput
+import org.apache.fop.svg.PDFTranscoder
+import java.io.ByteArrayOutputStream
+import java.io.StringReader
 import java.nio.file.Path
 import kotlin.math.floor
 
@@ -93,6 +99,83 @@ object PdfContactSheetExporter {
                     )
                 }
             }
+    }
+
+
+    private data class SvgBody(val viewBox: String, val inner: String)
+
+    private fun svgBody(svg: String): SvgBody {
+        val start = svg.indexOf("<svg")
+        require(start >= 0) { "Card SVG has no <svg> root" }
+        val openEnd = svg.indexOf('>', start)
+        val close = svg.lastIndexOf("</svg>")
+        require(openEnd > start && close > openEnd) { "Card SVG root is incomplete" }
+        val opening = svg.substring(start, openEnd + 1)
+        val viewBox = Regex("""viewBox\\s*=\\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+            .find(opening)?.groupValues?.getOrNull(1)
+            ?: error("Card SVG is missing viewBox")
+        return SvgBody(viewBox, svg.substring(openEnd + 1, close))
+    }
+
+    private fun scopedSvgBody(body: String, prefix: String): String {
+        val ids = Regex("""\\bid=["']([^"']+)["']""").findAll(body)
+            .map { it.groupValues[1] }
+            .toSet()
+        var scoped = body
+        ids.forEach { id ->
+            val replacement = "${prefix}-${id}"
+            scoped = scoped
+                .replace("id=\"${id}\"", "id=\"${replacement}\"")
+                .replace("id='${id}'", "id='${replacement}'")
+                .replace("url(#${id})", "url(#${replacement})")
+                .replace("href=\"#${id}\"", "href=\"#${replacement}\"")
+                .replace("href='#${id}'", "href='#${replacement}'")
+                .replace("xlink:href=\"#${id}\"", "xlink:href=\"#${replacement}\"")
+                .replace("xlink:href='#${id}'", "xlink:href='#${replacement}'")
+        }
+        return scoped
+    }
+
+    private fun vectorPageSvg(plan: PagePlan, renderSvg: (Path) -> String): String {
+        val pageW = plan.pageSize.width.toDouble()
+        val pageH = plan.pageSize.height.toDouble()
+        val cards = plan.slots.mapIndexed { index, slot ->
+            val parsed = svgBody(renderSvg(slot.card.path))
+            val inner = scopedSvgBody(parsed.inner, "card${index}")
+            val yFromTop = pageH - slot.y - slot.heightPt
+            """
+                <svg x="${slot.x}" y="${yFromTop}" width="${slot.widthPt}" height="${slot.heightPt}"
+                     viewBox="${parsed.viewBox}" preserveAspectRatio="none">
+                  ${inner}
+                </svg>
+            """.trimIndent()
+        }.joinToString("\n")
+
+        return """
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                 width="${pageW}pt" height="${pageH}pt" viewBox="0 0 ${pageW} ${pageH}">
+              ${cards}
+            </svg>
+        """.trimIndent()
+    }
+
+    fun exportVector(target: Path, pages: List<PagePlan>, renderSvg: (Path) -> String) {
+        PDDocument().use { document ->
+            pages.forEach { plan ->
+                val pageSvg = vectorPageSvg(plan, renderSvg)
+                val pdfBytes = ByteArrayOutputStream().use { output ->
+                    PDFTranscoder().transcode(
+                        TranscoderInput(StringReader(pageSvg)),
+                        TranscoderOutput(output)
+                    )
+                    output.toByteArray()
+                }
+                Loader.loadPDF(pdfBytes).use { source ->
+                    source.pages.forEach { page -> document.importPage(page) }
+                }
+            }
+            document.save(target.toFile())
+        }
     }
 
     fun export(target: Path, pages: List<PagePlan>, renderPng: (Path) -> ByteArray) {
