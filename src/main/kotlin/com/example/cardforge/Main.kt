@@ -1298,7 +1298,7 @@ class MainApp : Application() {
         form.children.add(HBox(8.0).apply {
             children.add(Button("Use collection default for this card").apply {
                 maxWidth = Double.MAX_VALUE
-                setOnAction { templateOverride.isSelected = false }
+                setOnAction { useCollectionDefaultForCurrentCard() }
                 HBox.setHgrow(this, Priority.ALWAYS)
             })
             children.add(Button("Apply this template to all cards").apply {
@@ -1871,6 +1871,24 @@ class MainApp : Application() {
             templates.isEmpty() -> "No templates found in templates/."
             errors.isEmpty() -> "Loaded ${templates.size} card templates."
             else -> "Loaded ${templates.size} card templates; ${errors.size} invalid file(s) ignored."
+        }
+    }
+
+    private fun useCollectionDefaultForCurrentCard() {
+        if (currentIndex !in visibleImages.indices) return
+        val collectionTemplate = templates.firstOrNull { it.name == collectionDefaultTemplateName }
+            ?: collectionTemplateChoice.value
+            ?: return
+
+        // Clearing the override changes the persisted model/effective renderer template.
+        // Synchronize the visible per-card selector as well so the UI cannot display a
+        // stale custom template while the card is actually following the collection default.
+        templateOverride.isSelected = false
+        suppressEditorUpdates = true
+        try {
+            templateChoice.value = collectionTemplate
+        } finally {
+            suppressEditorUpdates = false
         }
     }
 
