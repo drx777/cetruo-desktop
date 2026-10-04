@@ -39,6 +39,11 @@ data class TemplateVisualStyle(
     val rarityFrames: Boolean = true
 )
 
+data class TemplateRarityVariant(
+    val svgFile: String? = null,
+    val visualStyle: TemplateVisualStyle? = null
+)
+
 data class CardTemplate(
     val name: String,
     val description: String = "",
@@ -59,8 +64,19 @@ data class CardTemplate(
     val footerText: TemplateText,
     val statsBox: TemplateRect,
     val statsText: TemplateText,
-    val visualStyle: TemplateVisualStyle = TemplateVisualStyle()
-)
+    val visualStyle: TemplateVisualStyle = TemplateVisualStyle(),
+    val rarityVariants: Map<String, TemplateRarityVariant> = emptyMap()
+) {
+    fun rarityVariant(rarity: String): TemplateRarityVariant? =
+        rarityVariants[CardVisualSystem.rarityTier(rarity).name]
+            ?: rarityVariants.entries.firstOrNull { it.key.equals(CardVisualSystem.rarityTier(rarity).name, ignoreCase = true) }?.value
+
+    fun visualStyleFor(rarity: String): TemplateVisualStyle =
+        rarityVariant(rarity)?.visualStyle ?: visualStyle
+
+    fun svgFileFor(rarity: String): String =
+        rarityVariant(rarity)?.svgFile?.takeIf { it.isNotBlank() } ?: svgFile
+}
 
 object TemplateRepository {
     const val DIRECTORY_NAME = "templates"
@@ -101,14 +117,15 @@ object TemplateRepository {
         return templates to errors
     }
 
-    fun resolveSvg(template: CardTemplate): Path? {
+    fun resolveSvg(template: CardTemplate, rarity: String? = null): Path? {
         val directory = candidates.firstOrNull { Files.isDirectory(it) } ?: return null
-        val path = directory.resolve(template.svgFile).normalize()
+        val svgFile = rarity?.let(template::svgFileFor) ?: template.svgFile
+        val path = directory.resolve(svgFile).normalize()
         return path.takeIf { it.startsWith(directory) && Files.isRegularFile(it) }
     }
 
-    fun rasterize(template: CardTemplate): Image? {
-        val path = resolveSvg(template) ?: return null
+    fun rasterize(template: CardTemplate, rarity: String? = null): Image? {
+        val path = resolveSvg(template, rarity) ?: return null
         val size = runCatching { Files.size(path) }.getOrDefault(-1L)
         val modified = runCatching { Files.getLastModifiedTime(path).toMillis() }.getOrDefault(-1L)
         imageCache[path]?.takeIf { it.size == size && it.modified == modified }?.let { return it.image }
