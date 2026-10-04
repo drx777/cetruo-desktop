@@ -4,7 +4,6 @@ data class CardData(
     var assetId: String = "",
     var status: CardStatus = CardStatus.NEW,
     var schemeName: String = "Classic",
-    // Blank means: use the collection default template. A non-blank value is a per-card override.
     var templateName: String = "",
     var title: String = "CARD NAME",
     var cost: String = "4",
@@ -21,8 +20,6 @@ data class CardData(
     var imageOffsetY: Double = 0.0,
     var imageMode: ImageMode = ImageMode.COVER,
     var imagePadColor: String = "#0A0D10",
-    // Optional borderless-art treatment. The duplicate bleed layer is clipped to the card
-    // boundary and can be faded independently from the normal artwork inside its frame.
     var imageBleedOverFrame: Boolean = false,
     var imageBleedOpacity: Double = 1.0,
     var backgroundOverlay: String = "",
@@ -43,12 +40,12 @@ data class CardData(
 )
 
 enum class ImageMode { COVER, CONTAIN, STRETCH }
-
 enum class OverlayPlacement { FRAMES_ONLY, OVER_CONTENT }
-
 enum class CardStatus { NEW, IN_PROGRESS, READY, EXPORTED, ARCHIVED }
 
 data class CollectionPresentation(
     var descriptionHeading: String = "ABILITY / DESCRIPTION",
-    var showArtistCopyright: Boolean = true
+    var showArtistCopyright: Boolean = true,
+    var bleedOpacity: Double = 1.0,
+    var foregroundOpacity: Double = 1.0
 )
