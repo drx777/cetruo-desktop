@@ -15,29 +15,29 @@ object CollectionBulkActions {
     )
 
     /**
-     * Make one template the collection default and clear every per-card template override.
-     * Uninitialized images need no row update: once initialized they inherit the collection
-     * default because their override is blank.
+     * Apply one template explicitly to every image/card in the collection.
+     *
+     * The selected template is also stored as the collection default so newly added cards start
+     * from the same layout. Existing cards receive an explicit templateName; we do not merely
+     * clear overrides and rely on default resolution because the user's action is "apply to all".
      */
     fun applyTemplateToAll(
         images: Collection<Path>,
         database: CollectionDatabase,
-        templateName: String
+        templateName: String,
+        initialize: (Path) -> CardData
     ): Result {
-        database.setDefaultTemplateName(templateName)
-        return applyCollectionDefaultTemplate(images, database)
-    }
+        val normalizedTemplate = templateName.trim()
+        require(normalizedTemplate.isNotBlank()) { "Template name must not be blank" }
 
-    /** Clear every per-card template override so all cards follow the collection default. */
-    private fun applyCollectionDefaultTemplate(
-        images: Collection<Path>,
-        database: CollectionDatabase
-    ): Result {
+        database.setDefaultTemplateName(normalizedTemplate)
+
         var changed = 0
         for (image in images) {
-            val data = database.dataSnapshotForPath(image) ?: continue
-            if (data.templateName.isBlank()) continue
-            data.templateName = ""
+            val data = database.dataSnapshotForPath(image) ?: initialize(image)
+            if (data.templateName != normalizedTemplate) {
+                data.templateName = normalizedTemplate
+            }
             if (database.save(image, data).changed) changed++
         }
         return Result(changed)
