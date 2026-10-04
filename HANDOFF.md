@@ -60,7 +60,7 @@ UI/rendering behavior still requires desktop smoke testing.
 
 After the hardening pass:
 
-1. Continue extracting browser/list-grid/thumbnail orchestration from `Main.kt`; selection/focus/scroll coordination is now in `BrowserSelectionCoordinator`, so the next browser boundary is tile/cell construction or thumbnail request/cache orchestration.
+1. Continue extracting browser/list-grid/thumbnail orchestration from `Main.kt`; selection/focus/scroll coordination is in `BrowserSelectionCoordinator`, cell/tile construction is in `BrowserTileFactory`, and the next browser boundary is thumbnail request/cache orchestration.
 2. Extract remaining preview/export execution orchestration where it reduces duplicated state or coupling.
 3. Continue routing persistence/undo/collection behavior through the existing helper classes rather than reintroducing state in `MainApp`.
 

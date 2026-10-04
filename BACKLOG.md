@@ -17,13 +17,14 @@ Current follow-up work for the 0.14.x line.
 ## Refactoring / maintenance
 
 - Continue reducing responsibilities in `Main.kt`.
-- Continue extracting browser/list-grid/thumbnail orchestration; selection/scroll coordination is now separated.
+- Continue extracting browser/list-grid/thumbnail orchestration; selection/scroll coordination and cell/tile construction are now separated.
 - Extract remaining preview/export execution orchestration where practical.
 - Continue using `CollectionCardStore`, `CardUndoManager`, `AppPlatform`, and collection action classes instead of duplicate state in `MainApp`.
 - Keep startup profiling available as opt-in diagnostics without adding normal-launch overhead.
 
 ## Completed recently
 
+- Browser list/grid cell and tile construction extracted from `Main.kt`.
 - Browser list/grid selection, focus, and scroll coordination extracted from `Main.kt`.
 - Collection/Layout template UX consolidated: duplicate bulk-template action removed, collection default vs per-card template semantics clarified, and card count retained.
 - Regression test foundation for undo, collector numbering, PDF planning, and asset identity reconciliation.

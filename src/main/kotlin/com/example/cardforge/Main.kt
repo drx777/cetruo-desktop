@@ -115,7 +115,6 @@ private enum class BrowserSort {
     FILE_NAME
 }
 
-private data class GridRow(val paths: List<Path>)
 
 class MainApp : Application() {
     private val supportedExtensions = setOf("jpg", "jpeg", "png", "gif")
@@ -208,6 +207,23 @@ class MainApp : Application() {
             isGridMode = { imageBrowserMode == ImageBrowserMode.THUMBNAILS },
             columns = { browserColumns.coerceAtLeast(1) },
             firstPathInGridRow = { row -> row.paths.firstOrNull() }
+        )
+    }
+    private val browserTiles by lazy {
+        BrowserTileFactory(
+            requestPreview = { path, callback -> requestBrowserPreview(path, browserPreviewMode, callback) },
+            cardTitle = { path -> cardDataForSorting(path).title },
+            relativeFolder = { path -> relativePath(path) },
+            currentPath = { imagesCurrentPath() },
+            contextMenuFor = { path -> imageContextMenu(path) },
+            onListSelected = { path ->
+                selectPath(path, scrollIntoView = false)
+                imageList.requestFocus()
+            },
+            onGridSelected = { path ->
+                selectPath(path, scrollIntoView = false)
+                gridList.requestFocus()
+            }
         )
     }
     private lateinit var browserStack: StackPane
@@ -583,7 +599,7 @@ class MainApp : Application() {
         view.styleClass.add("image-browser-list")
         view.style = "-fx-background-color:transparent;-fx-control-inner-background:transparent;-fx-selection-bar:transparent;-fx-selection-bar-non-focused:transparent;"
         view.isFocusTraversable = true
-        view.setCellFactory { browserListCell() }
+        view.setCellFactory { browserTiles.listCell() }
         view.focusedProperty().addListener { _, _, focused -> if (focused) refreshBrowserSelectionStyles() }
     }
 
@@ -592,7 +608,7 @@ class MainApp : Application() {
         view.styleClass.add("image-browser-grid")
         view.style = "-fx-background-color:transparent;-fx-control-inner-background:transparent;-fx-selection-bar:transparent;-fx-selection-bar-non-focused:transparent;"
         view.isFocusTraversable = true
-        view.setCellFactory { browserGridCell() }
+        view.setCellFactory { browserTiles.gridCell() }
         view.focusedProperty().addListener { _, _, focused -> if (focused) refreshBrowserSelectionStyles() }
         view.widthProperty().addListener { _, _, newWidth ->
             if (newWidth.toDouble() > 0.0) {
@@ -627,182 +643,6 @@ class MainApp : Application() {
             super.updateItem(item, empty)
             text = if (empty || item == null) null else item.label
             tooltip = if (empty || item == null) null else Tooltip(item.root.toString())
-        }
-    }
-
-    private fun browserListCell() = object : ListCell<Path>() {
-        override fun updateItem(item: Path?, empty: Boolean) {
-            super.updateItem(item, empty)
-            style = "-fx-background-color:transparent;-fx-control-inner-background:transparent;-fx-selection-bar:transparent;-fx-selection-bar-non-focused:transparent;-fx-padding:2px;"
-            graphic = if (empty || item == null) null else createListTile(item)
-            text = null
-            isFocusTraversable = false
-        }
-    }
-
-    private fun browserGridCell() = object : ListCell<GridRow>() {
-        override fun updateItem(item: GridRow?, empty: Boolean) {
-            super.updateItem(item, empty)
-            style = "-fx-background-color:transparent;-fx-control-inner-background:transparent;-fx-selection-bar:transparent;-fx-selection-bar-non-focused:transparent;-fx-padding:2px;"
-            graphic = if (empty || item == null) null else createThumbnailRow(item.paths)
-            text = null
-            isFocusTraversable = false
-        }
-    }
-
-    private fun createThumbnailRow(paths: List<Path>): HBox {
-        return HBox(10.0).apply {
-            alignment = Pos.TOP_LEFT
-            padding = Insets(2.0, 6.0, 6.0, 6.0)
-            prefHeight = 186.0
-            minHeight = 186.0
-            maxHeight = 186.0
-            isFillHeight = false
-            paths.forEach { path -> children.add(createImageTile(path, thumbnail = true)) }
-        }
-    }
-
-    private fun createListTile(path: Path): Node {
-        val tile = VBox(2.0).apply {
-            maxWidth = Double.MAX_VALUE
-            padding = Insets(6.0, 8.0, 6.0, 8.0)
-            cursor = Cursor.HAND
-            isFocusTraversable = false
-        }
-        val preview = ImageView().apply {
-            fitWidth = 64.0
-            fitHeight = 64.0
-            isPreserveRatio = true
-            isSmooth = true
-            isMouseTransparent = true
-        }
-        val previewBox = StackPane(preview).apply {
-            minWidth = 64.0; prefWidth = 64.0; maxWidth = 64.0
-            minHeight = 64.0; prefHeight = 64.0; maxHeight = 64.0
-            styleClass.add("browser-preview-box")
-        }
-        val loading = Label("…").apply {
-            styleClass.add("browser-loading")
-            isMouseTransparent = true
-        }
-        previewBox.children.add(loading)
-        requestBrowserPreview(path, browserPreviewMode) { image ->
-            preview.image = image
-            loading.text = if (image == null) "?" else ""
-            loading.isVisible = image == null
-            loading.isManaged = image == null
-        }
-        val cardName = Label(cardDataForSorting(path).title.ifBlank { "Untitled card" }).apply {
-            styleClass.add("browser-card-name")
-            style = "-fx-font-size:13px;-fx-font-weight:bold;"
-            textOverrun = javafx.scene.control.OverrunStyle.ELLIPSIS
-            maxWidth = Double.MAX_VALUE
-            isMouseTransparent = true
-        }
-        val name = Label(path.fileName.toString()).apply {
-            styleClass.add("browser-filename")
-            style = "-fx-font-size:11px;"
-            textOverrun = javafx.scene.control.OverrunStyle.ELLIPSIS
-            maxWidth = Double.MAX_VALUE
-            isMouseTransparent = true
-        }
-        val folder = Label(relativePath(path.parent ?: path)).apply {
-            styleClass.add("browser-folder")
-            style = "-fx-font-size:10px;"
-            textOverrun = javafx.scene.control.OverrunStyle.ELLIPSIS
-            maxWidth = Double.MAX_VALUE
-            isMouseTransparent = true
-        }
-        val text = VBox(2.0, cardName, name, folder).apply {
-            alignment = Pos.CENTER_LEFT
-            maxWidth = Double.MAX_VALUE
-        }
-        HBox.setHgrow(text, Priority.ALWAYS)
-        val row = HBox(10.0, previewBox, text).apply { alignment = Pos.CENTER_LEFT }
-        tile.children.add(row)
-        tile.setOnContextMenuRequested { event ->
-            imageContextMenu(path).show(tile, event.screenX, event.screenY)
-            event.consume()
-        }
-        tile.addEventFilter(MouseEvent.MOUSE_PRESSED) { event ->
-            if (event.button == MouseButton.PRIMARY) {
-                event.consume()
-                selectPath(path, scrollIntoView = false)
-                imageList.requestFocus()
-            }
-        }
-        tile.style = tileStyle(path == imagesCurrentPath(), hovered = false, thumbnail = false)
-        tile.setOnMouseEntered { tile.style = tileStyle(path == imagesCurrentPath(), true, false) }
-        tile.setOnMouseExited { tile.style = tileStyle(path == imagesCurrentPath(), false, false) }
-        return tile
-    }
-
-    private fun createImageTile(path: Path, thumbnail: Boolean): VBox {
-        val tileWidth = 156.0
-        val tile = VBox(4.0).apply {
-            prefWidth = tileWidth; minWidth = tileWidth; maxWidth = tileWidth
-            alignment = Pos.TOP_CENTER; padding = Insets(6.0)
-            cursor = Cursor.HAND
-            isFocusTraversable = false
-        }
-        val thumbView = ImageView().apply {
-            fitWidth = 132.0; fitHeight = 132.0
-            isPreserveRatio = true; isSmooth = true; isMouseTransparent = true
-        }
-        val imageBox = StackPane().apply {
-            prefWidth = 132.0; prefHeight = 132.0
-            minWidth = 132.0; minHeight = 132.0
-            styleClass.add("browser-preview-box")
-            children.add(thumbView)
-        }
-        val loadingLabel = Label("Loading…").apply {
-            styleClass.add("browser-loading")
-            isMouseTransparent = true
-        }
-        imageBox.children.add(loadingLabel)
-        val cardName = Label(cardDataForSorting(path).title.ifBlank { "Untitled card" }).apply {
-            styleClass.add("browser-card-name")
-            maxWidth = 144.0; isWrapText = true; alignment = Pos.TOP_CENTER
-            style = "-fx-font-size:11px;-fx-font-weight:bold;"
-            isMouseTransparent = true
-        }
-        val name = Label(path.fileName.toString()).apply {
-            styleClass.add("browser-filename")
-            maxWidth = 144.0; isWrapText = true; alignment = Pos.TOP_CENTER
-            textOverrun = javafx.scene.control.OverrunStyle.ELLIPSIS
-            style = "-fx-font-size:9px;"
-            isMouseTransparent = true
-        }
-        tile.children.addAll(imageBox, cardName, name)
-        requestBrowserPreview(path, browserPreviewMode) { image ->
-            thumbView.image = image
-            loadingLabel.text = if (image == null) "Preview unavailable" else ""
-            loadingLabel.isVisible = image == null
-            loadingLabel.isManaged = image == null
-        }
-        tile.setOnContextMenuRequested { event ->
-            imageContextMenu(path).show(tile, event.screenX, event.screenY)
-            event.consume()
-        }
-        tile.addEventFilter(MouseEvent.MOUSE_PRESSED) { event ->
-            if (event.button == MouseButton.PRIMARY) {
-                event.consume()
-                selectPath(path, scrollIntoView = false)
-                gridList.requestFocus()
-            }
-        }
-        tile.style = tileStyle(path == imagesCurrentPath(), hovered = false, thumbnail = thumbnail)
-        tile.setOnMouseEntered { tile.style = tileStyle(path == imagesCurrentPath(), true, thumbnail) }
-        tile.setOnMouseExited { tile.style = tileStyle(path == imagesCurrentPath(), false, thumbnail) }
-        return tile
-    }
-
-    private fun tileStyle(selected: Boolean, hovered: Boolean, thumbnail: Boolean): String {
-        val radius = if (thumbnail) 8 else 6
-        return when {
-            selected -> "-fx-background-color:rgba(88,166,255,0.11);-fx-background-radius:${radius}px;-fx-border-color:#58A6FF;-fx-border-radius:${radius}px;-fx-border-width:1.5px;"
-            hovered -> "-fx-background-color:rgba(255,255,255,0.05);-fx-background-radius:${radius}px;"
-            else -> "-fx-background-color:transparent;"
         }
     }
 
