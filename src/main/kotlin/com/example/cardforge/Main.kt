@@ -128,9 +128,7 @@ class MainApp : Application() {
     private var currentIndex = -1
     private var currentLoadedPath: Path? = null
     private var currentData = CardData()
-    private val undoStack = java.util.ArrayDeque<CardData>()
-    private val redoStack = java.util.ArrayDeque<CardData>()
-    private val undoLimit = 100
+    private val undoManager = CardUndoManager(100)
     private var suppressUndoCapture = false
     private var ignoreNextUndoCapture = false
     private var collectionRoot: Path? = null
@@ -2349,8 +2347,7 @@ class MainApp : Application() {
         currentLoadedPath = imagePath
         currentData = resolvedData
         cardDataCache[imagePath] = resolvedData.copy()
-        undoStack.clear()
-        redoStack.clear()
+        undoManager.clear()
         ignoreNextUndoCapture = false
         cropImage = cachedFullImage(imagePath)
         loadTemplateAndOverlay()
@@ -2540,25 +2537,19 @@ class MainApp : Application() {
 
     private fun captureUndoSnapshot() {
         if (suppressUndoCapture || currentIndex !in visibleImages.indices) return
-        undoStack.addLast(currentData.copy())
-        while (undoStack.size > undoLimit) undoStack.removeFirst()
-        redoStack.clear()
+        undoManager.record(currentData)
         ignoreNextUndoCapture = true
     }
 
     private fun undoCardChange() {
-        if (currentIndex !in visibleImages.indices || undoStack.isEmpty()) return
-        val previous = undoStack.removeLast()
-        redoStack.addLast(currentData.copy())
-        while (redoStack.size > undoLimit) redoStack.removeFirst()
+        if (currentIndex !in visibleImages.indices) return
+        val previous = undoManager.undo(currentData) ?: return
         applyUndoState(previous, "Undid card change")
     }
 
     private fun redoCardChange() {
-        if (currentIndex !in visibleImages.indices || redoStack.isEmpty()) return
-        val next = redoStack.removeLast()
-        undoStack.addLast(currentData.copy())
-        while (undoStack.size > undoLimit) undoStack.removeFirst()
+        if (currentIndex !in visibleImages.indices) return
+        val next = undoManager.redo(currentData) ?: return
         applyUndoState(next, "Redid card change")
     }
 
@@ -2618,9 +2609,7 @@ class MainApp : Application() {
         val afterSignature = cardSnapshotSignature(currentData)
         if (beforeSignature != afterSignature) {
             if (!suppressUndoCapture && !ignoreNextUndoCapture) {
-                undoStack.addLast(JsonSupport.mapper.readValue(beforeSignature, CardData::class.java))
-                while (undoStack.size > undoLimit) undoStack.removeFirst()
-                redoStack.clear()
+                undoManager.record(JsonSupport.mapper.readValue(beforeSignature, CardData::class.java))
             }
             ignoreNextUndoCapture = false
         }
@@ -3315,8 +3304,7 @@ class MainApp : Application() {
 
     private fun clearEditorForNoSelection() {
         currentLoadedPath = null
-        undoStack.clear()
-        redoStack.clear()
+        undoManager.clear()
         suppressEditorUpdates = true
         try {
             fields.values.forEach { it.clear() }
@@ -3401,8 +3389,7 @@ class MainApp : Application() {
         visibleImages.clear()
         currentIndex = -1
         renderedCard = null
-        undoStack.clear()
-        redoStack.clear()
+        undoManager.clear()
         backgroundOverlayImage = null
         templateImage = null
         cropImage = null
