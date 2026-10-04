@@ -28,6 +28,8 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Regression test foundation for undo, collector numbering, PDF planning, and asset identity reconciliation.
+- Permanent pull-request/main verification workflow.
 - Canonical export snapshots now explicitly preserve transparent pixels outside the card silhouette.
 - Export target/options UI extracted from `Main.kt`.
 - Contact-sheet window/paging UI extracted from `Main.kt`.
