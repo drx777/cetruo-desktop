@@ -2639,6 +2639,18 @@ class MainApp : Application() {
         // cannot keep showing a stale card while the editor contains newer values.
         synchronized(cardThumbnailCache) { cardThumbnailCache.remove(normalizedCurrentPath) }
         searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
+
+        // Keep rendered browser previews and card-name labels current without rebuilding
+        // cells for every keystroke. Only visible cells are recreated after the short pause.
+        thumbnailRefreshPause.stop()
+        thumbnailRefreshPause.setOnFinished {
+            if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalizedCurrentPath) {
+                imageList.refresh()
+                gridList.refresh()
+            }
+        }
+        thumbnailRefreshPause.playFromStart()
+
         if (renderPreview) render()
     }
 
