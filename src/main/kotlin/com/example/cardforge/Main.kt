@@ -649,6 +649,13 @@ class MainApp : Application() {
         browserPreviewMode = mode
         browserOriginalToggle.isSelected = mode == BrowserPreviewMode.ORIGINAL
         browserCardToggle.isSelected = mode == BrowserPreviewMode.CARD
+
+        // Preview mode is part of tile content, not just selection styling. Recreate the
+        // visible cells once so each tile requests the newly selected preview type immediately.
+        // This is intentionally limited to mode changes; ordinary selection still avoids
+        // ListView.refresh() to prevent thumbnail flicker.
+        imageList.refresh()
+        gridList.refresh()
         refreshBrowserSelectionStyles()
     }
 

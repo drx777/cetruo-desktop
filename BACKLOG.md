@@ -5,9 +5,10 @@ Current follow-up work for the 0.14.x line.
 ## UX / browser
 
 - Add a PDF export mode with one card per page and no white page frame/margin around the card.
+
 ## Regression verification
 
-- Verify rendered-card thumbnails in list and grid modes remain current after edits.
+- Verify rendered-card thumbnails in list and grid modes remain current after edits; cache validity rules are now covered automatically.
 - Verify the paged in-app contact sheet matches the live card preview.
 - Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners.
 - Verify list/grid viewport scrolling behavior with virtualized JavaFX cells; list/grid index-to-row mapping is now covered automatically.
@@ -24,6 +25,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Browser preview cache validity now has regression coverage for source metadata and rendered-card signature changes.
 - Browser list/grid index-to-row selection mapping now has regression coverage, including zero-column safety.
 - Filesystem watcher identity reconciliation now has deterministic scan-cycle regression coverage for rename/move recovery and unrelated replacements.
 - Collection-wide template application now has regression coverage for explicit per-card persistence, default persistence, initialization, metadata preservation, and idempotence.
