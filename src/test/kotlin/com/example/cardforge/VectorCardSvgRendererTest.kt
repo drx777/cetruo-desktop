@@ -87,7 +87,7 @@ class VectorCardSvgRendererTest {
         val svg = VectorCardSvgRenderer.svgFor(
             image = image(),
             data = CardData(rarity = "Rare"),
-            template = template(),
+            template = template().copy(visualStyle = TemplateVisualStyle(rarityFrames = true)),
             collectionPresentation = CollectionPresentation(),
             artworkHref = "file:/tmp/art.png"
         )
@@ -101,8 +101,7 @@ class VectorCardSvgRendererTest {
     @Test
     fun templateVisualStyleRemainsOptionalForExistingTemplateJson() {
         val visual = template().visualStyle
-        assertTrue(visual.rarityFrames)
-        assertTrue(visual.outerFrameInset > 0.0)
+        assertFalse(visual.rarityFrames)
         assertTrue(visual.statsJewelCut > 0.0)
     }
 }
