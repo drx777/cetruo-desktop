@@ -4,6 +4,7 @@ import javafx.scene.paint.Color
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import javax.imageio.ImageIO
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -29,6 +30,23 @@ object ImageColorAnalyzer {
         }
         val winner = bins.values.maxByOrNull { it.weight } ?: return null
         return Color.rgb((winner.r / winner.weight).toInt().coerceIn(0,255), (winner.g / winner.weight).toInt().coerceIn(0,255), (winner.b / winner.weight).toInt().coerceIn(0,255))
+    }
+
+    /** Finds the coordinated card scheme whose frame/accent palette is closest to the artwork. */
+    fun bestMatchingScheme(color: Color, schemes: List<ColorScheme>): ColorScheme? = schemes.minByOrNull { scheme ->
+        val candidates = listOf(scheme.frameColor, scheme.accentColor, scheme.overlayColor).mapNotNull { hex ->
+            runCatching { Color.web(hex) }.getOrNull()
+        }
+        candidates.minOfOrNull { candidate -> perceptualDistance(color, candidate) } ?: Double.MAX_VALUE
+    }
+
+    private fun perceptualDistance(a: Color, b: Color): Double {
+        val hueDelta = abs(a.hue - b.hue).let { min(it, 360.0 - it) } / 180.0
+        val satDelta = abs(a.saturation - b.saturation)
+        val brightDelta = abs(a.brightness - b.brightness)
+        // Hue is the strongest signal for choosing a theme, while saturation/brightness
+        // prevent a vivid image from being matched to an unrelated neutral palette.
+        return hueDelta * 2.2 + satDelta * 0.75 + brightDelta * 0.45
     }
 
     private class Bucket {
