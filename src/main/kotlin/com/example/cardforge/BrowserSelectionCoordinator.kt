@@ -67,7 +67,7 @@ class BrowserSelectionCoordinator<G>(
             .minByOrNull { it.localToScene(0.0, 0.0).y }
             ?: return null
 
-        val item = cell.item
+        val item = cell.item ?: return null
         return if (grid) {
             @Suppress("UNCHECKED_CAST")
             firstPathInGridRow(item as G)
