@@ -1,0 +1,13 @@
+{
+  "name": "Ember",
+  "description": "Charcoal, copper, and warm cream.",
+  "backgroundColor": "#201516",
+  "panelColor": "#F0DDD0",
+  "frameColor": "#D58A5B",
+  "accentColor": "#87452C",
+  "overlayColor": "#D9A17A",
+  "textColor": "#342018",
+  "darkTextColor": "#FFF1E8",
+  "imagePadColor": "#120A0A",
+  "tone": "DARK"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Split Prism",
+  "description": "Asymmetric editorial landscape with artwork on the right and a structured information column on the left.",
+  "svgFile": "split-prism.svg",
+  "width": 900.0,
+  "height": 700.0,
+  "art": {"x": 456.0, "y": 120.0, "width": 402.0, "height": 518.0, "radius": 20.0},
+  "titleBox": {"x": 42.0, "y": 34.0, "width": 816.0, "height": 64.0, "radius": 16.0},
+  "titleText": {"x": 66.0, "y": 46.0, "width": 650.0, "height": 40.0, "align": "LEFT"},
+  "costText": {"x": 768.0, "y": 48.0, "width": 64.0, "height": 36.0, "align": "RIGHT"},
+  "typeBox": {"x": 42.0, "y": 120.0, "width": 378.0, "height": 48.0, "radius": 13.0},
+  "typeText": {"x": 60.0, "y": 126.0, "width": 242.0, "height": 34.0, "align": "LEFT"},
+  "rarityText": {"x": 302.0, "y": 128.0, "width": 98.0, "height": 28.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 42.0, "y": 184.0, "width": 378.0, "height": 286.0, "radius": 18.0},
+  "descriptionHeading": {"x": 64.0, "y": 202.0, "width": 330.0, "height": 25.0, "align": "LEFT"},
+  "descriptionText": {"x": 64.0, "y": 234.0, "width": 334.0, "height": 122.0, "align": "LEFT"},
+  "flavorText": {"x": 64.0, "y": 366.0, "width": 334.0, "height": 76.0, "align": "LEFT"},
+  "footerText": {"x": 64.0, "y": 450.0, "width": 300.0, "height": 18.0, "align": "LEFT"},
+  "statsBox": {"x": 270.0, "y": 500.0, "width": 150.0, "height": 62.0, "radius": 18.0},
+  "statsText": {"x": 278.0, "y": 512.0, "width": 134.0, "height": 36.0, "align": "CENTER"}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Classic",
+  "description": "Warm parchment with brass accents.",
+  "backgroundColor": "#161B22",
+  "panelColor": "#EFE8D7",
+  "frameColor": "#D9C28E",
+  "accentColor": "#8C8068",
+  "overlayColor": "#C9B37A",
+  "textColor": "#29251F",
+  "darkTextColor": "#F3EAD6",
+  "imagePadColor": "#0A0D10",
+  "tone": "DARK"
+}

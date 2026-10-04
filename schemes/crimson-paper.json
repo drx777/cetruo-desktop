@@ -1,0 +1,13 @@
+{
+  "name": "Crimson Paper",
+  "description": "Warm rose stock with wine-red ink and copper accents.",
+  "tone": "LIGHT",
+  "backgroundColor": "#F0DFDB",
+  "panelColor": "#FAF1EE",
+  "frameColor": "#7A3E38",
+  "accentColor": "#8D4C45",
+  "overlayColor": "#8F514B",
+  "textColor": "#321F1D",
+  "darkTextColor": "#35221F",
+  "imagePadColor": "#DBC4BF"
+}

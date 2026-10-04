@@ -1,0 +1,13 @@
+{
+  "name": "Sage Paper",
+  "description": "Soft sage paper with forest ink and aged copper.",
+  "backgroundColor": "#DCE3D7",
+  "panelColor": "#F2F5EF",
+  "frameColor": "#53604C",
+  "accentColor": "#4B5948",
+  "overlayColor": "#66755E",
+  "textColor": "#263227",
+  "darkTextColor": "#33402F",
+  "imagePadColor": "#C6D0C2",
+  "tone": "LIGHT"
+}

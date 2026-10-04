@@ -1,0 +1,13 @@
+{
+  "name": "Midnight",
+  "description": "Cool dark scheme with silver-blue accents.",
+  "backgroundColor": "#0B1120",
+  "panelColor": "#DCE6F2",
+  "frameColor": "#AFC8E8",
+  "accentColor": "#4F6B8A",
+  "overlayColor": "#9DB7DE",
+  "textColor": "#172233",
+  "darkTextColor": "#EAF2FF",
+  "imagePadColor": "#050913",
+  "tone": "DARK"
+}

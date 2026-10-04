@@ -1,0 +1,13 @@
+{
+  "name": "Ivory Dawn",
+  "description": "Warm parchment, ink, brass, and soft paper light.",
+  "tone": "LIGHT",
+  "backgroundColor": "#E6E0D0",
+  "panelColor": "#F7F2E5",
+  "frameColor": "#6C573C",
+  "accentColor": "#725F45",
+  "overlayColor": "#7A6748",
+  "textColor": "#29251F",
+  "darkTextColor": "#2E2A24",
+  "imagePadColor": "#CFC7B8"
+}

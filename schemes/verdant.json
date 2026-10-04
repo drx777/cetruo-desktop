@@ -1,0 +1,13 @@
+{
+  "name": "Verdant",
+  "description": "Deep forest tones with sage parchment.",
+  "backgroundColor": "#102019",
+  "panelColor": "#DCE8D9",
+  "frameColor": "#B5C992",
+  "accentColor": "#50704E",
+  "overlayColor": "#B8CD93",
+  "textColor": "#20311F",
+  "darkTextColor": "#EEF6E8",
+  "imagePadColor": "#08110D",
+  "tone": "DARK"
+}

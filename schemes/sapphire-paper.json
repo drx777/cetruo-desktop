@@ -1,0 +1,13 @@
+{
+  "name": "Sapphire Paper",
+  "description": "Cool parchment with deep blue ink and steel-blue accents.",
+  "tone": "LIGHT",
+  "backgroundColor": "#DEE9F4",
+  "panelColor": "#F5F9FD",
+  "frameColor": "#385A78",
+  "accentColor": "#426985",
+  "overlayColor": "#4D7595",
+  "textColor": "#203040",
+  "darkTextColor": "#1E2A35",
+  "imagePadColor": "#CAD8E4"
+}

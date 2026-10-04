@@ -1,0 +1,13 @@
+{
+  "name": "Verdant Night",
+  "description": "Forest-black stock with sage metalwork and pale type.",
+  "tone": "DARK",
+  "backgroundColor": "#0E1A14",
+  "panelColor": "#26362E",
+  "frameColor": "#A4C49D",
+  "accentColor": "#5F8769",
+  "overlayColor": "#B4D2A9",
+  "textColor": "#EFF8F0",
+  "darkTextColor": "#F8FFF6",
+  "imagePadColor": "#07100B"
+}

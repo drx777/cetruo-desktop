@@ -1,0 +1,21 @@
+{
+  "name": "Duel Landscape",
+  "description": "Panoramic cinematic composition with full-width art and a clean rules strip beneath it.",
+  "svgFile": "duel-landscape.svg",
+  "width": 1100.0,
+  "height": 700.0,
+  "art": {"x": 48.0, "y": 118.0, "width": 1004.0, "height": 360.0, "radius": 20.0},
+  "titleBox": {"x": 48.0, "y": 32.0, "width": 1004.0, "height": 62.0, "radius": 16.0},
+  "titleText": {"x": 72.0, "y": 44.0, "width": 830.0, "height": 38.0, "align": "LEFT"},
+  "costText": {"x": 946.0, "y": 47.0, "width": 78.0, "height": 34.0, "align": "RIGHT"},
+  "typeBox": {"x": 48.0, "y": 498.0, "width": 1004.0, "height": 48.0, "radius": 13.0},
+  "typeText": {"x": 68.0, "y": 504.0, "width": 760.0, "height": 34.0, "align": "LEFT"},
+  "rarityText": {"x": 860.0, "y": 506.0, "width": 164.0, "height": 30.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 48.0, "y": 562.0, "width": 706.0, "height": 88.0, "radius": 16.0},
+  "descriptionHeading": {"x": 68.0, "y": 574.0, "width": 220.0, "height": 24.0, "align": "LEFT"},
+  "descriptionText": {"x": 68.0, "y": 603.0, "width": 666.0, "height": 40.0, "align": "LEFT"},
+  "flavorText": {"x": 48.0, "y": 664.0, "width": 706.0, "height": 24.0, "align": "LEFT"},
+  "footerText": {"x": 770.0, "y": 572.0, "width": 254.0, "height": 22.0, "align": "LEFT"},
+  "statsBox": {"x": 836.0, "y": 592.0, "width": 188.0, "height": 74.0, "radius": 20.0},
+  "statsText": {"x": 848.0, "y": 606.0, "width": 164.0, "height": 46.0, "align": "CENTER"}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Verdant Paper",
+  "description": "Soft green stock with forest ink and aged metal accents.",
+  "tone": "LIGHT",
+  "backgroundColor": "#DDE8DE",
+  "panelColor": "#F3F7F1",
+  "frameColor": "#41634B",
+  "accentColor": "#4C7256",
+  "overlayColor": "#557C60",
+  "textColor": "#223228",
+  "darkTextColor": "#28372D",
+  "imagePadColor": "#C4D1C5"
+}

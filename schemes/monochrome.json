@@ -1,0 +1,13 @@
+{
+  "name": "Monochrome",
+  "description": "Neutral grayscale for a restrained look.",
+  "backgroundColor": "#1A1A1A",
+  "panelColor": "#E8E8E8",
+  "frameColor": "#BFBFBF",
+  "accentColor": "#707070",
+  "overlayColor": "#C9C9C9",
+  "textColor": "#232323",
+  "darkTextColor": "#F4F4F4",
+  "imagePadColor": "#0F0F0F",
+  "tone": "DARK"
+}

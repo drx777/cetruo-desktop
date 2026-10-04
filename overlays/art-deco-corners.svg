@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 880">
+ <g fill="none" stroke="#FFFFFF" stroke-opacity=".32" stroke-width="2">
+  <path d="M34 126V50h76 M596 126V50h-76 M34 754v76h76 M596 754v76h-76"/>
+  <path d="M60 104V76h28 M570 104V76h-28 M60 776v28h28 M570 776v-28h-28"/>
+  <path d="M58 50l25 25M572 50l-25 25M58 830l25-25M572 830l-25-25" opacity=".55"/>
+ </g>
+ <g fill="#FFFFFF" fill-opacity=".28">
+  <path d="M40 54h42l-12 12H40zM590 54h-42l12 12h30z"/>
+  <path d="M40 826h42l-12-12H40zM590 826h-42l12-12h30z"/>
+ </g>
+</svg>

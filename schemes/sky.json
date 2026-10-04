@@ -1,0 +1,13 @@
+{
+  "name": "Sky",
+  "description": "Pale blue stock with navy ink and muted silver.",
+  "backgroundColor": "#DDE8F1",
+  "panelColor": "#F4F8FB",
+  "frameColor": "#4D687D",
+  "accentColor": "#4A5E70",
+  "overlayColor": "#5C7690",
+  "textColor": "#243442",
+  "darkTextColor": "#324657",
+  "imagePadColor": "#C9D8E5",
+  "tone": "LIGHT"
+}

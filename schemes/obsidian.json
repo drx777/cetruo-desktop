@@ -1,0 +1,13 @@
+{
+  "name": "Obsidian",
+  "description": "Nearly black card stock with silver, cool grey, and white type.",
+  "tone": "DARK",
+  "backgroundColor": "#111216",
+  "panelColor": "#292B31",
+  "frameColor": "#B8BDC7",
+  "accentColor": "#707783",
+  "overlayColor": "#C8CDD7",
+  "textColor": "#F1F3F6",
+  "darkTextColor": "#FAFBFC",
+  "imagePadColor": "#07080B"
+}

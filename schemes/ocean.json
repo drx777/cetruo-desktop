@@ -1,0 +1,13 @@
+{
+  "name": "Ocean",
+  "description": "Navy, teal, and pale blue-gray.",
+  "backgroundColor": "#0D1B24",
+  "panelColor": "#D8E8EC",
+  "frameColor": "#8BC0C8",
+  "accentColor": "#36747F",
+  "overlayColor": "#86CAD2",
+  "textColor": "#183038",
+  "darkTextColor": "#E9FBFF",
+  "imagePadColor": "#071117",
+  "tone": "DARK"
+}

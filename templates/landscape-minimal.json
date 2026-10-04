@@ -1,0 +1,21 @@
+{
+  "name": "Landscape Minimal",
+  "description": "Clean cinematic landscape composition with a broad image, short metadata strip, and lightweight rules panel.",
+  "svgFile": "landscape-minimal.svg",
+  "width": 960.0,
+  "height": 600.0,
+  "art": {"x": 28.0, "y": 104.0, "width": 604.0, "height": 468.0, "radius": 12.0},
+  "titleBox": {"x": 28.0, "y": 26.0, "width": 904.0, "height": 60.0, "radius": 14.0},
+  "titleText": {"x": 48.0, "y": 37.0, "width": 736.0, "height": 40.0, "align": "LEFT"},
+  "costText": {"x": 854.0, "y": 40.0, "width": 58.0, "height": 34.0, "align": "RIGHT"},
+  "typeBox": {"x": 652.0, "y": 104.0, "width": 280.0, "height": 42.0, "radius": 11.0},
+  "typeText": {"x": 666.0, "y": 109.0, "width": 176.0, "height": 30.0, "align": "LEFT"},
+  "rarityText": {"x": 820.0, "y": 110.0, "width": 98.0, "height": 28.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 652.0, "y": 158.0, "width": 280.0, "height": 284.0, "radius": 14.0},
+  "descriptionHeading": {"x": 670.0, "y": 176.0, "width": 244.0, "height": 25.0, "align": "LEFT"},
+  "descriptionText": {"x": 670.0, "y": 207.0, "width": 244.0, "height": 118.0, "align": "LEFT"},
+  "flavorText": {"x": 670.0, "y": 332.0, "width": 244.0, "height": 50.0, "align": "LEFT"},
+  "footerText": {"x": 670.0, "y": 389.0, "width": 244.0, "height": 24.0, "align": "LEFT"},
+  "statsBox": {"x": 776.0, "y": 464.0, "width": 156.0, "height": 58.0, "radius": 12.0},
+  "statsText": {"x": 782.0, "y": 475.0, "width": 144.0, "height": 36.0, "align": "CENTER"}
+}

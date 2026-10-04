@@ -1,0 +1,13 @@
+{
+  "name": "Rosewood",
+  "description": "Deep wine, pale rose, and antique copper.",
+  "backgroundColor": "#221519",
+  "panelColor": "#F1E0DB",
+  "frameColor": "#C8907D",
+  "accentColor": "#70433A",
+  "overlayColor": "#D1A095",
+  "textColor": "#341F1B",
+  "darkTextColor": "#F8E8E2",
+  "imagePadColor": "#12090C",
+  "tone": "DARK"
+}

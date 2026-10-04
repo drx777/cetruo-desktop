@@ -1,0 +1,13 @@
+{
+  "name": "Royal",
+  "description": "Midnight blue, ivory, and muted gold with a stately finish.",
+  "backgroundColor": "#101722",
+  "panelColor": "#EEE8D6",
+  "frameColor": "#C6A86A",
+  "accentColor": "#5C4C35",
+  "overlayColor": "#D8B86C",
+  "textColor": "#28271F",
+  "darkTextColor": "#F7EED9",
+  "imagePadColor": "#070B12",
+  "tone": "DARK"
+}

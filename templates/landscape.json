@@ -1,0 +1,21 @@
+{
+  "name": "Landscape Command",
+  "description": "Wide landscape card with a large art area on the left and a dedicated information column on the right.",
+  "svgFile": "landscape.svg",
+  "width": 880.0,
+  "height": 630.0,
+  "art": {"x": 32.0, "y": 106.0, "width": 506.0, "height": 482.0, "radius": 12.0},
+  "titleBox": {"x": 32.0, "y": 28.0, "width": 816.0, "height": 58.0, "radius": 14.0},
+  "titleText": {"x": 52.0, "y": 39.0, "width": 650.0, "height": 38.0, "align": "LEFT"},
+  "costText": {"x": 770.0, "y": 42.0, "width": 56.0, "height": 32.0, "align": "RIGHT"},
+  "typeBox": {"x": 556.0, "y": 106.0, "width": 292.0, "height": 42.0, "radius": 11.0},
+  "typeText": {"x": 572.0, "y": 111.0, "width": 180.0, "height": 30.0, "align": "LEFT"},
+  "rarityText": {"x": 752.0, "y": 112.0, "width": 82.0, "height": 28.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 556.0, "y": 160.0, "width": 292.0, "height": 322.0, "radius": 14.0},
+  "descriptionHeading": {"x": 574.0, "y": 177.0, "width": 256.0, "height": 25.0, "align": "LEFT"},
+  "descriptionText": {"x": 574.0, "y": 208.0, "width": 256.0, "height": 154.0, "align": "LEFT"},
+  "flavorText": {"x": 574.0, "y": 372.0, "width": 256.0, "height": 48.0, "align": "LEFT"},
+  "footerText": {"x": 574.0, "y": 431.0, "width": 256.0, "height": 22.0, "align": "LEFT"},
+  "statsBox": {"x": 692.0, "y": 505.0, "width": 156.0, "height": 54.0, "radius": 12.0},
+  "statsText": {"x": 698.0, "y": 515.0, "width": 144.0, "height": 34.0, "align": "CENTER"}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Gold Paper",
+  "description": "Antique cream stock with warm gold and charcoal details.",
+  "tone": "LIGHT",
+  "backgroundColor": "#E8DFC8",
+  "panelColor": "#F8F3E6",
+  "frameColor": "#76613A",
+  "accentColor": "#8A7341",
+  "overlayColor": "#8D7441",
+  "textColor": "#2E281B",
+  "darkTextColor": "#322A1C",
+  "imagePadColor": "#D1C5A9"
+}

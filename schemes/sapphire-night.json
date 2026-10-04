@@ -1,0 +1,13 @@
+{
+  "name": "Sapphire Night",
+  "description": "Deep blue stock, icy steel, and luminous white type.",
+  "tone": "DARK",
+  "backgroundColor": "#0E1C2B",
+  "panelColor": "#25364A",
+  "frameColor": "#93BFE8",
+  "accentColor": "#587FA6",
+  "overlayColor": "#AED4F5",
+  "textColor": "#F1F7FD",
+  "darkTextColor": "#F8FCFF",
+  "imagePadColor": "#07101A"
+}

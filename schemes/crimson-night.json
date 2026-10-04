@@ -1,0 +1,13 @@
+{
+  "name": "Crimson Night",
+  "description": "Deep wine stock with copper and warm ivory highlights.",
+  "tone": "DARK",
+  "backgroundColor": "#241417",
+  "panelColor": "#3A2225",
+  "frameColor": "#D5A08D",
+  "accentColor": "#985C4F",
+  "overlayColor": "#E1B1A0",
+  "textColor": "#FFF1EA",
+  "darkTextColor": "#FFF8F3",
+  "imagePadColor": "#120A0C"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Portrait Full Art",
+  "description": "Art-forward portrait layout with a taller image region and a compact rules panel below.",
+  "svgFile": "portrait-full-art.svg",
+  "width": 630.0,
+  "height": 880.0,
+  "art": {"x": 24.0, "y": 100.0, "width": 582.0, "height": 456.0, "radius": 10.0},
+  "titleBox": {"x": 24.0, "y": 26.0, "width": 582.0, "height": 60.0, "radius": 14.0},
+  "titleText": {"x": 44.0, "y": 37.0, "width": 446.0, "height": 40.0, "align": "LEFT"},
+  "costText": {"x": 526.0, "y": 40.0, "width": 60.0, "height": 34.0, "align": "RIGHT"},
+  "typeBox": {"x": 24.0, "y": 568.0, "width": 582.0, "height": 42.0, "radius": 10.0},
+  "typeText": {"x": 40.0, "y": 573.0, "width": 420.0, "height": 30.0, "align": "LEFT"},
+  "rarityText": {"x": 476.0, "y": 574.0, "width": 108.0, "height": 28.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 24.0, "y": 622.0, "width": 582.0, "height": 174.0, "radius": 14.0},
+  "descriptionHeading": {"x": 44.0, "y": 638.0, "width": 460.0, "height": 25.0, "align": "LEFT"},
+  "descriptionText": {"x": 44.0, "y": 670.0, "width": 530.0, "height": 68.0, "align": "LEFT"},
+  "flavorText": {"x": 44.0, "y": 742.0, "width": 530.0, "height": 34.0, "align": "LEFT"},
+  "footerText": {"x": 44.0, "y": 779.0, "width": 430.0, "height": 18.0, "align": "LEFT"},
+  "statsBox": {"x": 478.0, "y": 810.0, "width": 128.0, "height": 48.0, "radius": 11.0},
+  "statsText": {"x": 484.0, "y": 817.0, "width": 116.0, "height": 32.0, "align": "CENTER"}
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Portrait Classic",
+  "description": "Balanced portrait trading-card layout with art, metadata strip, rules panel, and compact stats badge.",
+  "svgFile": "portrait.svg",
+  "width": 630.0,
+  "height": 880.0,
+  "art": {"x": 42.0, "y": 108.0, "width": 546.0, "height": 370.0, "radius": 9.0},
+  "titleBox": {"x": 34.0, "y": 38.0, "width": 562.0, "height": 58.0, "radius": 13.0},
+  "titleText": {"x": 52.0, "y": 48.0, "width": 424.0, "height": 38.0, "align": "LEFT"},
+  "costText": {"x": 514.0, "y": 50.0, "width": 56.0, "height": 32.0, "align": "RIGHT"},
+  "typeBox": {"x": 34.0, "y": 490.0, "width": 562.0, "height": 44.0, "radius": 12.0},
+  "typeText": {"x": 50.0, "y": 495.0, "width": 400.0, "height": 32.0, "align": "LEFT"},
+  "rarityText": {"x": 470.0, "y": 497.0, "width": 108.0, "height": 30.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 34.0, "y": 544.0, "width": 562.0, "height": 226.0, "radius": 15.0},
+  "descriptionHeading": {"x": 56.0, "y": 562.0, "width": 470.0, "height": 26.0, "align": "LEFT"},
+  "descriptionText": {"x": 56.0, "y": 594.0, "width": 508.0, "height": 100.0, "align": "LEFT"},
+  "flavorText": {"x": 56.0, "y": 698.0, "width": 508.0, "height": 42.0, "align": "LEFT"},
+  "footerText": {"x": 56.0, "y": 744.0, "width": 508.0, "height": 18.0, "align": "LEFT"},
+  "statsBox": {"x": 458.0, "y": 788.0, "width": 138.0, "height": 58.0, "radius": 12.0},
+  "statsText": {"x": 464.0, "y": 798.0, "width": 126.0, "height": 36.0, "align": "CENTER"}
+}

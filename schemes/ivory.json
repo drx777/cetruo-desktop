@@ -1,0 +1,13 @@
+{
+  "name": "Ivory",
+  "description": "Warm ivory canvas with ink, brass, and charcoal accents.",
+  "backgroundColor": "#E9E2D2",
+  "panelColor": "#F8F4EA",
+  "frameColor": "#6F5A3A",
+  "accentColor": "#584A36",
+  "overlayColor": "#6E5A3A",
+  "textColor": "#2A2722",
+  "darkTextColor": "#332D23",
+  "imagePadColor": "#D6CEBE",
+  "tone": "LIGHT"
+}

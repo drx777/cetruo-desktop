@@ -1,0 +1,21 @@
+{
+  "name": "Arcane Portrait",
+  "description": "Mystic portrait composition with a tall artwork window, framed rules field, and sigil-like stat badge.",
+  "svgFile": "arcane-portrait.svg",
+  "width": 660.0,
+  "height": 920.0,
+  "art": {"x": 42.0, "y": 128.0, "width": 576.0, "height": 430.0, "radius": 18.0},
+  "titleBox": {"x": 42.0, "y": 34.0, "width": 576.0, "height": 70.0, "radius": 18.0},
+  "titleText": {"x": 64.0, "y": 50.0, "width": 438.0, "height": 40.0, "align": "LEFT"},
+  "costText": {"x": 522.0, "y": 52.0, "width": 74.0, "height": 38.0, "align": "RIGHT"},
+  "typeBox": {"x": 42.0, "y": 578.0, "width": 576.0, "height": 48.0, "radius": 13.0},
+  "typeText": {"x": 60.0, "y": 584.0, "width": 420.0, "height": 34.0, "align": "LEFT"},
+  "rarityText": {"x": 466.0, "y": 587.0, "width": 128.0, "height": 30.0, "align": "RIGHT"},
+  "descriptionBox": {"x": 42.0, "y": 640.0, "width": 576.0, "height": 194.0, "radius": 18.0},
+  "descriptionHeading": {"x": 66.0, "y": 659.0, "width": 470.0, "height": 26.0, "align": "LEFT"},
+  "descriptionText": {"x": 66.0, "y": 693.0, "width": 526.0, "height": 78.0, "align": "LEFT"},
+  "flavorText": {"x": 66.0, "y": 776.0, "width": 526.0, "height": 34.0, "align": "LEFT"},
+  "footerText": {"x": 66.0, "y": 815.0, "width": 420.0, "height": 18.0, "align": "LEFT"},
+  "statsBox": {"x": 472.0, "y": 850.0, "width": 146.0, "height": 52.0, "radius": 18.0},
+  "statsText": {"x": 480.0, "y": 860.0, "width": 130.0, "height": 30.0, "align": "CENTER"}
+}

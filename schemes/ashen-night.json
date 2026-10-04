@@ -1,0 +1,13 @@
+{
+  "name": "Ashen Night",
+  "description": "Smoky charcoal stock with parchment and antique silver details.",
+  "tone": "DARK",
+  "backgroundColor": "#191817",
+  "panelColor": "#302E2B",
+  "frameColor": "#C7BEAE",
+  "accentColor": "#817A70",
+  "overlayColor": "#D4CCBE",
+  "textColor": "#F7F4EE",
+  "darkTextColor": "#FFFDF8",
+  "imagePadColor": "#0D0C0B"
+}

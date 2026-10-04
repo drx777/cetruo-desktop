@@ -1,0 +1,13 @@
+{
+  "name": "Aurora",
+  "description": "Deep spruce, misted cyan, and soft silver.",
+  "backgroundColor": "#0B1B1B",
+  "panelColor": "#DCEBE7",
+  "frameColor": "#93C7BF",
+  "accentColor": "#42766F",
+  "overlayColor": "#9AD6CD",
+  "textColor": "#193532",
+  "darkTextColor": "#E8FFFB",
+  "imagePadColor": "#051010",
+  "tone": "DARK"
+}

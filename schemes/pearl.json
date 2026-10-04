@@ -1,0 +1,13 @@
+{
+  "name": "Pearl",
+  "description": "Cool pearl paper with slate and platinum details.",
+  "backgroundColor": "#E7E9ED",
+  "panelColor": "#F8F9FB",
+  "frameColor": "#536170",
+  "accentColor": "#495563",
+  "overlayColor": "#697586",
+  "textColor": "#252B33",
+  "darkTextColor": "#303640",
+  "imagePadColor": "#D4D8DE",
+  "tone": "LIGHT"
+}
