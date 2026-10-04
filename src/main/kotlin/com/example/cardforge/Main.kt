@@ -285,7 +285,7 @@ class MainApp : Application() {
         stage.minHeight = 720.0
         AppPlatform.attachStylesheet(scene, javaClass)
         applyUiTheme()
-        scene.accelerators[KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN)] = Runnable { saveCurrent() }
+        scene.accelerators[KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN)] = Runnable { saveCurrentExplicitly() }
         installUiThemeKey(scene)
         showEditorGuides.selectedProperty().addListener { _, _, value ->
             Preferences.userNodeForPackage(MainApp::class.java).putBoolean("showEditorGuides", value)
@@ -378,7 +378,7 @@ class MainApp : Application() {
         val open = Button("Open Directory").apply { setOnAction { openDirectory(stage) } }
         val previous = Button("← Previous").apply { setOnAction { navigate(-1) } }
         val next = Button("Next →").apply { setOnAction { navigate(1) } }
-        val save = Button("Save ⌘S").apply { setOnAction { saveCurrent() } }
+        val save = Button("Save ⌘S").apply { setOnAction { saveCurrentExplicitly() } }
         val randomize = Button("Randomize").apply {
             tooltip = Tooltip("Randomize the color scheme, cost, and attack/defense values. Layout is unchanged.")
             setOnAction { randomizeCardStyleAndNumbers() }
@@ -2549,6 +2549,19 @@ class MainApp : Application() {
         updateFromEditor(renderPreview = false)
         render()
         statusBarLabel.text = "Matched image color to scheme '${scheme.name}'"
+    }
+
+    private fun saveCurrentExplicitly() {
+        val path = imagesCurrentPath()?.toAbsolutePath()?.normalize()
+        if (!saveCurrent(showStatus = true)) return
+
+        // Explicit save should make the visible rendered-card thumbnail current immediately
+        // instead of waiting for the edit debounce. Keep this scoped to the active tile.
+        thumbnailRefreshPause.stop()
+        if (path != null && browserPreviewMode == BrowserPreviewMode.CARD) {
+            browserPreviews.removeCard(path)
+            browserTiles.refreshPath(path)
+        }
     }
 
     private fun saveCurrent(showStatus: Boolean = true): Boolean {
