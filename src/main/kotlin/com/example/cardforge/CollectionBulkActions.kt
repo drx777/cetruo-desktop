@@ -29,15 +29,16 @@ object CollectionBulkActions {
         return Result(changed)
     }
 
-    /** Apply one set name to every initialized card and normalize collector denominators. */
+    /** Apply one set name to every image/card and normalize collector denominators. */
     fun applySetName(
         images: Collection<Path>,
         database: CollectionDatabase,
-        setName: String
+        setName: String,
+        initialize: (Path) -> CardData
     ): Result {
         val normalizedSet = setName.trim()
-        val cards = images.mapNotNull { image ->
-            database.dataSnapshotForPath(image)?.let { image to it }
+        val cards = images.map { image ->
+            image to (database.dataSnapshotForPath(image) ?: initialize(image))
         }
         val oldSets = cards.map { it.second.setName.trim() }.filter { it.isNotBlank() }.toSet()
         val total = cards.size
@@ -56,7 +57,7 @@ object CollectionBulkActions {
     }
 
     /**
-     * Recalculate /total for each card from the number of initialized cards with the same set
+     * Recalculate /total for each persisted card from the number of cards with the same set
      * name. Existing numeric prefixes are retained. Missing/invalid prefixes get a stable
      * position within that set for this pass.
      */
