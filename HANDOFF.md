@@ -60,13 +60,9 @@ UI/rendering behavior still requires desktop smoke testing.
 
 After the hardening pass:
 
-1. Clean up Collection/Layout UX:
-   - remove the duplicate **Apply selected template to all cards** control,
-   - clarify collection default versus per-card override actions,
-   - retain the collection card count without adding clutter.
-2. Extract browser/list-grid/thumbnail orchestration from `Main.kt` in small steps.
-3. Extract remaining preview/export execution orchestration where it reduces duplicated state or coupling.
-4. Continue routing persistence/undo/collection behavior through the existing helper classes rather than reintroducing state in `MainApp`.
+1. Extract browser/list-grid/thumbnail orchestration from `Main.kt` in small steps.
+2. Extract remaining preview/export execution orchestration where it reduces duplicated state or coupling.
+3. Continue routing persistence/undo/collection behavior through the existing helper classes rather than reintroducing state in `MainApp`.
 
 ## Important semantics to preserve
 
