@@ -156,7 +156,10 @@ class MainApp : Application() {
     private var suppressCollectionChoice = false
     private var browserColumns = 1
     private val searchIndex = mutableMapOf<String, String>()
-    private val cardDataCache = mutableMapOf<Path, CardData>()
+    private val cardStore = CollectionCardStore(
+        databaseProvider = { database },
+        newCardFactory = { path -> newCardDefaults(path) }
+    )
     private lateinit var uiThemeButton: Button
     private var uiTheme: UiTheme = runCatching {
         UiTheme.valueOf(Preferences.userNodeForPackage(MainApp::class.java).get("uiTheme", UiTheme.DARK.name))
@@ -1076,7 +1079,7 @@ class MainApp : Application() {
         val normalized = path.toAbsolutePath().normalize()
         val data = dataOverride
             ?: if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalized) currentData
-            else cardDataCache[normalized] ?: database?.dataSnapshotForPath(normalized)
+            else cardStore.snapshot(normalized)
         val dataSignature = data?.let { runCatching { JsonSupport.mapper.writeValueAsString(it) }.getOrDefault(it.toString()) }
             ?: "UNINITIALIZED"
         val presentationSignature = runCatching {
@@ -1117,10 +1120,9 @@ class MainApp : Application() {
         analyzeImageIfNeeded: Boolean = true
     ): CardData {
         val normalized = path.toAbsolutePath().normalize()
-        cardDataCache[normalized]?.let { return it.copy() }
-        val result = database?.dataSnapshotForPath(normalized)?.takeIf(::hasMeaningfulCardData)?.copy()
-            ?: newCardDefaults(normalized, derivedColorOverride, analyzeImageIfNeeded)
-        cardDataCache[normalized] = result.copy()
+        cardStore.snapshot(normalized)?.takeIf(::hasMeaningfulCardData)?.let { return it.copy() }
+        val result = newCardDefaults(normalized, derivedColorOverride, analyzeImageIfNeeded)
+        cardStore.put(normalized, result)
         return result
     }
 
@@ -1941,7 +1943,7 @@ class MainApp : Application() {
 
     private fun refreshAfterCollectionMutation() {
         val selectedPath = currentLoadedPath?.toAbsolutePath()?.normalize()
-        cardDataCache.clear()
+        cardStore.clear()
         searchIndex.clear()
         database?.searchIndex()?.let { searchIndex.putAll(it) }
         synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
@@ -2009,7 +2011,7 @@ class MainApp : Application() {
                 OverlayRepository.clearCache()
                 searchIndex.clear()
                 searchIndex.putAll(newDatabase.searchIndex())
-                cardDataCache.clear()
+                cardStore.clear()
                 cropImage = null
                 backgroundOverlayImage = null
                 templateImage = null
@@ -2117,12 +2119,8 @@ class MainApp : Application() {
 
     private fun cardDataForSorting(path: Path): CardData {
         val normalized = path.toAbsolutePath().normalize()
-        cardDataCache[normalized]?.let { return it }
-        val saved = runCatching { database?.dataSnapshotForPath(normalized) }.getOrNull()
-        if (saved != null) {
-            cardDataCache[normalized] = saved.copy()
-            return saved
-        }
+        val saved = runCatching { cardStore.snapshot(normalized) }.getOrNull()
+        if (saved != null) return saved
         // Browser sorting must stay metadata-only. newCardDefaults() intentionally performs
         // image-derived scheme analysis, which is far too expensive to run for every unsaved
         // image while sorting on the JavaFX application thread.
@@ -2329,7 +2327,7 @@ class MainApp : Application() {
 
     private fun resolveCardDataForSelection(path: Path): CardData? {
         val normalized = path.toAbsolutePath().normalize()
-        val db = database ?: return cardDataCache[normalized]?.copy() ?: newCardDefaults(normalized)
+        val db = database ?: return cardStore.snapshot(normalized)?.copy() ?: newCardDefaults(normalized)
         val dbData = db.dataSnapshotForPath(normalized)
         if (dbData != null && hasMeaningfulCardData(dbData)) {
             if (dbData.collectorNumber.isBlank()) {
@@ -2341,7 +2339,7 @@ class MainApp : Application() {
         // Unsaved cards may already have deterministic in-memory defaults generated for a
         // card thumbnail. Reuse them so selecting the card does not randomize it again or
         // decode the image a second time.
-        cardDataCache[normalized]?.let { cached ->
+        cardStore.snapshot(normalized)?.let { cached ->
             return cached.copy().also { data ->
                 dbData?.assetId?.takeIf { it.isNotBlank() }?.let { data.assetId = it }
             }
@@ -2409,7 +2407,7 @@ class MainApp : Application() {
         currentIndex = newIndex
         currentLoadedPath = imagePath
         currentData = resolvedData
-        cardDataCache[imagePath] = resolvedData.copy()
+        cardStore.put(imagePath, resolvedData)
         undoManager.clear()
         ignoreNextUndoCapture = false
         cropImage = cachedFullImage(imagePath)
@@ -2677,7 +2675,7 @@ class MainApp : Application() {
             ignoreNextUndoCapture = false
         }
         val normalizedCurrentPath = currentPath.toAbsolutePath().normalize()
-        cardDataCache[normalizedCurrentPath] = currentData.copy()
+        cardStore.put(normalizedCurrentPath, currentData)
         // Card-preview thumbnails depend on editor state as well as source-file mtime.
         // Invalidate the rendered preview immediately so list/grid/contact-sheet views
         // cannot keep showing a stale card while the editor contains newer values.
@@ -2865,7 +2863,7 @@ class MainApp : Application() {
                         try { fields["collectorNumber"]?.text = persisted.collectorNumber }
                         finally { suppressEditorUpdates = false }
                     }
-                    cardDataCache.clear()
+                    cardStore.clear()
                     synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
                     searchIndex.clear()
                     searchIndex.putAll(db.searchIndex())
@@ -2873,7 +2871,7 @@ class MainApp : Application() {
             } else {
                 synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
                 searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
-                cardDataCache[path.toAbsolutePath().normalize()] = currentData.copy()
+                cardStore.put(path, currentData)
             }
 
             if (result.changed) db.recordActivity(result.assetId, "SAVE", "revision=${result.revisionNumber}")
@@ -3324,7 +3322,7 @@ class MainApp : Application() {
         if (changed) {
             val livePaths = nextSet
             searchIndex.keys.retainAll(result.images.map(::relativePath).toSet())
-            cardDataCache.keys.retainAll(livePaths)
+            cardStore.retainOnly(livePaths)
             previousSet.asSequence().filter { it !in nextSet }.forEach { removed ->
                 synchronized(thumbnailCache) { thumbnailCache.remove(removed) }
                 synchronized(fullImageCache) { fullImageCache.remove(removed) }
@@ -3514,7 +3512,7 @@ class MainApp : Application() {
         nestedCollectionRoots = emptyList()
         collectionPresentation = CollectionPresentation()
         searchIndex.clear()
-        cardDataCache.clear()
+        cardStore.clear()
         suppressCollectionChoice = true
         try { collectionChoice.items.clear() } finally { suppressCollectionChoice = false }
         synchronized(thumbnailCache) { thumbnailCache.clear() }
