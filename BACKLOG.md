@@ -4,10 +4,6 @@ Current follow-up work for the 0.14.x line.
 
 ## UX / browser
 
-- Revisit Collection/Layout UI after functionality is stable:
-  - remove the duplicate “Apply selected template to all cards” control,
-  - clarify collection default vs per-card override actions,
-  - keep collection card count visible without adding clutter.
 ## Regression verification
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits.
@@ -28,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Collection/Layout template UX consolidated: duplicate bulk-template action removed, collection default vs per-card template semantics clarified, and card count retained.
 - Regression test foundation for undo, collector numbering, PDF planning, and asset identity reconciliation.
 - Permanent pull-request/main verification workflow.
 - Canonical export snapshots now explicitly preserve transparent pixels outside the card silhouette.
