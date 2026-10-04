@@ -42,6 +42,7 @@ object CardRenderer {
     ): Rendered {
         val root = StackPane().apply {
             styleClass.add("card-rendered")
+            style = "-fx-background-color: transparent;"
             prefWidth = template.width; prefHeight = template.height
             minWidth = template.width; minHeight = template.height
             maxWidth = template.width; maxHeight = template.height
