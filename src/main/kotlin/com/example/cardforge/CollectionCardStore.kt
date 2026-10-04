@@ -22,6 +22,8 @@ class CollectionCardStore(
             ?: newCardFactory(key)
     }
 
+    fun cached(path: Path): CardData? = cache[normalized(path)]?.copy()
+
     fun snapshot(path: Path): CardData? {
         val key = normalized(path)
         return cache[key]?.copy()
