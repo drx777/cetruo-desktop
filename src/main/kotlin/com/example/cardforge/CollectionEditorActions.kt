@@ -14,9 +14,6 @@ class CollectionEditorActions(
     fun applyTemplateToAll(templateName: String): CollectionBulkActions.Result =
         CollectionBulkActions.applyTemplateToAll(images(), database, templateName)
 
-    fun applyDefaultTemplateToAll(): CollectionBulkActions.Result =
-        CollectionBulkActions.applyCollectionDefaultTemplate(images(), database)
-
     fun applySetNameToAll(setName: String): CollectionBulkActions.Result =
         CollectionBulkActions.applySetName(images(), database, setName, initializeCard)
 
