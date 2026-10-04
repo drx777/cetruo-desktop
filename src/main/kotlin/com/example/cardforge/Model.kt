@@ -21,10 +21,10 @@ data class CardData(
     var imageOffsetY: Double = 0.0,
     var imageMode: ImageMode = ImageMode.COVER,
     var imagePadColor: String = "#0A0D10",
-    // When enabled, artwork continues behind the surrounding frame up to the description panel.
-    // The description panel remains above it and retains panelOpacity, so translucent panels
-    // can deliberately allow a subdued continuation of the artwork to show through.
+    // Optional borderless-art treatment. The duplicate bleed layer is clipped to the card
+    // boundary and can be faded independently from the normal artwork inside its frame.
     var imageBleedOverFrame: Boolean = false,
+    var imageBleedOpacity: Double = 1.0,
     var backgroundOverlay: String = "",
     var backgroundOverlayPlacement: OverlayPlacement = OverlayPlacement.FRAMES_ONLY,
     var backgroundOverlayOpacity: Double = 1.0,
