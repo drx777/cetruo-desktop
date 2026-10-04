@@ -173,9 +173,7 @@ object PdfContactSheetExporter {
                             ?.toAbsolutePath()?.normalize()?.parent
                             ?.toUri()?.toString()
                     }
-                    PDFTranscoder().apply {
-                        addTranscodingHint(PDFTranscoder.KEY_STROKE_TEXT, true)
-                    }.transcode(
+                    PDFTranscoder().transcode(
                         input,
                         TranscoderOutput(output)
                     )
