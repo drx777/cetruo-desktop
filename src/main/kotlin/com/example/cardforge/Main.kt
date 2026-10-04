@@ -2950,13 +2950,14 @@ class MainApp : Application() {
         if (!saveCurrent(showStatus = false)) return
         val path = visibleImages[currentIndex]
         val template = currentTemplate() ?: return
-        val chooser = FileChooser().apply {
-            title = "Export SVG"
-            extensionFilters.add(FileChooser.ExtensionFilter("SVG", "*.svg"))
-            initialDirectory = defaultExportDirectory()?.toFile()
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export SVG",
+            filterLabel = "SVG",
+            extensionPattern = "*.svg",
+            initialDirectory = defaultExportDirectory(),
             initialFileName = path.fileName.toString().substringBeforeLast('.') + ".card.svg"
-        }
-        val target = chooser.showSaveDialog(stage)?.toPath() ?: return
+        ) ?: return
         try {
             loadTemplateAndOverlay()
             val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
@@ -2983,13 +2984,14 @@ class MainApp : Application() {
         if (!saveCurrent(showStatus = false)) return
         val path = visibleImages[currentIndex]
         val template = currentTemplate() ?: return
-        val chooser = FileChooser().apply {
-            title = "Export PNG"
-            extensionFilters.add(FileChooser.ExtensionFilter("PNG", "*.png"))
-            initialDirectory = defaultExportDirectory()?.toFile()
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export PNG",
+            filterLabel = "PNG",
+            extensionPattern = "*.png",
+            initialDirectory = defaultExportDirectory(),
             initialFileName = path.fileName.toString().substringBeforeLast('.') + ".card.png"
-        }
-        val target = chooser.showSaveDialog(stage)?.toPath() ?: return
+        ) ?: return
         try {
             loadTemplateAndOverlay()
             val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
@@ -3015,15 +3017,18 @@ class MainApp : Application() {
     private fun exportPdf(stage: Stage) {
         if (visibleImages.isEmpty()) return
         if (!saveCurrent(showStatus = false)) return
-        val chooser = FileChooser().apply {
-            title = "Export A4 Contact Sheet PDF"
-            extensionFilters.add(FileChooser.ExtensionFilter("PDF", "*.pdf"))
-            initialDirectory = defaultExportDirectory()?.toFile()
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export A4 Contact Sheet PDF",
+            filterLabel = "PDF",
+            extensionPattern = "*.pdf",
+            initialDirectory = defaultExportDirectory(),
             initialFileName = "card-forge-contact-sheet.pdf"
-        }
-        val target = chooser.showSaveDialog(stage)?.toPath() ?: return
+        ) ?: return
         val paths = visibleImages.toList()
-        val options = promptPdfExportOptions(stage) ?: return
+        val options = ExportUi.promptPdfOptions(stage) { slider, resetValue ->
+            installSliderReset(slider, resetValue)
+        } ?: return
         val plans = buildPdfPlans(paths, options)
         statusBarLabel.text = "Exporting ${paths.size} card(s) to PDF at ${"%.0f".format(options.scale * 100)}%…"
         val task = object : Task<Unit>() {
@@ -3044,45 +3049,6 @@ class MainApp : Application() {
         }
         task.setOnFailed { showError("Could not export PDF", task.exception ?: RuntimeException("Unknown PDF export error")) }
         Thread(task, "card-forge-pdf-export").apply { isDaemon = true }.start()
-    }
-
-    private data class PdfExportOptions(val scale: Double, val marginMm: Double, val gapMm: Double)
-
-    private fun promptPdfExportOptions(owner: Stage): PdfExportOptions? {
-        val dialog = Dialog<ButtonType>().apply {
-            title = "A4 Contact Sheet PDF"
-            headerText = "Contact sheet layout"
-            dialogPane.buttonTypes.addAll(ButtonType.OK, ButtonType.CANCEL)
-        }
-        val scale = Slider(0.5, 1.0, 1.0).apply { blockIncrement = 0.05; majorTickUnit = 0.1 }
-        val margin = Slider(0.0, 20.0, 10.0).apply { blockIncrement = 1.0; majorTickUnit = 5.0 }
-        val gap = Slider(0.0, 10.0, 3.0).apply { blockIncrement = 0.5; majorTickUnit = 2.0 }
-        installSliderReset(scale, 1.0)
-        installSliderReset(margin, 10.0)
-        installSliderReset(gap, 3.0)
-        val scaleLabel = Label()
-        val marginLabel = Label()
-        val gapLabel = Label()
-        fun updateLabels() {
-            scaleLabel.text = "${"%.0f".format(scale.value * 100)}%"
-            marginLabel.text = "${"%.1f".format(margin.value)} mm"
-            gapLabel.text = "${"%.1f".format(gap.value)} mm"
-        }
-        scale.valueProperty().addListener { _, _, _ -> updateLabels() }
-        margin.valueProperty().addListener { _, _, _ -> updateLabels() }
-        gap.valueProperty().addListener { _, _, _ -> updateLabels() }
-        updateLabels()
-        val grid = GridPane().apply {
-            hgap = 10.0; vgap = 10.0; padding = Insets(10.0);
-            add(Label("Card scale"), 0, 0); add(scale, 1, 0); add(scaleLabel, 2, 0)
-            add(Label("Page margin"), 0, 1); add(margin, 1, 1); add(marginLabel, 2, 1)
-            add(Label("Card gap"), 0, 2); add(gap, 1, 2); add(gapLabel, 2, 2)
-            add(Label("100% keeps the template's physical card size. Smaller scales fit more cards per A4 page."), 0, 3, 3, 1)
-        }
-        dialog.dialogPane.content = grid
-        dialog.dialogPane.minWidth = 560.0
-        val result = dialog.showAndWait().orElse(ButtonType.CANCEL)
-        return if (result == ButtonType.OK) PdfExportOptions(scale.value, margin.value, gap.value) else null
     }
 
     private fun buildPdfPlans(paths: List<Path>, options: PdfExportOptions): List<PdfContactSheetExporter.PagePlan> {
