@@ -12,8 +12,18 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
     companion object {
         const val FILE_NAME = ".cardforge.sqlite"
         fun open(root: Path): CollectionDatabase {
+            val normalized = root.toAbsolutePath().normalize()
             Class.forName("org.sqlite.JDBC")
-            return CollectionDatabase(root.toAbsolutePath().normalize()).also { it.initialize() }
+            val database = StartupProfiler.measure(
+                "sqlite connect",
+                detail = { it.path.fileName.toString() }
+            ) {
+                CollectionDatabase(normalized)
+            }
+            StartupProfiler.measure("sqlite initialize/schema") {
+                database.initialize()
+            }
+            return database
         }
     }
 
@@ -93,7 +103,21 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
     fun assetRelativePath(assetId: String): String? = findAssetById(assetId)?.relativePath
     fun assetIdForPath(image: Path): String? = findAssetByPath(relative(image))?.assetId
 
-    fun searchIndex(): Map<String,String> = connection.createStatement().use { s -> s.executeQuery("SELECT relative_path,asset_id,status,current_json FROM assets").use { r -> buildMap { while(r.next()) { val p=r.getString(1); put(p,(p+" "+r.getString(2)+" "+r.getString(3)+" "+r.getString(4).orEmpty()).lowercase()) } } } }
+    fun searchIndex(): Map<String,String> = StartupProfiler.measure(
+        "sqlite search index",
+        detail = { "${it.size} entries" }
+    ) {
+        connection.createStatement().use { s ->
+            s.executeQuery("SELECT relative_path,asset_id,status,current_json FROM assets").use { r ->
+                buildMap {
+                    while (r.next()) {
+                        val p = r.getString(1)
+                        put(p, (p + " " + r.getString(2) + " " + r.getString(3) + " " + r.getString(4).orEmpty()).lowercase())
+                    }
+                }
+            }
+        }
+    }
 
     fun save(image: Path, data: CardData): SaveResult {
         val record=register(image,data.assetId,data.status)
