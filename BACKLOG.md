@@ -24,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Edited-card browser thumbnail refresh is now scoped to the active card and debounced until 3 seconds of inactivity, avoiding browser-wide flicker.
 - Borderless one-card-per-page PDF export added alongside the existing A4 contact-sheet PDF mode.
 - Browser preview cache validity now has regression coverage for source metadata and rendered-card signature changes.
 - Browser list/grid index-to-row selection mapping now has regression coverage, including zero-column safety.
