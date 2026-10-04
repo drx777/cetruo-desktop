@@ -1866,7 +1866,11 @@ class MainApp : Application() {
     }
 
     private fun collectionActions(): CollectionEditorActions? = database?.let { db ->
-        CollectionEditorActions(db) { allImages.toList() }
+        CollectionEditorActions(
+            database = db,
+            images = { allImages.toList() },
+            initializeCard = { path -> newCardDefaults(path) }
+        )
     }
 
     private fun applyCollectionDefaultTemplateToAll() {
