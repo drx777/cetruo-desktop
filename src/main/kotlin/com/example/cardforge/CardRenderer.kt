@@ -14,7 +14,6 @@ import javafx.scene.layout.Pane
 import javafx.scene.layout.StackPane
 import javafx.scene.paint.Color
 import javafx.scene.shape.Line
-import javafx.scene.shape.Polygon
 import javafx.scene.shape.Rectangle
 import javafx.scene.text.Font
 import javafx.scene.text.FontPosture
@@ -164,15 +163,16 @@ object CardRenderer {
 
     private fun statsJewel(rect:TemplateRect,fillColor:String,strokeColor:String,visual:TemplateVisualStyle,alpha:Double)=Pane().apply{
         isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
-        val cut=visual.statsJewelCut.coerceIn(4.0,minOf(rect.width,rect.height)/3.0)
-        val outer=Polygon(cut,0.0,rect.width-cut,0.0,rect.width,cut,rect.width,rect.height-cut,rect.width-cut,rect.height,cut,rect.height,0.0,rect.height-cut,0.0,cut).apply{
+        val outer=Rectangle(rect.width,rect.height).apply{
+            arcWidth=rect.radius*2;arcHeight=rect.radius*2
             fill=Color.web(fillColor,alpha);stroke=Color.web(strokeColor);strokeWidth=2.2
         }
         val inset=visual.statsJewelInset.coerceAtLeast(2.0)
-        val innerCut=(cut-inset/2.0).coerceAtLeast(2.0)
         val w=(rect.width-inset*2).coerceAtLeast(1.0);val h=(rect.height-inset*2).coerceAtLeast(1.0)
-        val inner=Polygon(innerCut,0.0,w-innerCut,0.0,w,innerCut,w,h-innerCut,w-innerCut,h,innerCut,h,0.0,h-innerCut,0.0,innerCut).apply{
-            relocate(inset,inset);fill=Color.TRANSPARENT;stroke=Color.web(CardVisualSystem.lighten(strokeColor,0.22));strokeWidth=0.9;opacity=0.62
+        val innerRadius=(rect.radius-inset).coerceAtLeast(1.0)
+        val inner=Rectangle(inset,inset,w,h).apply{
+            arcWidth=innerRadius*2;arcHeight=innerRadius*2
+            fill=Color.TRANSPARENT;stroke=Color.web(CardVisualSystem.lighten(strokeColor,0.22));strokeWidth=0.9;opacity=0.62
         }
         children.addAll(outer,inner)
     }
