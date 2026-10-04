@@ -33,6 +33,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+Edited-card thumbnail refreshes are now targeted to the active card after 3 seconds of inactivity; list/grid-wide refreshes are not used for editor changes.
+
 Browser preview cache validity rules are now covered: original previews depend on source size/mtime, while rendered-card previews also depend on the render signature.
 
 Browser selection index/row mapping is now covered independently of JavaFX virtualization; viewport/cell scrolling still requires desktop smoke testing.
