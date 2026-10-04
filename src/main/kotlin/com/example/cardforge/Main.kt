@@ -1900,7 +1900,7 @@ class MainApp : Application() {
         val selectedPath = currentLoadedPath?.toAbsolutePath()?.normalize()
         cardDataCache.clear()
         searchIndex.clear()
-        database?.searchIndex()?.let(searchIndex::putAll)
+        database?.searchIndex()?.let { searchIndex.putAll(it) }
         synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
         if (selectedPath != null) {
             val index = visibleImages.indexOfFirst { it.toAbsolutePath().normalize() == selectedPath }
