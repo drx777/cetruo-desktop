@@ -412,11 +412,15 @@ class MainApp : Application() {
             tooltip = Tooltip("Export all currently visible cards (current folder/filter scope) onto A4 pages at the card's physical size.")
             setOnAction { exportPdf(stage) }
         }
+        val exportCardsPdf = Button("Cards PDF").apply {
+            tooltip = Tooltip("Export all currently visible cards as a PDF with one borderless card-sized page per card.")
+            setOnAction { exportCardsPdf(stage) }
+        }
         val contactSheet = Button("Contact Sheet").apply {
             tooltip = Tooltip("Open a paged visual contact sheet for the current image scope.")
             setOnAction { showContactSheet(stage) }
         }
-        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, shareSidecar, Separator(), exportSvg, exportPng, exportPdf, contactSheet)
+        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, shareSidecar, Separator(), exportSvg, exportPng, exportPdf, exportCardsPdf, contactSheet)
     }
 
     private fun browser(): VBox {
@@ -2756,6 +2760,33 @@ class MainApp : Application() {
                 statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} full card(s)"
             },
             onFailed = { error -> showError("Could not export PDF", error) }
+        )
+    }
+
+    private fun exportCardsPdf(stage: Stage) {
+        if (visibleImages.isEmpty()) return
+        if (!saveCurrent(showStatus = false)) return
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export Borderless Cards PDF",
+            filterLabel = "PDF",
+            extensionPattern = "*.pdf",
+            initialDirectory = defaultExportDirectory(),
+            initialFileName = "card-forge-cards.pdf"
+        ) ?: return
+
+        val paths = visibleImages.toList()
+        val plans = exportCoordinator.planSingleCardPdf(paths) { path -> pdfCardSpec(path) }
+        statusBarLabel.text = "Exporting ${paths.size} card(s) as borderless PDF pages…"
+        exportCoordinator.exportPdfAsync(
+            target = target,
+            plans = plans,
+            renderPngOnFxThread = { path -> renderCardPngForPdf(path) },
+            onSucceeded = {
+                database?.recordActivity(currentData.assetId, "EXPORT_PDF_CARDS", target.toAbsolutePath().toString())
+                statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} borderless card page(s)"
+            },
+            onFailed = { error -> showError("Could not export cards PDF", error) }
         )
     }
 
