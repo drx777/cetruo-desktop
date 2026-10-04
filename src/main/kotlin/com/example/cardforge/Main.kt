@@ -59,7 +59,6 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.DirectoryChooser
 import javafx.stage.FileChooser
-import javafx.stage.Screen
 import javafx.stage.Stage
 import javafx.util.Duration
 import java.awt.Desktop
@@ -166,8 +165,7 @@ class MainApp : Application() {
     }.getOrDefault(UiTheme.DARK)
     private lateinit var scene: Scene
     private lateinit var appRoot: BorderPane
-    private var primaryStage: Stage? = null
-    private var sourceInspectorStage: Stage? = null
+    private val sourceImageInspector = SourceImageInspector(MainApp::class.java) { uiTheme == UiTheme.DARK }
     private var watchService: WatchService? = null
     private var watchThread: Thread? = null
     private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
@@ -258,7 +256,6 @@ class MainApp : Application() {
     private var filterTask: Task<List<Path>>? = null
 
     override fun start(stage: Stage) {
-        primaryStage = stage
         stage.title = "Card Forge"
         AppPlatform.setApplicationDockIcon(javaClass)
         AppPlatform.installWindowIcon(stage, javaClass)
@@ -353,8 +350,7 @@ class MainApp : Application() {
             filterApplyPause.stop()
             thumbnailRefreshPause.stop()
             stopCollectionWatcher()
-            sourceInspectorStage?.close()
-            sourceInspectorStage = null
+            sourceImageInspector.close()
             closeCollection()
             thumbnailLoadExecutor.shutdownNow()
         }
@@ -964,77 +960,11 @@ class MainApp : Application() {
 
     private fun showSourceImageInspector(path: Path? = imagesCurrentPath()) {
         val source = path?.toAbsolutePath()?.normalize() ?: return
-        if (!Files.isRegularFile(source)) {
-            statusBarLabel.text = "Source image is no longer available."
-            return
-        }
-
-        sourceInspectorStage?.close()
-
-        val image = Image(source.toUri().toString(), true)
-        val imageView = ImageView(image).apply {
-            isPreserveRatio = true
-            isSmooth = true
-        }
-        val details = Label("${source.fileName} · Loading original image…").apply {
-            styleClass.add("browser-meta")
-        }
-        val scroll = ScrollPane(imageView).apply {
-            isPannable = true
-            isFitToWidth = false
-            isFitToHeight = false
-            style = "-fx-background-color:transparent;"
-        }
-        val root = BorderPane(scroll).apply {
-            padding = Insets(10.0)
-            top = HBox(10.0, details, Region(), Label("Native size · Esc to close")).apply {
-                alignment = Pos.CENTER_LEFT
-                HBox.setHgrow(children[1], Priority.ALWAYS)
-            }
-            style = if (uiTheme == UiTheme.DARK) "-fx-background-color:#20242A;" else "-fx-background-color:#F6F7F9;"
-        }
-
-        val owner = primaryStage
-        val screen = owner?.let {
-            Screen.getScreensForRectangle(it.x, it.y, it.width.coerceAtLeast(1.0), it.height.coerceAtLeast(1.0)).firstOrNull()
-        } ?: Screen.getPrimary()
-        val bounds = screen.visualBounds
-        val inspector = Stage().apply {
-            owner?.let { initOwner(it) }
-            title = "Card Forge · Source Image · ${source.fileName}"
-            owner?.icons?.firstOrNull()?.let { icons.add(it) }
-            scene = Scene(
-                root,
-                (bounds.width * 0.85).coerceAtMost(1500.0).coerceAtLeast(640.0),
-                (bounds.height * 0.85).coerceAtMost(1100.0).coerceAtLeast(480.0)
-            ).also { inspectorScene ->
-                AppPlatform.attachStylesheet(inspectorScene, javaClass)
-                inspectorScene.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
-                    if (event.code == KeyCode.ESCAPE) {
-                        close()
-                        event.consume()
-                    }
-                }
-            }
-            setOnHidden {
-                if (sourceInspectorStage === this) sourceInspectorStage = null
-            }
-        }
-        sourceInspectorStage = inspector
-
-        fun refreshDetails() {
-            details.text = when {
-                image.isError -> "${source.fileName} · Could not load original image"
-                image.progress < 1.0 -> "${source.fileName} · Loading original image…"
-                else -> "${source.fileName} · ${image.width.roundToInt()} × ${image.height.roundToInt()} px"
-            }
-        }
-        image.progressProperty().addListener { _, _, _ -> refreshDetails() }
-        image.errorProperty().addListener { _, _, _ -> refreshDetails() }
-        refreshDetails()
-
-        inspector.show()
-        inspector.centerOnScreen()
+        sourceImageInspector.show(
+            owner = scene.window as? Stage,
+            source = source,
+            onUnavailable = { statusBarLabel.text = "Source image is no longer available." }
+        )
     }
 
     private fun cachedThumbnail(path: Path): Image? = synchronized(thumbnailCache) {
