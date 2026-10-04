@@ -191,7 +191,12 @@ object VectorCardSvgRenderer {
                 </filter>
               </defs>
               <g clip-path="url(#${outerClipId})">
-                <rect x="0" y="0" width="${fmt(template.width)}" height="${fmt(template.height)}" rx="${fmt(data.cornerRadius)}" ry="${fmt(data.cornerRadius)}" fill="${esc(data.backgroundColor)}" stroke="${esc(data.accentColor)}" stroke-width="${fmt(data.borderWidth)}"/>
+                <rect x="${fmt(data.borderWidth / 2.0)}" y="${fmt(data.borderWidth / 2.0)}"
+                      width="${fmt((template.width - data.borderWidth).coerceAtLeast(0.0))}"
+                      height="${fmt((template.height - data.borderWidth).coerceAtLeast(0.0))}"
+                      rx="${fmt((data.cornerRadius - data.borderWidth / 2.0).coerceAtLeast(0.0))}"
+                      ry="${fmt((data.cornerRadius - data.borderWidth / 2.0).coerceAtLeast(0.0))}"
+                      fill="${esc(data.backgroundColor)}" stroke="${esc(data.accentColor)}" stroke-width="${fmt(data.borderWidth)}"/>
                 ${templateSvg}
                 ${bleed}
                 ${framesOverlay}
