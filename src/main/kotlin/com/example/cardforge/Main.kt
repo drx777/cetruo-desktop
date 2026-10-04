@@ -128,9 +128,7 @@ class MainApp : Application() {
     private var currentIndex = -1
     private var currentLoadedPath: Path? = null
     private var currentData = CardData()
-    private val undoStack = java.util.ArrayDeque<CardData>()
-    private val redoStack = java.util.ArrayDeque<CardData>()
-    private val undoLimit = 100
+    private val undoManager = CardUndoManager(100)
     private var suppressUndoCapture = false
     private var ignoreNextUndoCapture = false
     private var collectionRoot: Path? = null
@@ -158,7 +156,10 @@ class MainApp : Application() {
     private var suppressCollectionChoice = false
     private var browserColumns = 1
     private val searchIndex = mutableMapOf<String, String>()
-    private val cardDataCache = mutableMapOf<Path, CardData>()
+    private val cardStore = CollectionCardStore(
+        databaseProvider = { database },
+        newCardFactory = { path -> newCardDefaults(path) }
+    )
     private lateinit var uiThemeButton: Button
     private var uiTheme: UiTheme = runCatching {
         UiTheme.valueOf(Preferences.userNodeForPackage(MainApp::class.java).get("uiTheme", UiTheme.DARK.name))
@@ -187,7 +188,12 @@ class MainApp : Application() {
     private val thumbnailWaiters = ConcurrentHashMap<Path, CopyOnWriteArrayList<(Image?) -> Unit>>()
     private val thumbnailLastFailure = ConcurrentHashMap<Path, Long>()
     private val thumbnailRefreshPause = PauseTransition(Duration.millis(75.0))
-    private data class CardPreviewEntry(val image: Image, val sourceSize: Long, val sourceModified: Long)
+    private data class CardPreviewEntry(
+        val image: Image,
+        val sourceSize: Long,
+        val sourceModified: Long,
+        val renderSignature: String
+    )
     private val cardThumbnailCache = object : LinkedHashMap<Path, CardPreviewEntry>(128, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CardPreviewEntry>?): Boolean = size > 240
     }
@@ -215,9 +221,11 @@ class MainApp : Application() {
     private val description = TextArea()
     private val flavor = TextArea()
     private val imageMode = ComboBox<ImageMode>()
+    private val imageBleedOverFrame = CheckBox("Artwork bleeds over frame")
+    private val imageBleedOpacity = Slider(0.0, 1.0, 1.0)
+    private val imageBleedOpacityValue = Label("100%")
     private val statusChoice = ComboBox<CardStatus>()
-    private val collectionDescriptionLabel = TextField()
-    private val collectionCopyright = CheckBox("Show © before artist")
+    private lateinit var collectionSettingsPane: CollectionSettingsPane
     private val schemeChoice = ComboBox<ColorScheme>()
     private val templateChoice = ComboBox<CardTemplate>()
     private val collectionTemplateChoice = ComboBox<CardTemplate>()
@@ -249,8 +257,8 @@ class MainApp : Application() {
 
     override fun start(stage: Stage) {
         stage.title = "Card Forge"
-        setApplicationDockIcon()
-        javaClass.getResourceAsStream("/icons/card-forge-icon.png")?.use { stage.icons.add(Image(it)) }
+        AppPlatform.setApplicationDockIcon(javaClass)
+        AppPlatform.installWindowIcon(stage, javaClass)
         loadSchemes()
         loadOverlays()
         loadTemplates()
@@ -267,20 +275,11 @@ class MainApp : Application() {
         }
         applyUiTheme()
 
-        val visual = Screen.getPrimary().visualBounds
-        // Leave room for the macOS menu bar/Dock while giving the card viewport enough
-        // height to show the complete card plus the bottom status bar.
-        // Start large enough to expose the full browser + editor + card/status area,
-        // while never exceeding the usable screen bounds. The card itself scales to fit
-        // the preview pane, so a smaller laptop screen still shows the complete card.
-        val desiredWidth = 1660.0
-        val desiredHeight = 1040.0
-        val initialWidth = min(desiredWidth, visual.width * 0.94).coerceAtLeast(1180.0).coerceAtMost(visual.width)
-        val initialHeight = min(desiredHeight, visual.height * 0.93).coerceAtLeast(760.0).coerceAtMost(visual.height)
-        scene = Scene(appRoot, initialWidth, initialHeight)
+        val initialWindow = AppPlatform.initialWindowSize()
+        scene = Scene(appRoot, initialWindow.width, initialWindow.height)
         stage.minWidth = 1120.0
         stage.minHeight = 720.0
-        javaClass.getResource("/cardforge.css")?.toExternalForm()?.let { scene.stylesheets.add(it) }
+        AppPlatform.attachStylesheet(scene, javaClass)
         applyUiTheme()
         scene.accelerators[KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN)] = Runnable { saveCurrent() }
         installUiThemeKey(scene)
@@ -354,27 +353,11 @@ class MainApp : Application() {
         stage.show()
         stage.centerOnScreen()
         Platform.runLater {
+            chooseRecentCollectionOnStartup(stage)
             // AppKit can ignore the Dock icon if it is changed before the JavaFX
             // window/application has entered its native event loop.
-            setApplicationDockIcon()
+            AppPlatform.setApplicationDockIcon(javaClass)
             resizePreview()
-        }
-    }
-
-    private fun setApplicationDockIcon() {
-        if (!System.getProperty("os.name").contains("Mac", ignoreCase = true)) return
-        val icon = javaClass.getResourceAsStream("/icons/card-forge-icon.png")?.use(ImageIO::read) ?: return
-        runCatching {
-            if (Taskbar.isTaskbarSupported() && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
-                Taskbar.getTaskbar().setIconImage(icon)
-            }
-        }
-        // Older Apple Java runtimes exposed a dedicated Dock API. Keep this as a
-        // reflection fallback; modern JDKs generally use java.awt.Taskbar instead.
-        runCatching {
-            val applicationClass = Class.forName("com.apple.eawt.Application")
-            val application = applicationClass.getMethod("getApplication").invoke(null)
-            applicationClass.getMethod("setDockIconImage", java.awt.Image::class.java).invoke(application, icon)
         }
     }
 
@@ -407,6 +390,10 @@ class MainApp : Application() {
         val history = Button("History").apply { setOnAction { showHistory() } }
         val databaseInfo = Button("Database").apply { setOnAction { showDatabaseInfo() } }
         val backup = Button("Backup catalog").apply { setOnAction { backupCatalog(stage) } }
+        val shareSidecar = Button("Share sidecar").apply {
+            tooltip = Tooltip("Explicitly create a portable .card.json sidecar for the selected card. Normal saves use SQLite only.")
+            setOnAction { createSharingSidecar() }
+        }
         val exportSvg = Button("Export SVG").apply { setOnAction { exportSvg(stage) } }
         val exportPng = Button("Export PNG").apply { setOnAction { exportPng(stage) } }
         val exportPdf = Button("A4 Contact Sheet PDF").apply {
@@ -417,7 +404,7 @@ class MainApp : Application() {
             tooltip = Tooltip("Open a paged visual contact sheet for the current image scope.")
             setOnAction { showContactSheet(stage) }
         }
-        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, Separator(), exportSvg, exportPng, exportPdf, contactSheet)
+        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, shareSidecar, Separator(), exportSvg, exportPng, exportPdf, contactSheet)
     }
 
     private fun browser(): VBox {
@@ -533,6 +520,13 @@ class MainApp : Application() {
                         else -> "📁 ${item.fileName}"
                     }
                     tooltip = Tooltip(if (root != null) relativePath(item) else item.toString())
+                    contextMenu = ContextMenu(
+                        MenuItem("Open in Finder").apply { setOnAction { revealInFinder(item) } },
+                        MenuItem("Copy Path").apply { setOnAction {
+                            val content = ClipboardContent().apply { putString(item.toAbsolutePath().toString()) }
+                            Clipboard.getSystemClipboard().setContent(content)
+                        } }
+                    )
                 }
             }
         }
@@ -1029,8 +1023,13 @@ class MainApp : Application() {
         val absolute = path.toAbsolutePath().normalize()
         val size = runCatching { Files.size(absolute) }.getOrDefault(-1L)
         val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(-1L)
+        val expectedSignature = cardPreviewSignature(absolute)
         synchronized(cardThumbnailCache) {
-            cardThumbnailCache[absolute]?.takeIf { it.sourceSize == size && it.sourceModified == modified }?.let { cached ->
+            cardThumbnailCache[absolute]?.takeIf {
+                it.sourceSize == size &&
+                    it.sourceModified == modified &&
+                    it.renderSignature == expectedSignature
+            }?.let { cached ->
                 Platform.runLater { onLoaded(cached.image) }
                 return
             }
@@ -1038,21 +1037,33 @@ class MainApp : Application() {
         cardThumbnailWaiters.computeIfAbsent(absolute) { CopyOnWriteArrayList() }.add(onLoaded)
         if (!cardThumbnailLoads.add(absolute)) return
         thumbnailLoadExecutor.submit {
-            val source = runCatching {
+            // Decode once off the JavaFX thread. Reuse that decode both for the thumbnail
+            // source and for initial image-derived scheme selection, so card preview creation
+            // never blocks the UI by re-reading the original image.
+            val decoded = runCatching {
                 val buffered = ImageIO.read(absolute.toFile()) ?: return@runCatching null
+                val derivedColor = ImageColorAnalyzer.dominantColor(buffered)
                 val scaled = scaleThumbnail(buffered, 900)
-                SwingFXUtils.toFXImage(scaled, null)
-            }.getOrNull()?.takeIf { it.width > 0.0 && it.height > 0.0 }
+                val fxImage = SwingFXUtils.toFXImage(scaled, null)
+                fxImage to derivedColor
+            }.getOrNull()
+            val source = decoded?.first?.takeIf { it.width > 0.0 && it.height > 0.0 }
+            val derivedColor = decoded?.second
             Platform.runLater {
                 try {
-                    val data = savedDataForPath(absolute)
+                    val data = savedDataForPath(absolute, derivedColor, analyzeImageIfNeeded = false)
                     val effectiveSource = source ?: runCatching {
                         Image(absolute.toUri().toString(), 900.0, 900.0, true, true, false)
                     }.getOrNull()?.takeIf { !it.isError && it.width > 0.0 && it.height > 0.0 }
                     val preview = if (effectiveSource != null) renderCardPreviewImage(effectiveSource, data) else null
                     if (preview != null) {
                         synchronized(cardThumbnailCache) {
-                            cardThumbnailCache[absolute] = CardPreviewEntry(preview, size, modified)
+                            cardThumbnailCache[absolute] = CardPreviewEntry(
+                                image = preview,
+                                sourceSize = size,
+                                sourceModified = modified,
+                                renderSignature = cardPreviewSignature(absolute, data)
+                            )
                         }
                     }
                     val waiters = cardThumbnailWaiters.remove(absolute).orEmpty()
@@ -1062,6 +1073,19 @@ class MainApp : Application() {
                 }
             }
         }
+    }
+
+    private fun cardPreviewSignature(path: Path, dataOverride: CardData? = null): String {
+        val normalized = path.toAbsolutePath().normalize()
+        val data = dataOverride
+            ?: if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalized) currentData
+            else cardStore.snapshot(normalized)
+        val dataSignature = data?.let { runCatching { JsonSupport.mapper.writeValueAsString(it) }.getOrDefault(it.toString()) }
+            ?: "UNINITIALIZED"
+        val presentationSignature = runCatching {
+            JsonSupport.mapper.writeValueAsString(collectionPresentation)
+        }.getOrDefault(collectionPresentation.toString())
+        return "$collectionDefaultTemplateName|$presentationSignature|$dataSignature"
     }
 
     private fun renderCardPreviewImage(image: Image, data: CardData): Image? {
@@ -1090,28 +1114,15 @@ class MainApp : Application() {
         }.getOrNull()
     }
 
-    private fun savedDataForPath(path: Path): CardData {
+    private fun savedDataForPath(
+        path: Path,
+        derivedColorOverride: Color? = null,
+        analyzeImageIfNeeded: Boolean = true
+    ): CardData {
         val normalized = path.toAbsolutePath().normalize()
-        cardDataCache[normalized]?.let { return it.copy() }
-        val sidecarData = Sidecar.load(normalized)
-        val pathSnapshot = database?.dataSnapshotForPath(normalized)
-        val pathAssetId = database?.assetIdForPath(normalized)
-        val sidecarId = sidecarData?.assetId?.takeIf { it.isNotBlank() }
-        val sidecarCatalogPath = sidecarId?.let { database?.assetRelativePath(it) }
-        val sidecarIdMatchesPath = sidecarId == null || pathAssetId == sidecarId || sidecarCatalogPath == null || sidecarCatalogPath == relativePath(normalized)
-        val idSnapshot = sidecarId
-            ?.takeIf { sidecarIdMatchesPath }
-            ?.let { database?.dataSnapshot(it) }
-
-        // A copied sidecar whose asset ID points at another live catalog record must never
-        // make a second image inherit that other card's properties. Selection itself offers
-        // an explicit conflict-resolution dialog; passive previews use the sidecar directly.
-        val candidates = listOfNotNull(pathSnapshot, idSnapshot, sidecarData)
-        val result = candidates.firstOrNull { hasMeaningfulCardData(it) }?.copy()
-            ?: newCardDefaults().also { defaults ->
-                candidates.firstOrNull()?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
-            }
-        cardDataCache[normalized] = result.copy()
+        cardStore.snapshot(normalized)?.takeIf(::hasMeaningfulCardData)?.let { return it.copy() }
+        val result = newCardDefaults(normalized, derivedColorOverride, analyzeImageIfNeeded)
+        cardStore.put(normalized, result)
         return result
     }
 
@@ -1168,37 +1179,19 @@ class MainApp : Application() {
         }
 
         form.children.add(section("Collection"))
-        collectionDescriptionLabel.apply {
-            text = collectionPresentation.descriptionHeading
-            promptText = "ABILITY / DESCRIPTION"
-            textProperty().addListener { _, _, value ->
-                if (!suppressEditorUpdates) {
-                    collectionPresentation.descriptionHeading = value.ifBlank { "ABILITY / DESCRIPTION" }
-                    persistCollectionPresentation()
-                    render()
-                }
-            }
-            installDoubleClickReset(this) {
-                collectionPresentation.descriptionHeading = "ABILITY / DESCRIPTION"
-                suppressEditorUpdates = true
-                text = collectionPresentation.descriptionHeading
-                suppressEditorUpdates = false
+        collectionSettingsPane = CollectionSettingsPane(
+            initial = collectionPresentation,
+            onPresentationChanged = { value ->
+                collectionPresentation = value
                 persistCollectionPresentation()
                 render()
-            }
-        }
-        collectionCopyright.apply {
-            isSelected = collectionPresentation.showArtistCopyright
-            selectedProperty().addListener { _, _, value ->
-                if (!suppressEditorUpdates) {
-                    collectionPresentation.showArtistCopyright = value
-                    persistCollectionPresentation()
-                    render()
-                }
-            }
-        }
-        form.children.add(row("Description label", collectionDescriptionLabel))
-        form.children.add(collectionCopyright)
+            },
+            onApplyDefaultTemplateToAll = { applyCollectionDefaultTemplateToAll() },
+            onApplySetNameToAll = { applyCurrentSetNameToAll() },
+            onNormalizeCollectorTotals = { normalizeCollectorTotals() }
+        )
+        collectionSettingsPane.setCardCount(allImages.size)
+        form.children.add(collectionSettingsPane)
         form.children.add(helperLabel("These presentation options belong to the collection and apply to every card."))
 
         form.children.add(section("Card Metadata"))
@@ -1236,6 +1229,10 @@ class MainApp : Application() {
                 setOnAction { if (currentIndex in visibleImages.indices) applySelectedScheme() }
                 maxWidth = Double.MAX_VALUE
                 HBox.setHgrow(this, Priority.ALWAYS)
+            })
+            children.add(Button("From image").apply {
+                tooltip = Tooltip("Choose the closest coordinated color scheme from the dominant artwork color.")
+                setOnAction { applySchemeFromCurrentImage() }
             })
             children.add(Button("Reload schemes").apply { setOnAction { loadSchemes() } })
         })
@@ -1279,6 +1276,11 @@ class MainApp : Application() {
             }
         }
         form.children.add(row("Card template", templateChoice))
+        form.children.add(Button("Apply selected template to all cards").apply {
+            maxWidth = Double.MAX_VALUE
+            tooltip = Tooltip("Make the selected Card template the collection default and clear all per-card template overrides.")
+            setOnAction { applyCollectionDefaultTemplateToAll() }
+        })
         form.children.add(templateOverride.apply { tooltip = Tooltip("On: keep a template override for this card. Off: follow the collection default.") })
         form.children.add(row("Collection default", collectionTemplateChoice))
         form.children.add(Button("Reset card to collection default").apply {
@@ -1302,7 +1304,19 @@ class MainApp : Application() {
             }
         }
         form.children.add(row("Fit", imageMode))
-        form.children.add(helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×.") )
+        imageBleedOverFrame.apply {
+            tooltip = Tooltip("Extend artwork behind the surrounding card frame. The description panel remains above it; description background opacity controls how much artwork can show through there.")
+            selectedProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
+        }
+        form.children.add(imageBleedOverFrame)
+        imageBleedOpacity.tooltip = Tooltip("Per-card opacity for artwork that extends over the frame; multiplied by the collection bleed opacity.")
+        imageBleedOpacity.valueProperty().addListener { _, _, value ->
+            imageBleedOpacityValue.text = "%.0f%%".format(value.toDouble() * 100.0)
+            if (!suppressEditorUpdates) updateFromEditor()
+        }
+        installSliderReset(imageBleedOpacity, 1.0)
+        form.children.add(sliderRow("Bleed opacity", imageBleedOpacity, imageBleedOpacityValue, "%.0f%%"))
+        form.children.add(helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×."))
 
         val cropActions = HBox(8.0).apply {
             val fill = Button("Crop to Fill").apply { setOnAction { setArtwork(ImageMode.COVER, 1.0, 0.0, 0.0) } }
@@ -1405,7 +1419,7 @@ class MainApp : Application() {
         form.children.add(row("Accent", accentColor))
         form.children.add(row("Border", border))
         form.children.add(row("Corner radius", radius))
-        form.children.add(sliderRow("Panel opacity", panelOpacity, Label(), "%.2f"))
+        form.children.add(sliderRow("Description background opacity", panelOpacity, Label(), "%.2f"))
         form.children.add(row("Title size", titleSize))
         form.children.add(row("Body size", bodySize))
 
@@ -1875,6 +1889,81 @@ class MainApp : Application() {
         if (allowRender && currentIndex in visibleImages.indices) render()
     }
 
+    private fun chooseRecentCollectionOnStartup(stage: Stage) {
+        if (collectionRoot != null) return
+        when (val choice = StartupCatalogChooser.choose(stage, RecentCatalogs.list())) {
+            is StartupCatalogChooser.Choice.Open -> openCollectionPath(choice.path)
+            StartupCatalogChooser.Choice.Browse -> {
+                val directory = DirectoryChooser().apply { title = "Choose Image Directory" }.showDialog(stage)?.toPath()
+                if (directory != null) openCollectionPath(directory)
+            }
+            StartupCatalogChooser.Choice.Cancel -> Unit
+        }
+    }
+
+    private fun collectionActions(): CollectionEditorActions? = database?.let { db ->
+        CollectionEditorActions(
+            database = db,
+            images = { allImages.toList() },
+            initializeCard = { path -> newCardDefaults(path) }
+        )
+    }
+
+    private fun applyCollectionDefaultTemplateToAll() {
+        val selected = templateChoice.value ?: currentTemplate() ?: run {
+            statusBarLabel.text = "Choose a card template first."
+            return
+        }
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
+
+        val result = collectionActions()?.applyTemplateToAll(selected.name) ?: return
+        collectionDefaultTemplateName = selected.name
+        suppressEditorUpdates = true
+        try {
+            collectionTemplateChoice.value = selected
+        } finally {
+            suppressEditorUpdates = false
+        }
+
+        refreshAfterCollectionMutation()
+        statusBarLabel.text =
+            "Applied template '${selected.name}' to ${result.changedCards} card(s); it is also the collection default."
+    }
+
+    private fun applyCurrentSetNameToAll() {
+        val setName = currentData.setName.trim()
+        if (setName.isBlank()) { statusBarLabel.text = "Enter a set name on the selected card first."; return }
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
+        val result = collectionActions()?.applySetNameToAll(setName) ?: return
+        refreshAfterCollectionMutation()
+        statusBarLabel.text = "Set name applied to ${result.changedCards} card(s)."
+    }
+
+    private fun normalizeCollectorTotals() {
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
+        val result = collectionActions()?.normalizeCollectorTotals() ?: return
+        refreshAfterCollectionMutation()
+        statusBarLabel.text = "Collector-number totals fixed on ${result.changedCards} card(s)."
+    }
+
+    private fun refreshAfterCollectionMutation() {
+        val selectedPath = currentLoadedPath?.toAbsolutePath()?.normalize()
+        cardStore.clear()
+        searchIndex.clear()
+        database?.searchIndex()?.let { searchIndex.putAll(it) }
+        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        if (selectedPath != null) {
+            val index = visibleImages.indexOfFirst { it.toAbsolutePath().normalize() == selectedPath }
+            if (index >= 0) {
+                currentIndex = -1
+                currentLoadedPath = null
+                select(index, scrollIntoView = false)
+            }
+        }
+        imageList.refresh()
+        gridList.refresh()
+    }
+
     private fun openDirectory(stage: Stage) {
         val directory = DirectoryChooser().apply { title = "Choose Image Directory" }.showDialog(stage)?.toPath() ?: return
         openCollectionPath(directory)
@@ -1906,13 +1995,15 @@ class MainApp : Application() {
                 try {
                     collectionTemplateChoice.items.setAll(templates)
                     collectionTemplateChoice.value = templates.firstOrNull { it.name == collectionDefaultTemplateName } ?: templates.firstOrNull()
-                    collectionDescriptionLabel.text = collectionPresentation.descriptionHeading
-                    collectionCopyright.isSelected = collectionPresentation.showArtistCopyright
+                    if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setPresentation(collectionPresentation)
                     refreshCollectionChoices()
                 } finally { suppressEditorUpdates = false }
+                RecentCatalogs.record(normalized)
                 startCollectionWatcher(normalized)
                 allImages.clear()
                 allImages.addAll(task.value.images)
+                if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
+                migrateLegacySidecars(newDatabase, allImages)
                 visibleImages.clear()
                 currentIndex = -1
                 currentLoadedPath = null
@@ -1925,15 +2016,22 @@ class MainApp : Application() {
                 OverlayRepository.clearCache()
                 searchIndex.clear()
                 searchIndex.putAll(newDatabase.searchIndex())
-                cardDataCache.clear()
+                cardStore.clear()
                 cropImage = null
                 backgroundOverlayImage = null
                 templateImage = null
                 renderedCard = null
                 previewHost.children.clear()
-                buildFolderTree(normalized, normalized)
-                rebuildBrowserImmediately()
-                if (visibleImages.isNotEmpty()) select(0) else clearEditorForNoSelection()
+                StartupProfiler.measure("folder tree build") {
+                    buildFolderTree(normalized, normalized)
+                }
+                StartupProfiler.measure("browser rebuild/sort", detail = { "${visibleImages.size} visible" }) {
+                    rebuildBrowserImmediately()
+                    visibleImages.size
+                }
+                StartupProfiler.measure("first card select/render") {
+                    if (visibleImages.isNotEmpty()) select(0) else clearEditorForNoSelection()
+                }
                 val nestedNote = if (nestedCollectionRoots.isNotEmpty()) "; ${nestedCollectionRoots.size} nested collection(s) available" else ""
                 statusBarLabel.text = "Collection: ${normalized.fileName} • ${allImages.size} images • DB ${newDatabase.path.fileName}$nestedNote"
             } catch (e: Exception) {
@@ -2026,13 +2124,29 @@ class MainApp : Application() {
 
     private fun cardDataForSorting(path: Path): CardData {
         val normalized = path.toAbsolutePath().normalize()
-        cardDataCache[normalized]?.let { return it }
-        val data = runCatching {
-            database?.dataSnapshotForPath(normalized) ?: Sidecar.load(normalized) ?: newCardDefaults()
-        }.getOrDefault(newCardDefaults())
-        cardDataCache[normalized] = data.copy()
-        return data
+        val saved = runCatching { cardStore.snapshot(normalized) }.getOrNull()
+        if (saved != null) return saved
+        // Browser sorting must stay metadata-only. newCardDefaults() intentionally performs
+        // image-derived scheme analysis, which is far too expensive to run for every unsaved
+        // image while sorting on the JavaFX application thread.
+        return lightweightCardData(normalized)
     }
+
+    private fun lightweightCardData(path: Path): CardData = CardData(
+        assetId = "",
+        status = CardStatus.NEW,
+        title = path.fileName?.toString()?.substringBeforeLast('.', path.fileName.toString()) ?: "",
+        cost = "",
+        typeLine = "",
+        rarity = "",
+        description = "",
+        flavorText = "",
+        artist = "",
+        setName = "",
+        collectorNumber = "",
+        stats = "",
+        templateName = ""
+    )
 
     private fun lastWord(value: String): String = value.trim().split(Regex("\\s+")).lastOrNull().orEmpty()
 
@@ -2209,7 +2323,7 @@ class MainApp : Application() {
         val relative = relativePath(path)
         val cached = snapshot[relative]
         if (cached != null) return cached
-        val data = Sidecar.load(path) ?: newCardDefaults().also { it.assetId = "" }
+        val data = database?.dataSnapshotForPath(path) ?: lightweightCardData(path)
         val json = runCatching { JsonSupport.mapper.writeValueAsString(data) }.getOrDefault("")
         val searchable = ("$relative ${path.fileName} ${data.assetId} ${data.status.name} $json").lowercase()
         if (snapshot === searchIndex) searchIndex[relative] = searchable
@@ -2217,58 +2331,25 @@ class MainApp : Application() {
     }
 
     private fun resolveCardDataForSelection(path: Path): CardData? {
-        val sidecarExists = Sidecar.exists(path)
-        val sidecarData = if (sidecarExists) Sidecar.load(path) else null
-        val db = database ?: return sidecarData ?: newCardDefaults()
-        val pathDbData = db.dataSnapshotForPath(path)
-        val idDbData = sidecarData?.assetId?.takeIf { it.isNotBlank() }?.let { assetId ->
-            db.dataSnapshot(assetId)
-        }
-        val sidecarCatalogPath = sidecarData?.assetId?.takeIf { it.isNotBlank() }?.let { db.assetRelativePath(it) }
-        val idPointsElsewhere = sidecarData?.assetId?.isNotBlank() == true &&
-            sidecarCatalogPath != null && sidecarCatalogPath != relativePath(path)
-        val dbData = pathDbData ?: idDbData
-
-        if (sidecarData != null && dbData != null) {
-            val same = dataEquivalent(dbData, sidecarData) && !idPointsElsewhere
-            if (!same) {
-                val choices = arrayOf("Use catalog", "Use sidecar", "Cancel")
-                val alert = Alert(Alert.AlertType.CONFIRMATION).apply {
-                    title = "Card data discrepancy"
-                    headerText = "Catalog and sidecar disagree for ${path.fileName}"
-                    contentText = buildString {
-                        append("The SQLite catalog and ${Sidecar.pathFor(path).fileName} contain different data.")
-                        if (idPointsElsewhere) append(" The sidecar asset ID points to a different catalog record.")
-                        append("\n\nChoose which version should become the authoritative card data.")
-                    }
-                    buttonTypes.setAll(choices.map(::ButtonType))
-                }
-                val result = alert.showAndWait().orElse(ButtonType("Cancel"))
-                when (result.text) {
-                    "Use catalog" -> {
-                        Sidecar.save(path, dbData)
-                        db.recordActivity(dbData.assetId, "CONFLICT_RESOLVE", "catalog selected; sidecar synchronized")
-                        return dbData
-                    }
-                    "Use sidecar" -> {
-                        var chosen = sidecarData
-                        if (idPointsElsewhere && sidecarCatalogPath != null && Files.exists((collectionRoot ?: path.parent).resolve(sidecarCatalogPath))) {
-                            // A copied sidecar should create a new catalog identity instead of stealing a live card.
-                            chosen = chosen.copy(assetId = UUID.randomUUID().toString())
-                        }
-                        db.save(path, chosen)
-                        Sidecar.save(path, chosen)
-                        db.recordActivity(chosen.assetId, "CONFLICT_RESOLVE", "sidecar selected; catalog synchronized")
-                        return chosen
-                    }
-                    else -> return null
-                }
+        val normalized = path.toAbsolutePath().normalize()
+        val db = database ?: return cardStore.snapshot(normalized)?.copy() ?: newCardDefaults(normalized)
+        val dbData = db.dataSnapshotForPath(normalized)
+        if (dbData != null && hasMeaningfulCardData(dbData)) {
+            if (dbData.collectorNumber.isBlank()) {
+                dbData.collectorNumber = nextUnusedCollectorNumber()
+                db.save(normalized, dbData)
             }
             return dbData
         }
-        if (sidecarData != null) return sidecarData
-        if (dbData != null && hasMeaningfulCardData(dbData)) return dbData
-        return newCardDefaults().also { defaults ->
+        // Unsaved cards may already have deterministic in-memory defaults generated for a
+        // card thumbnail. Reuse them so selecting the card does not randomize it again or
+        // decode the image a second time.
+        cardStore.cached(normalized)?.let { cached ->
+            return cached.copy().also { data ->
+                dbData?.assetId?.takeIf { it.isNotBlank() }?.let { data.assetId = it }
+            }
+        }
+        return newCardDefaults(normalized).also { defaults ->
             dbData?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
         }
     }
@@ -2278,15 +2359,45 @@ class MainApp : Application() {
             JsonSupport.mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(b)
     }.getOrDefault(false)
 
-    private fun newCardDefaults(): CardData {
+    private fun newCardDefaults(
+        path: Path? = null,
+        derivedColorOverride: Color? = null,
+        analyzeImageIfNeeded: Boolean = true
+    ): CardData {
+        val random = randomGenerator()
         val data = CardData(
             assetId = UUID.randomUUID().toString(),
             status = CardStatus.NEW,
-            templateName = ""
+            title = path?.fileName?.toString()?.substringBeforeLast('.', path.fileName.toString()) ?: "CARD NAME",
+            cost = random.nextInt(0, 10).toString(),
+            typeLine = listOf("CREATURE — MYSTIC", "LEGENDARY CHARACTER", "ARTIFACT — RELIC", "SORCERY — RITUAL", "SPELL — ARCANE", "ALLY — KNIGHT").random(random),
+            rarity = weightedRarity(random),
+            artist = artistPatterns.random(random),
+            collectorNumber = nextUnusedCollectorNumber(random),
+            stats = "${random.nextInt(0, 13)} / ${random.nextInt(0, 13)}",
+            templateName = templates.randomOrNull(random)?.name.orEmpty(),
+            backgroundOverlay = "",
+            imageMode = ImageMode.COVER,
+            imageBleedOverFrame = false
         )
-        val scheme = schemes.firstOrNull { it.name.equals("Classic", ignoreCase = true) } ?: schemes.firstOrNull()
-        if (scheme != null) scheme.applyTo(data)
+        val derived = derivedColorOverride ?: if (analyzeImageIfNeeded) path?.let(ImageColorAnalyzer::dominantColor) else null
+        val scheme = derived?.let { ImageColorAnalyzer.bestMatchingScheme(it, schemes) } ?: schemes.randomOrNull(random)
+        scheme?.applyTo(data)
         return data
+    }
+
+    private fun weightedRarity(random: kotlin.random.Random): String = when (random.nextInt(100)) {
+        in 0..49 -> "COMMON"
+        in 50..74 -> "UNCOMMON"
+        in 75..91 -> "RARE"
+        in 92..97 -> "MYTHIC"
+        else -> "LEGENDARY"
+    }
+
+    private fun nextUnusedCollectorNumber(random: kotlin.random.Random = randomGenerator(), total: Int = 100): String {
+        val used = database?.usedCollectorNumbers(null).orEmpty()
+        val available = (1..total).map { "%03d/%d".format(it, total) }.filterNot(used::contains)
+        return available.randomOrNull(random) ?: "%03d/%d".format(random.nextInt(1, total + 1), total)
     }
 
     private fun select(newIndex: Int, scrollIntoView: Boolean = false) {
@@ -2301,9 +2412,8 @@ class MainApp : Application() {
         currentIndex = newIndex
         currentLoadedPath = imagePath
         currentData = resolvedData
-        cardDataCache[imagePath] = resolvedData.copy()
-        undoStack.clear()
-        redoStack.clear()
+        cardStore.put(imagePath, resolvedData)
+        undoManager.clear()
         ignoreNextUndoCapture = false
         cropImage = cachedFullImage(imagePath)
         loadTemplateAndOverlay()
@@ -2348,6 +2458,9 @@ class MainApp : Application() {
             templateChoice.value = effectiveTemplate
             templateOverride.isSelected = currentData.templateName.isNotBlank()
             imageMode.value = currentData.imageMode
+            imageBleedOverFrame.isSelected = currentData.imageBleedOverFrame
+            imageBleedOpacity.value = currentData.imageBleedOpacity.coerceIn(0.0, 1.0)
+            imageBleedOpacityValue.text = "%.0f%%".format(imageBleedOpacity.value * 100.0)
             zoom.value = currentData.imageZoom.coerceIn(0.1, 4.0)
             populateColorPickersFromData()
             border.valueFactory.value = currentData.borderWidth
@@ -2490,25 +2603,19 @@ class MainApp : Application() {
 
     private fun captureUndoSnapshot() {
         if (suppressUndoCapture || currentIndex !in visibleImages.indices) return
-        undoStack.addLast(currentData.copy())
-        while (undoStack.size > undoLimit) undoStack.removeFirst()
-        redoStack.clear()
+        undoManager.record(currentData)
         ignoreNextUndoCapture = true
     }
 
     private fun undoCardChange() {
-        if (currentIndex !in visibleImages.indices || undoStack.isEmpty()) return
-        val previous = undoStack.removeLast()
-        redoStack.addLast(currentData.copy())
-        while (redoStack.size > undoLimit) redoStack.removeFirst()
+        if (currentIndex !in visibleImages.indices) return
+        val previous = undoManager.undo(currentData) ?: return
         applyUndoState(previous, "Undid card change")
     }
 
     private fun redoCardChange() {
-        if (currentIndex !in visibleImages.indices || redoStack.isEmpty()) return
-        val next = redoStack.removeLast()
-        undoStack.addLast(currentData.copy())
-        while (undoStack.size > undoLimit) undoStack.removeFirst()
+        if (currentIndex !in visibleImages.indices) return
+        val next = undoManager.redo(currentData) ?: return
         applyUndoState(next, "Redid card change")
     }
 
@@ -2545,6 +2652,8 @@ class MainApp : Application() {
         currentData.status = statusChoice.value ?: currentData.status
         currentData.templateName = if (templateOverride.isSelected) (templateChoice.value?.name ?: currentData.templateName) else ""
         currentData.imageMode = imageMode.value ?: currentData.imageMode
+        currentData.imageBleedOverFrame = imageBleedOverFrame.isSelected
+        currentData.imageBleedOpacity = imageBleedOpacity.value.coerceIn(0.0, 1.0)
         currentData.imageZoom = zoom.value
         currentData.imageOffsetX = currentActualPanX()
         currentData.imageOffsetY = currentActualPanY()
@@ -2566,14 +2675,29 @@ class MainApp : Application() {
         val afterSignature = cardSnapshotSignature(currentData)
         if (beforeSignature != afterSignature) {
             if (!suppressUndoCapture && !ignoreNextUndoCapture) {
-                undoStack.addLast(JsonSupport.mapper.readValue(beforeSignature, CardData::class.java))
-                while (undoStack.size > undoLimit) undoStack.removeFirst()
-                redoStack.clear()
+                undoManager.record(JsonSupport.mapper.readValue(beforeSignature, CardData::class.java))
             }
             ignoreNextUndoCapture = false
         }
-        cardDataCache[currentPath.toAbsolutePath().normalize()] = currentData.copy()
+        val normalizedCurrentPath = currentPath.toAbsolutePath().normalize()
+        cardStore.put(normalizedCurrentPath, currentData)
+        // Card-preview thumbnails depend on editor state as well as source-file mtime.
+        // Invalidate the rendered preview immediately so list/grid/contact-sheet views
+        // cannot keep showing a stale card while the editor contains newer values.
+        synchronized(cardThumbnailCache) { cardThumbnailCache.remove(normalizedCurrentPath) }
         searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
+
+        // Keep rendered browser previews and card-name labels current without rebuilding
+        // cells for every keystroke. Only visible cells are recreated after the short pause.
+        thumbnailRefreshPause.stop()
+        thumbnailRefreshPause.setOnFinished {
+            if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalizedCurrentPath) {
+                imageList.refresh()
+                gridList.refresh()
+            }
+        }
+        thumbnailRefreshPause.playFromStart()
+
         if (renderPreview) render()
     }
 
@@ -2650,17 +2774,52 @@ class MainApp : Application() {
         rendered.root.scaleY = scale
     }
 
-    private fun usedCollectorNumbersForCollection(excludingAssetId: String? = null): Set<String> {
-        val used = linkedSetOf<String>()
-        database?.usedCollectorNumbers(excludingAssetId)?.let(used::addAll)
-        // Sidecars can contain saved data that has not yet been imported into SQLite.
-        // Include those too so the duplicate check matches the whole collection.
-        allImages.forEach { image ->
-            val sidecar = Sidecar.load(image) ?: return@forEach
-            if (excludingAssetId != null && sidecar.assetId == excludingAssetId) return@forEach
-            sidecar.collectorNumber.trim().takeIf { it.isNotBlank() }?.let(used::add)
+    private fun usedCollectorNumbersForCollection(excludingAssetId: String? = null): Set<String> =
+        database?.usedCollectorNumbers(excludingAssetId).orEmpty()
+
+    private fun migrateLegacySidecars(db: CollectionDatabase, images: List<Path>) {
+        var imported = 0
+        var removed = 0
+        images.forEach { image ->
+            if (!Sidecar.exists(image) || Sidecar.isExplicitShare(image)) return@forEach
+            val legacy = Sidecar.load(image)
+            if (legacy != null) {
+                val existing = db.dataSnapshotForPath(image)
+                if (existing == null || !hasMeaningfulCardData(existing)) {
+                    db.save(image, legacy)
+                    imported++
+                }
+            }
+            if (Sidecar.remove(image)) removed++
         }
-        return used
+        if (removed > 0) statusBarLabel.text = "Migrated $imported legacy sidecars; removed $removed legacy files."
+    }
+
+    private fun createSharingSidecar() {
+        val path = imagesCurrentPath() ?: return
+        if (!saveCurrent(showStatus = false)) return
+        runCatching { Sidecar.createForSharing(path, currentData) }
+            .onSuccess { target -> statusBarLabel.text = "Sharing sidecar created • ${target.fileName}" }
+            .onFailure { showError("Could not create sharing sidecar", it) }
+    }
+
+    private fun applySchemeFromCurrentImage() {
+        val path = imagesCurrentPath() ?: return
+        val dominant = ImageColorAnalyzer.dominantColor(path) ?: run {
+            statusBarLabel.text = "Could not determine a useful dominant image color."
+            return
+        }
+        val scheme = ImageColorAnalyzer.bestMatchingScheme(dominant, schemes) ?: return
+        captureUndoSnapshot()
+        suppressEditorUpdates = true
+        try {
+            scheme.applyTo(currentData)
+            schemeChoice.value = scheme
+            populateColorPickersFromData()
+        } finally { suppressEditorUpdates = false }
+        updateFromEditor(renderPreview = false)
+        render()
+        statusBarLabel.text = "Matched image color to scheme '${scheme.name}'"
     }
 
     private fun saveCurrent(showStatus: Boolean = true): Boolean {
@@ -2691,12 +2850,36 @@ class MainApp : Application() {
                 }.showAndWait().orElse(ButtonType.CANCEL)
                 if (confirm == ButtonType.CANCEL) return false
             }
+            val previousSet = previous?.setName?.trim().orEmpty()
+            val nextSet = currentData.setName.trim()
+            val shouldNormalizeSetTotals = previous == null || previousSet != nextSet
             val result = db.save(path, currentData)
-            Sidecar.save(path, currentData)
-            synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
+
+            if (shouldNormalizeSetTotals) {
+                val affectedSets = linkedSetOf<String>().apply {
+                    previousSet.takeIf { it.isNotBlank() }?.let(::add)
+                    nextSet.takeIf { it.isNotBlank() }?.let(::add)
+                }
+                if (affectedSets.isNotEmpty()) {
+                    CollectionBulkActions.normalizeCollectorTotals(allImages, db, affectedSets)
+                    db.dataSnapshotForPath(path)?.let { persisted ->
+                        currentData.collectorNumber = persisted.collectorNumber
+                        suppressEditorUpdates = true
+                        try { fields["collectorNumber"]?.text = persisted.collectorNumber }
+                        finally { suppressEditorUpdates = false }
+                    }
+                    cardStore.clear()
+                    synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+                    searchIndex.clear()
+                    searchIndex.putAll(db.searchIndex())
+                }
+            } else {
+                synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
+                searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
+                cardStore.put(path, currentData)
+            }
+
             if (result.changed) db.recordActivity(result.assetId, "SAVE", "revision=${result.revisionNumber}")
-            searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
-            cardDataCache[path.toAbsolutePath().normalize()] = currentData.copy()
             if (showStatus) {
                 statusBarLabel.text = if (result.changed) {
                     "Saved • ${relativePath(path)} • revision ${result.revisionNumber} • ${statusLabel(currentData.status)}"
@@ -3126,14 +3309,25 @@ class MainApp : Application() {
         val nestedChanged = previousNested != nextNested
         if (!changed && !nestedChanged) return
 
+        if (changed) {
+            val removedPaths = previousSet - nextSet
+            val addedPaths = nextSet - previousSet
+            val db = database
+            // Detach missing paths before reconciling additions. If a file was merely moved
+            // or renamed, reconcileAdded() can then restore the same asset ID by content hash.
+            removedPaths.forEach { removed -> runCatching { db?.markMissing(removed) } }
+            addedPaths.forEach { added -> runCatching { db?.reconcileAdded(added) } }
+        }
+
         allImages.clear()
         allImages.addAll(result.images)
+        if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
         nestedCollectionRoots = result.nestedCollections
         nestedCollectionsSkipped = nestedCollectionRoots.size
         if (changed) {
             val livePaths = nextSet
             searchIndex.keys.retainAll(result.images.map(::relativePath).toSet())
-            cardDataCache.keys.retainAll(livePaths)
+            cardStore.retainOnly(livePaths)
             previousSet.asSequence().filter { it !in nextSet }.forEach { removed ->
                 synchronized(thumbnailCache) { thumbnailCache.remove(removed) }
                 synchronized(fullImageCache) { fullImageCache.remove(removed) }
@@ -3229,13 +3423,11 @@ class MainApp : Application() {
 
     private fun clearEditorForNoSelection() {
         currentLoadedPath = null
-        undoStack.clear()
-        redoStack.clear()
+        undoManager.clear()
         suppressEditorUpdates = true
         try {
             fields.values.forEach { it.clear() }
-            collectionDescriptionLabel.text = collectionPresentation.descriptionHeading
-            collectionCopyright.isSelected = collectionPresentation.showArtistCopyright
+            if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setPresentation(collectionPresentation)
             description.clear()
             flavor.clear()
             statusChoice.value = null
@@ -3244,6 +3436,8 @@ class MainApp : Application() {
             collectionTemplateChoice.value = templates.firstOrNull { it.name == collectionDefaultTemplateName } ?: templates.firstOrNull()
             templateOverride.isSelected = false
             imageMode.value = null
+            imageBleedOpacity.value = 1.0
+            imageBleedOpacityValue.text = "100%"
             backgroundOverlayChoice.value = overlays.firstOrNull { it.path == null } ?: overlays.firstOrNull()
             overlayPlacementChoice.value = OverlayPlacement.FRAMES_ONLY
             zoom.value = 1.0
@@ -3312,10 +3506,10 @@ class MainApp : Application() {
         collectionRoot = null
         allImages.clear()
         visibleImages.clear()
+        if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(0)
         currentIndex = -1
         renderedCard = null
-        undoStack.clear()
-        redoStack.clear()
+        undoManager.clear()
         backgroundOverlayImage = null
         templateImage = null
         cropImage = null
@@ -3323,7 +3517,7 @@ class MainApp : Application() {
         nestedCollectionRoots = emptyList()
         collectionPresentation = CollectionPresentation()
         searchIndex.clear()
-        cardDataCache.clear()
+        cardStore.clear()
         suppressCollectionChoice = true
         try { collectionChoice.items.clear() } finally { suppressCollectionChoice = false }
         synchronized(thumbnailCache) { thumbnailCache.clear() }

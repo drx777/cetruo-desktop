@@ -4,7 +4,7 @@ Kotlin + JavaFX desktop app for creating collectible-card layouts from a directo
 
 ## Browser
 
-- Folder tree with nested collections and stable path/asset identity.
+- Folder tree with nested collections and stable path/asset identity; the Collection editor shows the current collection's card/image count.
 - List and thumbnail-grid modes with natural keyboard navigation.
 - Original-image or rendered-card previews.
 - Original and card previews are generated lazily and retained in bounded in-memory caches.
@@ -19,14 +19,14 @@ Kotlin + JavaFX desktop app for creating collectible-card layouts from a directo
 
 - Each selected collection gets its own `.cardforge.sqlite`.
 - Stable UUID-style asset IDs are independent of filenames.
-- Sidecars remain portable as `image.ext.card.json` files.
+- Sidecars are never written automatically; **Share sidecar** explicitly creates a portable `image.ext.card.json` file when needed.
 - Saves record revisions and activity history.
 - Switching cards, collections, and closing the app save the active card first.
 - Catalog/sidecar conflicts are resolved interactively.
 - A catalog backup command is available from the toolbar.
 - Undo/redo is available per card.
 - Destructive saves that would blank many populated fields require confirmation.
-- Deleting or inserting files cannot cause the edited card's data to be written into its neighbour.
+- Deleting or inserting files cannot cause the edited card's data to be written into its neighbour. Removed assets are detached from their old path; if the same file is moved/renamed while Card Forge is running, content-hash reconciliation preserves its asset ID, while an unrelated replacement at the old filename starts as a new asset.
 
 ## Schemes
 
@@ -46,7 +46,7 @@ Light schemes are listed before dark schemes and show a palette preview. `SCHEME
 - JSON geometry + paired SVG base files live under `templates/`.
 - SVG decorative overlays live under `overlays/`.
 - Overlay placement can be Frames Only or Over Content.
-- Templates are selectable per collection, with optional per-card overrides.
+- Templates are selectable per collection, with optional per-card overrides. **Apply selected template to all cards** makes the currently selected card template the collection default and clears all saved per-card overrides.
 
 ## Export and contact sheets
 
@@ -54,6 +54,14 @@ Light schemes are listed before dark schemes and show a palette preview. `SCHEME
 - SVG export is a self-contained rendered-card SVG.
 - A4 contact-sheet PDF keeps cards at physical card size by default, with optional per-export scale, margin, and gap controls; compatible dimensions are grouped and A4 orientation is chosen for better packing.
 - The application also has a paged in-app contact-sheet viewer using the same canonical card previews. Browser view/previews use icon toggles instead of mode dropdowns.
+
+## Collection presentation
+
+- Collection-scoped bleed opacity controls only artwork outside the normal image aperture.
+- Collection foreground opacity controls title/type/description/P-T surface fills while borders and text remain crisp.
+- Description background opacity remains a per-card control and composes with collection foreground opacity.
+- Set name can be applied collection-wide, including images that had not been initialized yet; collector-number totals are kept synchronized with set membership and bulk assignment avoids duplicate numeric prefixes.
+- Startup offers up to the five most recently opened catalogs.
 
 ## Editor UX
 
@@ -77,3 +85,10 @@ The runtime sets the JavaFX window icon and attempts to set the Dock icon throug
 Use IntelliJ IDEA with Gradle JVM / project SDK set to JDK 21.
 
 Main class: `com.example.cardforge.MainKt`
+
+
+## Startup diagnostics
+
+Startup profiling is normally silent. To diagnose a regression, launch with
+`-Dcardforge.profileStartup=true` or set `CARDFORGE_PROFILE_STARTUP=1`.
+The profiler reports timed startup phases and JavaFX event-thread stalls to stderr.

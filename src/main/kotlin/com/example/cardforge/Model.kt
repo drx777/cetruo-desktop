@@ -4,7 +4,6 @@ data class CardData(
     var assetId: String = "",
     var status: CardStatus = CardStatus.NEW,
     var schemeName: String = "Classic",
-    // Blank means: use the collection default template. A non-blank value is a per-card override.
     var templateName: String = "",
     var title: String = "CARD NAME",
     var cost: String = "4",
@@ -21,10 +20,8 @@ data class CardData(
     var imageOffsetY: Double = 0.0,
     var imageMode: ImageMode = ImageMode.COVER,
     var imagePadColor: String = "#0A0D10",
-    // When enabled, artwork continues behind the surrounding frame up to the description panel.
-    // The description panel remains above it and retains panelOpacity, so translucent panels
-    // can deliberately allow a subdued continuation of the artwork to show through.
     var imageBleedOverFrame: Boolean = false,
+    var imageBleedOpacity: Double = 1.0,
     var backgroundOverlay: String = "",
     var backgroundOverlayPlacement: OverlayPlacement = OverlayPlacement.FRAMES_ONLY,
     var backgroundOverlayOpacity: Double = 1.0,
@@ -43,12 +40,12 @@ data class CardData(
 )
 
 enum class ImageMode { COVER, CONTAIN, STRETCH }
-
 enum class OverlayPlacement { FRAMES_ONLY, OVER_CONTENT }
-
 enum class CardStatus { NEW, IN_PROGRESS, READY, EXPORTED, ARCHIVED }
 
 data class CollectionPresentation(
     var descriptionHeading: String = "ABILITY / DESCRIPTION",
-    var showArtistCopyright: Boolean = true
+    var showArtistCopyright: Boolean = true,
+    var bleedOpacity: Double = 1.0,
+    var foregroundOpacity: Double = 1.0
 )

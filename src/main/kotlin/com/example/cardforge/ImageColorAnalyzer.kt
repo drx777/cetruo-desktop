@@ -4,12 +4,33 @@ import javafx.scene.paint.Color
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import javax.imageio.ImageIO
+import javax.imageio.ImageReadParam
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
 object ImageColorAnalyzer {
-    fun dominantColor(path: Path): Color? = runCatching { ImageIO.read(path.toFile()) }.getOrNull()?.let(::dominantColor)
+    fun dominantColor(path: Path): Color? = runCatching {
+        ImageIO.createImageInputStream(path.toFile())?.use { input ->
+            val readers = ImageIO.getImageReaders(input)
+            if (!readers.hasNext()) return@use ImageIO.read(path.toFile())
+            val reader = readers.next()
+            try {
+                reader.input = input
+                val width = reader.getWidth(0).coerceAtLeast(1)
+                val height = reader.getHeight(0).coerceAtLeast(1)
+                // Theme matching only needs representative color information. Ask the
+                // decoder for a small subsampled image instead of decoding a multi-megapixel
+                // source in full, which keeps first-card initialization and bulk actions fast.
+                val subsample = (max(width, height) / 512).coerceAtLeast(1)
+                val param: ImageReadParam = reader.defaultReadParam
+                param.setSourceSubsampling(subsample, subsample, 0, 0)
+                reader.read(0, param)
+            } finally {
+                reader.dispose()
+            }
+        }
+    }.getOrNull()?.let(::dominantColor)
 
     fun dominantColor(image: BufferedImage): Color? {
         if (image.width <= 0 || image.height <= 0) return null
