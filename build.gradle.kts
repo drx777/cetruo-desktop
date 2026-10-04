@@ -21,6 +21,11 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
     implementation("org.apache.xmlgraphics:batik-transcoder:1.19")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
+    testImplementation(kotlin("test-junit5"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 application {

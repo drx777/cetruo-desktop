@@ -1,67 +1,93 @@
-# Card Forge 0.14.4 Handoff
+# Card Forge Handoff
 
-Branch: `feature/0.14.4-integration`
+Target branch: `main`
 
-Target: `main`
+Current line: `0.14.x`
 
 ## Current status
 
-The 0.14.4 integration work is functionally stable enough for review/merge. The app builds and runs locally, startup performance is fast again, and the collection-wide selected-template operation was verified working in-app.
+Card Forge 0.14.4 is integrated on `main`. The startup regression is resolved, recent collection/presentation work is merged, the source-image inspector and preview/export UI extractions are merged, and canonical snapshots explicitly preserve transparency outside the card silhouette.
 
-The feature branch is ahead of `main` and contains the integrated 0.14.4 work, refactors, fixes, and documentation updates.
+The current focus is regression hardening before larger browser refactoring or new visual/editor features.
 
-## Important completed work
+## Recently completed
 
-- Fixed startup stalls caused by decoding source JPEGs while sorting the browser on the JavaFX application thread.
-- Added opt-in startup profiling and JavaFX stall diagnostics.
-- Added recent-catalog startup chooser with up to five recent collection roots.
-- Added collection card/image count.
-- Added collection-level bleed opacity and foreground-surface opacity.
-- Added per-card artwork bleed opacity.
-- Added explicit collection-wide set-name operation, including previously uninitialized images.
-- Added set-aware collector-number totals and duplicate-number cleanup.
-- Added collection-wide selected-template operation:
-  - uses the template currently selected in **Card template**,
-  - writes that template explicitly to every card,
-  - initializes previously uninitialized cards as needed,
-  - also stores the selected template as the collection default,
-  - verifies persistence after the bulk operation.
-- Preserved card identity across file removal/move/rename using detached/tombstone paths and hash-based reconciliation.
-- Prevented unrelated replacement files from inheriting metadata from a removed asset with the same filename.
-- Improved card-preview cache invalidation so thumbnails follow current editor state, collection presentation, and collection default template.
-- Reused off-thread image decoding for preview/color analysis.
-- Subsampled dominant-color analysis for large images.
-- Wired extracted helpers into `MainApp`:
-  - `AppPlatform`
-  - `CardUndoManager`
-  - `CollectionCardStore`
-  - `CollectionEditorActions`
-  - `CollectionSettingsPane`
-  - `CollectionBulkActions`
-  - `CollectionVisualSettings`
-- Removed temporary 0.14.4 integration scripts/workflow.
-- Build version is `0.14.4`.
+- Startup performance fix: browser sorting no longer decodes source JPEGs on the JavaFX application thread.
+- Recent-catalog chooser and collection card/image count.
+- Collection-level bleed opacity and foreground opacity plus per-card bleed opacity.
+- Collection-wide set-name, collector-total normalization, and explicit template application.
+- File identity preservation across removal/move/rename with tombstone/hash reconciliation.
+- Thumbnail cache invalidation and off-thread preview/color processing improvements.
+- Source-image inspector:
+  - preview-header action,
+  - image context-menu action,
+  - Cmd/Ctrl+I shortcut,
+  - native-resolution pannable view,
+  - Esc dismissal.
+- Extracted UI/window concerns:
+  - `SourceImageInspector`
+  - `ContactSheetWindow`
+  - `ExportUi`
+- Canonical rendered-card snapshots preserve transparent pixels outside rounded/cut-out card corners.
 
-## Known UI issue
+## Current hardening work
 
-There are currently two **Apply selected template to all cards** buttons: one in Collection settings and one beside the Layout/template controls. Both call the same verified bulk implementation. Keep functionality as-is for now; consolidate/rework the UI later.
+A regression-test foundation is being added for deterministic non-UI behavior:
 
-## Backlog
+- undo/redo snapshot semantics,
+- collector-number normalization,
+- PDF contact-sheet planning,
+- collection database identity reconciliation,
+- permanent CI verification on pull requests and `main`.
 
-See `BACKLOG.md` for the current authoritative follow-up list.
+UI/rendering behavior still requires desktop smoke testing.
 
-Highest-value remaining items:
+## Manual regression checklist
 
-- Add a quick full-source-image inspector via hoverable icon/action and/or keyboard shortcut.
-- Verify rendered-card thumbnails in list/grid after edits.
-- Verify paged in-app contact sheet against the live preview.
-- Verify PNG/SVG/PDF output consistency, especially bleed and opacity behavior.
-- Verify watcher behavior for add/remove/move/rename identity.
-- Verify list/grid keyboard navigation and scrolling.
-- Verify packaged-app initial sizing and macOS Dock/window icons.
-- Verify auto-save on selection change, collection switch, close, and Cmd/Ctrl+S.
-- Continue decomposing `Main.kt`, especially browser and preview/export/contact-sheet orchestration.
-- Later, clean up the duplicated collection-template UI and clarify collection default vs per-card override controls.
+- Rendered-card thumbnails remain current after edits in list and grid modes.
+- In-app paged contact sheet matches the live card preview.
+- PNG, SVG, and PDF match the canonical renderer:
+  - bleed,
+  - foreground opacity,
+  - overlays,
+  - transparent pixels outside the card silhouette/corners.
+- File add/remove/move/rename behavior preserves identity and does not transfer metadata to unrelated replacements.
+- List/grid keyboard navigation and selection/scroll behavior are consistent.
+- Packaged-app initial sizing and macOS Dock/window icons are correct.
+- Auto-save works on card switch, collection switch, application close, and Cmd/Ctrl+S.
+
+## Next structural work
+
+After the hardening pass:
+
+1. Clean up Collection/Layout UX:
+   - remove the duplicate **Apply selected template to all cards** control,
+   - clarify collection default versus per-card override actions,
+   - retain the collection card count without adding clutter.
+2. Extract browser/list-grid/thumbnail orchestration from `Main.kt` in small steps.
+3. Extract remaining preview/export execution orchestration where it reduces duplicated state or coupling.
+4. Continue routing persistence/undo/collection behavior through the existing helper classes rather than reintroducing state in `MainApp`.
+
+## Important semantics to preserve
+
+### Collection template bulk action
+
+**Apply selected template to all cards** must:
+
+- use the currently selected template,
+- persist that template explicitly on every card,
+- initialize previously uninitialized cards as needed,
+- store the selected template as the collection default.
+
+Do not replace this with merely changing the collection default or clearing per-card overrides.
+
+### Asset identity
+
+A removed/moved/renamed asset keeps its catalog identity only when a newly discovered file matches the detached asset by content hash. A different file that reuses the old filename must get a new identity and must not inherit card metadata.
+
+### Rendering
+
+The canonical JavaFX card tree remains the shared visual source for preview-derived PNG/SVG/PDF/contact-sheet output. Pixels outside the actual card silhouette must stay transparent.
 
 ## Startup diagnostics
 
@@ -81,10 +107,4 @@ CARDFORGE_PROFILE_STARTUP=1
 
 Profiler output is written to stderr and includes timed phases plus JavaFX event-thread stall traces.
 
-## Notes for the next chat
-
-Start by checking the current branch/PR state and `BACKLOG.md`.
-
-Do not re-open the startup-performance investigation unless it regresses; the confirmed bottleneck was image decoding in browser sorting and it is resolved.
-
-When touching the selected-template bulk action, preserve its current semantics: it must persist the selected template explicitly to every card, not merely set a collection default or clear overrides.
+Do not reopen the startup-performance investigation unless a regression is observed.
