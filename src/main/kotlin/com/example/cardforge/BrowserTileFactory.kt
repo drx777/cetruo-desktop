@@ -38,6 +38,9 @@ class BrowserTileFactory(
     private data class TileState(
         val path: Path,
         val thumbnail: Boolean,
+        val previewView: ImageView,
+        val loadingLabel: Label,
+        val cardNameLabel: Label,
         var hovered: Boolean = false
     )
 
@@ -50,6 +53,30 @@ class BrowserTileFactory(
     fun refreshSelectionStyles() {
         liveTiles.forEach { (tile, state) ->
             tile.style = tileStyle(state.path == currentPath(), state.hovered, state.thumbnail)
+        }
+    }
+
+    /**
+     * Refresh only the currently live tile(s) for one card. This avoids rebuilding the
+     * entire ListView/GridView when a single edited card's rendered preview becomes stale.
+     */
+    fun refreshPath(path: Path) {
+        val normalized = path.toAbsolutePath().normalize()
+        liveTiles.forEach { (_, state) ->
+            if (state.path.toAbsolutePath().normalize() != normalized) return@forEach
+
+            state.cardNameLabel.text = cardTitle(state.path).ifBlank { "Untitled card" }
+            // Keep the previous preview visible while the replacement renders.
+            requestPreview(state.path) { image ->
+                state.previewView.image = image
+                state.loadingLabel.text = when {
+                    image != null -> ""
+                    state.thumbnail -> "Preview unavailable"
+                    else -> "?"
+                }
+                state.loadingLabel.isVisible = image == null
+                state.loadingLabel.isManaged = image == null
+            }
         }
     }
 
@@ -146,7 +173,15 @@ class BrowserTileFactory(
         HBox.setHgrow(text, Priority.ALWAYS)
         tile.children.add(HBox(10.0, previewBox, text).apply { alignment = Pos.CENTER_LEFT })
 
-        installInteractions(tile, path, thumbnail = false, onSelected = onListSelected)
+        installInteractions(
+            tile = tile,
+            path = path,
+            thumbnail = false,
+            previewView = preview,
+            loadingLabel = loading,
+            cardNameLabel = cardName,
+            onSelected = onListSelected
+        )
         return tile
     }
 
@@ -207,12 +242,34 @@ class BrowserTileFactory(
             loadingLabel.isManaged = image == null
         }
 
-        installInteractions(tile, path, thumbnail, onGridSelected)
+        installInteractions(
+            tile = tile,
+            path = path,
+            thumbnail = thumbnail,
+            previewView = thumbView,
+            loadingLabel = loadingLabel,
+            cardNameLabel = cardName,
+            onSelected = onGridSelected
+        )
         return tile
     }
 
-    private fun installInteractions(tile: VBox, path: Path, thumbnail: Boolean, onSelected: (Path) -> Unit) {
-        val state = TileState(path = path, thumbnail = thumbnail)
+    private fun installInteractions(
+        tile: VBox,
+        path: Path,
+        thumbnail: Boolean,
+        previewView: ImageView,
+        loadingLabel: Label,
+        cardNameLabel: Label,
+        onSelected: (Path) -> Unit
+    ) {
+        val state = TileState(
+            path = path,
+            thumbnail = thumbnail,
+            previewView = previewView,
+            loadingLabel = loadingLabel,
+            cardNameLabel = cardNameLabel
+        )
         liveTiles[tile] = state
 
         tile.setOnContextMenuRequested { event ->
