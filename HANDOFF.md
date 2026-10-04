@@ -32,6 +32,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+Watcher scan-cycle reconciliation is now isolated in `FileIdentityReconciler` and covered for hash-based rename/move recovery versus unrelated remove/add replacements.
+
 Regression coverage now also protects collection-wide template application semantics: every card gets an explicit template, uninitialized cards are initialized, unrelated metadata is preserved, and the collection default is updated.
 
 A regression-test foundation is being added for deterministic non-UI behavior:
@@ -54,7 +56,6 @@ UI/rendering behavior still requires desktop smoke testing.
   - foreground opacity,
   - overlays,
   - transparent pixels outside the card silhouette/corners.
-- File add/remove/move/rename behavior preserves identity and does not transfer metadata to unrelated replacements.
 - List/grid keyboard navigation and selection/scroll behavior are consistent.
 - Packaged-app initial sizing and macOS Dock/window icons are correct.
 - Auto-save works on card switch, collection switch, application close, and Cmd/Ctrl+S.

@@ -2925,13 +2925,9 @@ class MainApp : Application() {
         if (!changed && !nestedChanged) return
 
         if (changed) {
-            val removedPaths = previousSet - nextSet
-            val addedPaths = nextSet - previousSet
-            val db = database
-            // Detach missing paths before reconciling additions. If a file was merely moved
-            // or renamed, reconcileAdded() can then restore the same asset ID by content hash.
-            removedPaths.forEach { removed -> runCatching { db?.markMissing(removed) } }
-            addedPaths.forEach { added -> runCatching { db?.reconcileAdded(added) } }
+            runCatching {
+                FileIdentityReconciler.reconcile(previousSet, nextSet, database)
+            }
         }
 
         allImages.clear()
