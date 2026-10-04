@@ -32,6 +32,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+Regression coverage now also protects collection-wide template application semantics: every card gets an explicit template, uninitialized cards are initialized, unrelated metadata is preserved, and the collection default is updated.
+
 A regression-test foundation is being added for deterministic non-UI behavior:
 
 - undo/redo snapshot semantics,
