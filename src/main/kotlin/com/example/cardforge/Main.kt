@@ -34,8 +34,6 @@ import javafx.scene.control.ToolBar
 import javafx.scene.control.Tooltip
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
-import javafx.scene.control.Dialog
-import javafx.scene.control.Pagination
 import javafx.scene.control.TreeCell
 import javafx.scene.control.TreeItem
 import javafx.scene.control.TreeView
@@ -51,7 +49,6 @@ import javafx.scene.image.Image
 import javafx.scene.image.ImageView
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
-import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.layout.StackPane
@@ -59,7 +56,6 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.DirectoryChooser
 import javafx.stage.FileChooser
-import javafx.stage.Screen
 import javafx.stage.Stage
 import javafx.util.Duration
 import java.awt.Desktop
@@ -166,6 +162,7 @@ class MainApp : Application() {
     }.getOrDefault(UiTheme.DARK)
     private lateinit var scene: Scene
     private lateinit var appRoot: BorderPane
+    private val sourceImageInspector = SourceImageInspector(MainApp::class.java) { uiTheme == UiTheme.DARK }
     private var watchService: WatchService? = null
     private var watchThread: Thread? = null
     private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
@@ -290,6 +287,9 @@ class MainApp : Application() {
         scene.accelerators[KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN)] = Runnable {
             showEditorGuides.isSelected = !showEditorGuides.isSelected
         }
+        scene.accelerators[KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN)] = Runnable {
+            showSourceImageInspector()
+        }
         scene.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
             if (event.code == KeyCode.Z && (event.isMetaDown || event.isControlDown) && !isTextInputFocus()) {
                 if (event.isShiftDown) redoCardChange() else undoCardChange()
@@ -347,6 +347,7 @@ class MainApp : Application() {
             filterApplyPause.stop()
             thumbnailRefreshPause.stop()
             stopCollectionWatcher()
+            sourceImageInspector.close()
             closeCollection()
             thumbnailLoadExecutor.shutdownNow()
         }
@@ -942,6 +943,8 @@ class MainApp : Application() {
     }
 
     private fun imageContextMenu(path: Path): ContextMenu {
+        val inspect = MenuItem("Inspect Source Image")
+        inspect.setOnAction { showSourceImageInspector(path) }
         val reveal = MenuItem("Reveal in Finder")
         reveal.setOnAction { revealInFinder(path) }
         val copy = MenuItem("Copy Path")
@@ -949,7 +952,16 @@ class MainApp : Application() {
             val content = ClipboardContent().apply { putString(path.toAbsolutePath().toString()) }
             Clipboard.getSystemClipboard().setContent(content)
         }
-        return ContextMenu(reveal, copy)
+        return ContextMenu(inspect, reveal, copy)
+    }
+
+    private fun showSourceImageInspector(path: Path? = imagesCurrentPath()) {
+        val source = path?.toAbsolutePath()?.normalize() ?: return
+        sourceImageInspector.show(
+            owner = scene.window as? Stage,
+            source = source,
+            onUnavailable = { statusBarLabel.text = "Source image is no longer available." }
+        )
     }
 
     private fun cachedThumbnail(path: Path): Image? = synchronized(thumbnailCache) {
@@ -1156,10 +1168,14 @@ class MainApp : Application() {
         previewHost.style = "-fx-background-color:#20242A;"
         previewHost.widthProperty().addListener { _, _, _ -> resizePreview() }
         previewHost.heightProperty().addListener { _, _, _ -> resizePreview() }
+        val inspectSource = Button("⤢ Source").apply {
+            tooltip = Tooltip("Inspect the original source image at native resolution (Cmd/Ctrl+I).")
+            setOnAction { showSourceImageInspector() }
+        }
         val header = HBox(10.0, Label("Card Preview"), Region()).apply {
             alignment = Pos.CENTER_LEFT
             HBox.setHgrow(children[1], Priority.ALWAYS)
-            children.add(showEditorGuides)
+            children.addAll(inspectSource, showEditorGuides)
         }
         return VBox(8.0, header, previewHost).apply {
             minWidth = 500.0
@@ -2932,13 +2948,14 @@ class MainApp : Application() {
         if (!saveCurrent(showStatus = false)) return
         val path = visibleImages[currentIndex]
         val template = currentTemplate() ?: return
-        val chooser = FileChooser().apply {
-            title = "Export SVG"
-            extensionFilters.add(FileChooser.ExtensionFilter("SVG", "*.svg"))
-            initialDirectory = defaultExportDirectory()?.toFile()
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export SVG",
+            filterLabel = "SVG",
+            extensionPattern = "*.svg",
+            initialDirectory = defaultExportDirectory(),
             initialFileName = path.fileName.toString().substringBeforeLast('.') + ".card.svg"
-        }
-        val target = chooser.showSaveDialog(stage)?.toPath() ?: return
+        ) ?: return
         try {
             loadTemplateAndOverlay()
             val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
@@ -2965,13 +2982,14 @@ class MainApp : Application() {
         if (!saveCurrent(showStatus = false)) return
         val path = visibleImages[currentIndex]
         val template = currentTemplate() ?: return
-        val chooser = FileChooser().apply {
-            title = "Export PNG"
-            extensionFilters.add(FileChooser.ExtensionFilter("PNG", "*.png"))
-            initialDirectory = defaultExportDirectory()?.toFile()
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export PNG",
+            filterLabel = "PNG",
+            extensionPattern = "*.png",
+            initialDirectory = defaultExportDirectory(),
             initialFileName = path.fileName.toString().substringBeforeLast('.') + ".card.png"
-        }
-        val target = chooser.showSaveDialog(stage)?.toPath() ?: return
+        ) ?: return
         try {
             loadTemplateAndOverlay()
             val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
@@ -2997,15 +3015,18 @@ class MainApp : Application() {
     private fun exportPdf(stage: Stage) {
         if (visibleImages.isEmpty()) return
         if (!saveCurrent(showStatus = false)) return
-        val chooser = FileChooser().apply {
-            title = "Export A4 Contact Sheet PDF"
-            extensionFilters.add(FileChooser.ExtensionFilter("PDF", "*.pdf"))
-            initialDirectory = defaultExportDirectory()?.toFile()
+        val target = ExportUi.chooseTarget(
+            owner = stage,
+            title = "Export A4 Contact Sheet PDF",
+            filterLabel = "PDF",
+            extensionPattern = "*.pdf",
+            initialDirectory = defaultExportDirectory(),
             initialFileName = "card-forge-contact-sheet.pdf"
-        }
-        val target = chooser.showSaveDialog(stage)?.toPath() ?: return
+        ) ?: return
         val paths = visibleImages.toList()
-        val options = promptPdfExportOptions(stage) ?: return
+        val options = ExportUi.promptPdfOptions(stage) { slider, resetValue ->
+            installSliderReset(slider, resetValue)
+        } ?: return
         val plans = buildPdfPlans(paths, options)
         statusBarLabel.text = "Exporting ${paths.size} card(s) to PDF at ${"%.0f".format(options.scale * 100)}%…"
         val task = object : Task<Unit>() {
@@ -3026,45 +3047,6 @@ class MainApp : Application() {
         }
         task.setOnFailed { showError("Could not export PDF", task.exception ?: RuntimeException("Unknown PDF export error")) }
         Thread(task, "card-forge-pdf-export").apply { isDaemon = true }.start()
-    }
-
-    private data class PdfExportOptions(val scale: Double, val marginMm: Double, val gapMm: Double)
-
-    private fun promptPdfExportOptions(owner: Stage): PdfExportOptions? {
-        val dialog = Dialog<ButtonType>().apply {
-            title = "A4 Contact Sheet PDF"
-            headerText = "Contact sheet layout"
-            dialogPane.buttonTypes.addAll(ButtonType.OK, ButtonType.CANCEL)
-        }
-        val scale = Slider(0.5, 1.0, 1.0).apply { blockIncrement = 0.05; majorTickUnit = 0.1 }
-        val margin = Slider(0.0, 20.0, 10.0).apply { blockIncrement = 1.0; majorTickUnit = 5.0 }
-        val gap = Slider(0.0, 10.0, 3.0).apply { blockIncrement = 0.5; majorTickUnit = 2.0 }
-        installSliderReset(scale, 1.0)
-        installSliderReset(margin, 10.0)
-        installSliderReset(gap, 3.0)
-        val scaleLabel = Label()
-        val marginLabel = Label()
-        val gapLabel = Label()
-        fun updateLabels() {
-            scaleLabel.text = "${"%.0f".format(scale.value * 100)}%"
-            marginLabel.text = "${"%.1f".format(margin.value)} mm"
-            gapLabel.text = "${"%.1f".format(gap.value)} mm"
-        }
-        scale.valueProperty().addListener { _, _, _ -> updateLabels() }
-        margin.valueProperty().addListener { _, _, _ -> updateLabels() }
-        gap.valueProperty().addListener { _, _, _ -> updateLabels() }
-        updateLabels()
-        val grid = GridPane().apply {
-            hgap = 10.0; vgap = 10.0; padding = Insets(10.0);
-            add(Label("Card scale"), 0, 0); add(scale, 1, 0); add(scaleLabel, 2, 0)
-            add(Label("Page margin"), 0, 1); add(margin, 1, 1); add(marginLabel, 2, 1)
-            add(Label("Card gap"), 0, 2); add(gap, 1, 2); add(gapLabel, 2, 2)
-            add(Label("100% keeps the template's physical card size. Smaller scales fit more cards per A4 page."), 0, 3, 3, 1)
-        }
-        dialog.dialogPane.content = grid
-        dialog.dialogPane.minWidth = 560.0
-        val result = dialog.showAndWait().orElse(ButtonType.CANCEL)
-        return if (result == ButtonType.OK) PdfExportOptions(scale.value, margin.value, gap.value) else null
     }
 
     private fun buildPdfPlans(paths: List<Path>, options: PdfExportOptions): List<PdfContactSheetExporter.PagePlan> {
@@ -3103,72 +3085,11 @@ class MainApp : Application() {
     private fun showContactSheet(owner: Stage) {
         if (visibleImages.isEmpty()) return
         if (!saveCurrent(showStatus = false)) return
-        val paths = visibleImages.toList()
-        val perPage = 6
-        val pageCount = ((paths.size + perPage - 1) / perPage).coerceAtLeast(1)
-        val pagination = Pagination(pageCount, 0).apply {
-            maxPageIndicatorCount = 9
-            pageFactory = javafx.util.Callback { pageIndex: Int ->
-                val pagePaths = paths.drop(pageIndex * perPage).take(perPage)
-                createContactSheetPage(pagePaths)
-            }
-        }
-        val stage = Stage()
-        stage.initOwner(owner)
-        stage.title = "Card Forge · Contact Sheet"
-        owner.icons.firstOrNull()?.let { stage.icons.add(it) }
-        val root = BorderPane(pagination).apply {
-            padding = Insets(14.0)
-            style = if (uiTheme == UiTheme.DARK) "-fx-background-color:#20242A;" else "-fx-background-color:#F6F7F9;"
-        }
-        val scene = Scene(root, 1040.0, 820.0)
-        javaClass.getResource("/cardforge.css")?.toExternalForm()?.let { scene.stylesheets.add(it) }
-        stage.scene = scene
-        stage.show()
-    }
-
-    private fun createContactSheetPage(paths: List<Path>): Node {
-        val grid = GridPane().apply {
-            hgap = 18.0
-            vgap = 18.0
-            alignment = Pos.CENTER
-        }
-        paths.forEachIndexed { index, path ->
-            val slot = StackPane().apply {
-                prefWidth = 310.0
-                prefHeight = 370.0
-                minWidth = 310.0
-                minHeight = 370.0
-                style = "-fx-background-color:rgba(255,255,255,0.035);-fx-background-radius:12px;"
-            }
-            val loading = Label("Rendering…").apply {
-                style = "-fx-text-fill:#AEB7C2;-fx-font-size:12px;"
-            }
-            slot.children.add(loading)
-            grid.add(slot, index % 3, index / 3)
-            Platform.runLater {
-                requestCardThumbnail(path) { preview ->
-                slot.children.clear()
-                if (preview != null) {
-                    slot.children.add(ImageView(preview).apply {
-                        fitWidth = 285.0
-                        fitHeight = 345.0
-                        isPreserveRatio = true
-                        isSmooth = true
-                    })
-                } else {
-                    slot.children.add(Label("Preview unavailable").apply {
-                        style = "-fx-text-fill:#AEB7C2;-fx-font-size:12px;"
-                    })
-                }
-                }
-            }
-        }
-        return ScrollPane(StackPane(grid)).apply {
-            isFitToWidth = true
-            isFitToHeight = true
-            style = "-fx-background-color:transparent;"
-        }
+        ContactSheetWindow(
+            resourceOwner = MainApp::class.java,
+            isDarkTheme = { uiTheme == UiTheme.DARK },
+            requestPreview = { path, callback -> requestCardThumbnail(path, callback) }
+        ).show(owner, visibleImages.toList())
     }
 
     private fun markExported() {

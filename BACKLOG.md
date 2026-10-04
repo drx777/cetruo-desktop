@@ -4,19 +4,10 @@ Current follow-up work for the 0.14.x line.
 
 ## UX / browser
 
-- Add a quick way to inspect the selected source image at full size:
-  - hoverable icon/action near the preview/browser, and/or
-  - keyboard shortcut while browsing/editing.
-  - It should show the original image without the card frame/template and be easy to dismiss.
 - Revisit Collection/Layout UI after functionality is stable:
   - remove the duplicate “Apply selected template to all cards” control,
   - clarify collection default vs per-card override actions,
   - keep collection card count visible without adding clutter.
-- Add a lightweight full-image inspector for the selected source image:
-  - hoverable icon/action near the preview/browser and/or a keyboard shortcut,
-  - show the original source image without the card frame/template,
-  - easy to dismiss and usable without disturbing editor state.
-
 ## Regression verification
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits.
@@ -31,12 +22,16 @@ Current follow-up work for the 0.14.x line.
 
 - Continue reducing responsibilities in `Main.kt`.
 - Extract browser/list-grid/thumbnail orchestration.
-- Extract preview/export/contact-sheet orchestration where practical.
+- Extract remaining preview/export execution orchestration where practical.
 - Continue using `CollectionCardStore`, `CardUndoManager`, `AppPlatform`, and collection action classes instead of duplicate state in `MainApp`.
 - Keep startup profiling available as opt-in diagnostics without adding normal-launch overhead.
 
 ## Completed recently
 
+- Export target/options UI extracted from `Main.kt`.
+- Contact-sheet window/paging UI extracted from `Main.kt`.
+- Source-image inspector window lifecycle extracted from `Main.kt`.
+- Source-image inspector with preview action, image context-menu action, and Cmd/Ctrl+I shortcut; native-resolution view dismisses with Esc.
 - Startup performance regression caused by image decoding during browser sorting.
 - Apply selected template explicitly to every card in a collection; verified working in-app.
 - Collection card/image count.
