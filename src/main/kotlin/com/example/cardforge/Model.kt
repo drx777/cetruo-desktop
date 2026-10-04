@@ -21,6 +21,10 @@ data class CardData(
     var imageOffsetY: Double = 0.0,
     var imageMode: ImageMode = ImageMode.COVER,
     var imagePadColor: String = "#0A0D10",
+    // When enabled, artwork continues behind the surrounding frame up to the description panel.
+    // The description panel remains above it and retains panelOpacity, so translucent panels
+    // can deliberately allow a subdued continuation of the artwork to show through.
+    var imageBleedOverFrame: Boolean = false,
     var backgroundOverlay: String = "",
     var backgroundOverlayPlacement: OverlayPlacement = OverlayPlacement.FRAMES_ONLY,
     var backgroundOverlayOpacity: Double = 1.0,
@@ -40,19 +44,9 @@ data class CardData(
 
 enum class ImageMode { COVER, CONTAIN, STRETCH }
 
-enum class OverlayPlacement {
-    FRAMES_ONLY,
-    OVER_CONTENT
-}
+enum class OverlayPlacement { FRAMES_ONLY, OVER_CONTENT }
 
-enum class CardStatus {
-    NEW,
-    IN_PROGRESS,
-    READY,
-    EXPORTED,
-    ARCHIVED
-}
-
+enum class CardStatus { NEW, IN_PROGRESS, READY, EXPORTED, ARCHIVED }
 
 data class CollectionPresentation(
     var descriptionHeading: String = "ABILITY / DESCRIPTION",
