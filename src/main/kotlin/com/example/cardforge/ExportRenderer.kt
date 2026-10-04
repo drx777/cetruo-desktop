@@ -2,6 +2,7 @@ package com.example.cardforge
 
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.Scene
+import javafx.scene.SnapshotParameters
 import javafx.scene.image.Image
 import javafx.scene.image.WritableImage
 import java.awt.RenderingHints
@@ -78,7 +79,10 @@ object ExportRenderer {
         snapshotHost.layout()
 
         val nativeSnapshot = WritableImage(sceneWidth, sceneHeight)
-        scene.snapshot(nativeSnapshot)
+        snapshotHost.snapshot(
+            SnapshotParameters().apply { fill = Color.TRANSPARENT },
+            nativeSnapshot
+        )
         if (safeScale == 1.0) return nativeSnapshot
 
         // Resize the already-complete bitmap instead of scaling the JavaFX node. This

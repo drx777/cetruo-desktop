@@ -12,7 +12,7 @@ Current follow-up work for the 0.14.x line.
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits.
 - Verify the paged in-app contact sheet matches the live card preview.
-- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed and opacity.
+- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners.
 - Verify file add/remove/move/rename identity behavior under the filesystem watcher.
 - Verify list/grid keyboard navigation and selection/scroll behavior.
 - Verify initial window sizing and macOS Dock/window icons in the packaged app.
@@ -28,6 +28,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Canonical export snapshots now explicitly preserve transparent pixels outside the card silhouette.
 - Export target/options UI extracted from `Main.kt`.
 - Contact-sheet window/paging UI extracted from `Main.kt`.
 - Source-image inspector window lifecycle extracted from `Main.kt`.
