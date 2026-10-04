@@ -10,7 +10,7 @@ Current follow-up work for the 0.14.x line.
 - Verify rendered-card thumbnails in list and grid modes remain current after edits.
 - Verify the paged in-app contact sheet matches the live card preview.
 - Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners.
-- Verify list/grid keyboard navigation and selection/scroll behavior.
+- Verify list/grid viewport scrolling behavior with virtualized JavaFX cells; list/grid index-to-row mapping is now covered automatically.
 - Verify initial window sizing and macOS Dock/window icons in the packaged app.
 - Verify auto-save on card switch, collection switch, app close, and Cmd/Ctrl+S.
 
@@ -24,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Browser list/grid index-to-row selection mapping now has regression coverage, including zero-column safety.
 - Filesystem watcher identity reconciliation now has deterministic scan-cycle regression coverage for rename/move recovery and unrelated replacements.
 - Collection-wide template application now has regression coverage for explicit per-card persistence, default persistence, initialization, metadata preservation, and idempotence.
 - Application shutdown now cancels window close when the current card cannot be saved, with a final best-effort save in `Application.stop()` for non-window shutdown paths.
