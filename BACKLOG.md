@@ -4,6 +4,7 @@ Current follow-up work for the 0.14.x line.
 
 ## UX / browser
 
+- On explicit save, refresh the active card thumbnail immediately instead of waiting for the 3-second edit debounce.
 
 ## Regression verification
 
@@ -24,6 +25,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Collection-wide set-name application now has regression coverage for initialization, metadata preservation, collector-number normalization, affected sets, and idempotence.
 - Autosave transition gating now has regression coverage; card switch, collection/folder switch, and window close share the same save-success guard.
 - Edited-card browser thumbnail refresh is now scoped to the active card and debounced until 3 seconds of inactivity, avoiding browser-wide flicker.
 - Borderless one-card-per-page PDF export added alongside the existing A4 contact-sheet PDF mode.

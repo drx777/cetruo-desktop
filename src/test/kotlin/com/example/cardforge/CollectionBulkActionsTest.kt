@@ -105,4 +105,104 @@ class CollectionBulkActionsTest {
             assertEquals(null, db.dataSnapshotForPath(image))
         }
     }
+    @Test
+    fun applySetNameToAllInitializesMissingCardsPreservesMetadataAndNormalizesCollectorNumbers() {
+        val root = createTempDirectory("cardforge-bulk-set")
+        val first = root.resolve("first.png")
+        val second = root.resolve("second.png")
+        val third = root.resolve("third.png")
+        Files.write(first, byteArrayOf(1))
+        Files.write(second, byteArrayOf(2))
+        Files.write(third, byteArrayOf(3))
+
+        CollectionDatabase.open(root).use { db ->
+            db.save(
+                first,
+                CardData(
+                    title = "First",
+                    artist = "Artist A",
+                    setName = "Old Set",
+                    collectorNumber = "007/099"
+                )
+            )
+            db.save(
+                second,
+                CardData(
+                    title = "Second",
+                    artist = "Artist B",
+                    setName = "Another Set",
+                    collectorNumber = "007/099"
+                )
+            )
+
+            var initializeCalls = 0
+            val result = CollectionBulkActions.applySetName(
+                images = listOf(first, second, third),
+                database = db,
+                setName = "  Unified Set  "
+            ) { path ->
+                initializeCalls++
+                CardData(
+                    title = path.fileName.toString().substringBeforeLast('.'),
+                    artist = "Generated",
+                    setName = "",
+                    collectorNumber = ""
+                )
+            }
+
+            assertEquals(3, result.changedCards)
+            assertEquals(1, initializeCalls)
+            assertEquals(setOf("Old Set", "Another Set", "Unified Set"), result.affectedSets)
+
+            val firstData = db.dataSnapshotForPath(first)!!
+            val secondData = db.dataSnapshotForPath(second)!!
+            val thirdData = db.dataSnapshotForPath(third)!!
+
+            assertEquals("Unified Set", firstData.setName)
+            assertEquals("Unified Set", secondData.setName)
+            assertEquals("Unified Set", thirdData.setName)
+
+            assertEquals("007/003", firstData.collectorNumber)
+            assertEquals("002/003", secondData.collectorNumber)
+            assertEquals("003/003", thirdData.collectorNumber)
+
+            assertEquals("First", firstData.title)
+            assertEquals("Artist A", firstData.artist)
+            assertEquals("Second", secondData.title)
+            assertEquals("Artist B", secondData.artist)
+            assertEquals("third", thirdData.title)
+            assertEquals("Generated", thirdData.artist)
+        }
+    }
+
+    @Test
+    fun reapplyingSameSetNameIsIdempotentWhenCollectorNumbersAlreadyNormalized() {
+        val root = createTempDirectory("cardforge-bulk-set")
+        val first = root.resolve("first.png")
+        val second = root.resolve("second.png")
+        Files.write(first, byteArrayOf(4))
+        Files.write(second, byteArrayOf(5))
+
+        CollectionDatabase.open(root).use { db ->
+            db.save(first, CardData(title = "First", setName = "Set", collectorNumber = "001/002"))
+            db.save(second, CardData(title = "Second", setName = "Set", collectorNumber = "002/002"))
+
+            var initializeCalls = 0
+            val result = CollectionBulkActions.applySetName(
+                images = listOf(first, second),
+                database = db,
+                setName = "Set"
+            ) {
+                initializeCalls++
+                CardData(title = "Unexpected")
+            }
+
+            assertEquals(0, result.changedCards)
+            assertEquals(0, initializeCalls)
+            assertEquals(setOf("Set"), result.affectedSets)
+            assertEquals("001/002", db.dataSnapshotForPath(first)?.collectorNumber)
+            assertEquals("002/002", db.dataSnapshotForPath(second)?.collectorNumber)
+        }
+    }
+
 }
