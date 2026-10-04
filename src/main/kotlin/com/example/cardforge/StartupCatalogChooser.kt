@@ -1,6 +1,7 @@
 package com.example.cardforge
 
 import javafx.geometry.Insets
+import javafx.scene.control.Button
 import javafx.scene.control.ButtonBar
 import javafx.scene.control.ButtonType
 import javafx.scene.control.Dialog
@@ -8,8 +9,10 @@ import javafx.scene.control.Label
 import javafx.scene.control.ListCell
 import javafx.scene.control.ListView
 import javafx.scene.control.Tooltip
+import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
+import javafx.geometry.Pos
 import javafx.stage.Window
 import java.nio.file.Path
 
@@ -21,7 +24,7 @@ object StartupCatalogChooser {
         data object Cancel : Choice
     }
 
-    fun choose(owner: Window?, recent: List<Path>): Choice {
+    fun choose(owner: Window?, recent: List<Path>, onForget: (Path) -> Unit = {}): Choice {
         if (recent.isEmpty()) return Choice.Browse
 
         val list = ListView<Path>().apply {
@@ -44,6 +47,27 @@ object StartupCatalogChooser {
             selectionModel.selectFirst()
         }
 
+        val removeSelected = Button("Remove from recent").apply {
+            isDisable = list.selectionModel.selectedItem == null
+            setOnAction {
+                val selected = list.selectionModel.selectedItem ?: return@setOnAction
+                val oldIndex = list.selectionModel.selectedIndex
+                onForget(selected)
+                list.items.remove(selected)
+                if (list.items.isNotEmpty()) {
+                    list.selectionModel.select(oldIndex.coerceAtMost(list.items.lastIndex))
+                }
+                isDisable = list.selectionModel.selectedItem == null
+            }
+        }
+        list.selectionModel.selectedItemProperty().addListener { _, _, selected ->
+            removeSelected.isDisable = selected == null
+        }
+
+        val recentActions = HBox(8.0, removeSelected).apply {
+            alignment = Pos.CENTER_RIGHT
+        }
+
         val open = ButtonType("Open", ButtonBar.ButtonData.OK_DONE)
         val browse = ButtonType("Choose another…", ButtonBar.ButtonData.OTHER)
         val cancel = ButtonType.CANCEL
@@ -54,7 +78,8 @@ object StartupCatalogChooser {
             dialogPane.buttonTypes.setAll(open, browse, cancel)
             dialogPane.content = VBox(8.0,
                 Label("Select a recent collection, or choose another directory."),
-                list
+                list,
+                recentActions
             ).apply {
                 padding = Insets(4.0)
                 VBox.setVgrow(list, Priority.ALWAYS)
