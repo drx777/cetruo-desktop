@@ -2,6 +2,7 @@ package com.example.cardforge
 
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.multipdf.PDFMergerUtility
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
@@ -164,14 +165,16 @@ object PdfContactSheetExporter {
             pages.forEach { plan ->
                 val pageSvg = vectorPageSvg(plan, renderSvg)
                 val pdfBytes = ByteArrayOutputStream().use { output ->
-                    PDFTranscoder().transcode(
+                    PDFTranscoder().apply {
+                        addTranscodingHint(PDFTranscoder.KEY_STROKE_TEXT, true)
+                    }.transcode(
                         TranscoderInput(StringReader(pageSvg)),
                         TranscoderOutput(output)
                     )
                     output.toByteArray()
                 }
                 Loader.loadPDF(pdfBytes).use { source ->
-                    source.pages.forEach { page -> document.importPage(page) }
+                    PDFMergerUtility().appendDocument(document, source)
                 }
             }
             document.save(target.toFile())
