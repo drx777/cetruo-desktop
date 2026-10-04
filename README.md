@@ -85,3 +85,10 @@ The runtime sets the JavaFX window icon and attempts to set the Dock icon throug
 Use IntelliJ IDEA with Gradle JVM / project SDK set to JDK 21.
 
 Main class: `com.example.cardforge.MainKt`
+
+
+## Startup diagnostics
+
+Startup profiling is normally silent. To diagnose a regression, launch with
+`-Dcardforge.profileStartup=true` or set `CARDFORGE_PROFILE_STARTUP=1`.
+The profiler reports timed startup phases and JavaFX event-thread stalls to stderr.
