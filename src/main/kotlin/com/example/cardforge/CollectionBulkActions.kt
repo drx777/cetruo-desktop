@@ -32,14 +32,21 @@ object CollectionBulkActions {
 
         database.setDefaultTemplateName(normalizedTemplate)
 
+        val targets = images.toList()
         var changed = 0
-        for (image in images) {
+        for (image in targets) {
             val data = database.dataSnapshotForPath(image) ?: initialize(image)
-            if (data.templateName != normalizedTemplate) {
-                data.templateName = normalizedTemplate
-            }
+            data.templateName = normalizedTemplate
             if (database.save(image, data).changed) changed++
         }
+
+        val mismatches = targets.count { image ->
+            database.dataSnapshotForPath(image)?.templateName != normalizedTemplate
+        }
+        check(mismatches == 0) {
+            "Template bulk apply incomplete: $mismatches card(s) did not persist '$normalizedTemplate'"
+        }
+
         return Result(changed)
     }
 
