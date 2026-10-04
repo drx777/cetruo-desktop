@@ -214,10 +214,11 @@ class BrowserTileFactory(
 
     private fun tileStyle(selected: Boolean, hovered: Boolean, thumbnail: Boolean): String {
         val radius = if (thumbnail) 8 else 6
+        val border = "-fx-border-radius:${radius}px;-fx-border-width:1.5px;"
         return when {
-            selected -> "-fx-background-color:rgba(88,166,255,0.11);-fx-background-radius:${radius}px;-fx-border-color:#58A6FF;-fx-border-radius:${radius}px;-fx-border-width:1.5px;"
-            hovered -> "-fx-background-color:rgba(255,255,255,0.05);-fx-background-radius:${radius}px;"
-            else -> "-fx-background-color:transparent;"
+            selected -> "-fx-background-color:rgba(88,166,255,0.11);-fx-background-radius:${radius}px;-fx-border-color:#58A6FF;$border"
+            hovered -> "-fx-background-color:rgba(255,255,255,0.05);-fx-background-radius:${radius}px;-fx-border-color:transparent;$border"
+            else -> "-fx-background-color:transparent;-fx-border-color:transparent;$border"
         }
     }
 
