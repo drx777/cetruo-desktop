@@ -2339,7 +2339,7 @@ class MainApp : Application() {
         // Unsaved cards may already have deterministic in-memory defaults generated for a
         // card thumbnail. Reuse them so selecting the card does not randomize it again or
         // decode the image a second time.
-        cardStore.snapshot(normalized)?.let { cached ->
+        cardStore.cached(normalized)?.let { cached ->
             return cached.copy().also { data ->
                 dbData?.assetId?.takeIf { it.isNotBlank() }?.let { data.assetId = it }
             }
