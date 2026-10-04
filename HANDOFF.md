@@ -32,6 +32,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+Browser preview cache validity rules are now covered: original previews depend on source size/mtime, while rendered-card previews also depend on the render signature.
+
 Browser selection index/row mapping is now covered independently of JavaFX virtualization; viewport/cell scrolling still requires desktop smoke testing.
 
 Watcher scan-cycle reconciliation is now isolated in `FileIdentityReconciler` and covered for hash-based rename/move recovery versus unrelated remove/add replacements.
