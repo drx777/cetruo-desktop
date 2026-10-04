@@ -59,6 +59,12 @@ class ExportCoordinator {
             gapMm = options.gapMm
         )
 
+    fun planSingleCardPdf(
+        paths: List<Path>,
+        cardSpecFor: (Path) -> PdfContactSheetExporter.CardSpec?
+    ): List<PdfContactSheetExporter.PagePlan> =
+        PdfContactSheetExporter.planSingleCardPages(paths.mapNotNull(cardSpecFor))
+
     fun exportPdfAsync(
         target: Path,
         plans: List<PdfContactSheetExporter.PagePlan>,
