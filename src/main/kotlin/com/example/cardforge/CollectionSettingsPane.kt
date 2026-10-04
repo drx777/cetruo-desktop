@@ -35,6 +35,7 @@ class CollectionSettingsPane(
     private val foregroundOpacity = Slider(0.0, 1.0, 1.0)
     private val bleedValue = Label()
     private val foregroundValue = Label()
+    private val cardCount = Label("0 cards").apply { styleClass.add("browser-meta") }
 
     init {
         StartupProfiler.installFxStallMonitor()
@@ -43,14 +44,17 @@ class CollectionSettingsPane(
         bleedOpacity.tooltip = Tooltip("Opacity of artwork only where it bleeds outside the image aperture. Bleed remains clipped inside the outer card frame.")
         foregroundOpacity.tooltip = Tooltip("Opacity of foreground card surfaces: title/type rails, description panel, and P/T box.")
 
+        children.add(HBox(8.0, Label("Collection").apply { minWidth = 112.0 }, cardCount).apply {
+            alignment = Pos.CENTER_LEFT
+        })
         children.add(row("Description label", descriptionHeading))
         children.add(artistCopyright)
         children.add(sliderRow("Bleed opacity", bleedOpacity, bleedValue))
         children.add(sliderRow("Foreground opacity", foregroundOpacity, foregroundValue))
 
-        val applyTemplateToAll = Button("Apply collection default template to all cards").apply {
+        val applyTemplateToAll = Button("Apply selected template to all cards").apply {
             maxWidth = Double.MAX_VALUE
-            tooltip = Tooltip("Remove every per-card template override so all cards follow the collection default.")
+            tooltip = Tooltip("Use the template currently selected in Card template as the collection default, and remove every per-card template override.")
             setOnAction { onApplyDefaultTemplateToAll() }
         }
         val applySetToAll = Button("Apply current set name to all cards").apply {
@@ -84,6 +88,10 @@ class CollectionSettingsPane(
         installReset(bleedOpacity, 1.0)
         installReset(foregroundOpacity, 1.0)
         setPresentation(initial)
+    }
+
+    fun setCardCount(total: Int) {
+        cardCount.text = if (total == 1) "1 card" else "$total cards"
     }
 
     fun setPresentation(value: CollectionPresentation) {
