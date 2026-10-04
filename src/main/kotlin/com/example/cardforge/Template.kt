@@ -27,6 +27,18 @@ data class TemplateText(
     val align: String = "LEFT"
 )
 
+data class TemplateVisualStyle(
+    val outerFrameInset: Double = 8.0,
+    val innerFrameInset: Double = 16.0,
+    val materialDepth: Double = 3.0,
+    val railDepth: Double = 2.0,
+    val railStrokeWidth: Double = 1.5,
+    val descriptionDepth: Double = 4.0,
+    val statsJewelInset: Double = 4.0,
+    val statsJewelCut: Double = 10.0,
+    val rarityFrames: Boolean = true
+)
+
 data class CardTemplate(
     val name: String,
     val description: String = "",
@@ -46,7 +58,8 @@ data class CardTemplate(
     val flavorText: TemplateText,
     val footerText: TemplateText,
     val statsBox: TemplateRect,
-    val statsText: TemplateText
+    val statsText: TemplateText,
+    val visualStyle: TemplateVisualStyle = TemplateVisualStyle()
 )
 
 object TemplateRepository {
