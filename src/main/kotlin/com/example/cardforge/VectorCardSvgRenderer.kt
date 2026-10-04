@@ -112,7 +112,7 @@ object VectorCardSvgRenderer {
 
         val bleed = if (data.imageBleedOverFrame) """
             <g clip-path="url(#${bleedClipId})" opacity="${fmt(bleedOpacity)}">
-              <image href="${artUri}" x="${fmt(template.art.x + imageLayout.x)}" y="${fmt(template.art.y + imageLayout.y)}"
+              <image href="${artUri}" xlink:href="${artUri}" x="${fmt(template.art.x + imageLayout.x)}" y="${fmt(template.art.y + imageLayout.y)}"
                      width="${fmt(imageLayout.width)}" height="${fmt(imageLayout.height)}" preserveAspectRatio="none"/>
             </g>
         """.trimIndent() else ""
@@ -142,7 +142,7 @@ object VectorCardSvgRenderer {
 
                 <rect x="${fmt(template.art.x)}" y="${fmt(template.art.y)}" width="${fmt(template.art.width)}" height="${fmt(template.art.height)}" rx="${fmt(artRadius)}" ry="${fmt(artRadius)}" fill="${esc(data.imagePadColor)}" stroke="${esc(data.accentColor)}" stroke-width="4"/>
                 <g clip-path="url(#${artClipId})">
-                  <image href="${artUri}" x="${fmt(template.art.x + imageLayout.x)}" y="${fmt(template.art.y + imageLayout.y)}" width="${fmt(imageLayout.width)}" height="${fmt(imageLayout.height)}" preserveAspectRatio="none"/>
+                  <image href="${artUri}" xlink:href="${artUri}" x="${fmt(template.art.x + imageLayout.x)}" y="${fmt(template.art.y + imageLayout.y)}" width="${fmt(imageLayout.width)}" height="${fmt(imageLayout.height)}" preserveAspectRatio="none"/>
                 </g>
                 <rect x="${fmt(template.art.x)}" y="${fmt(template.art.y)}" width="${fmt(template.art.width)}" height="${fmt(template.art.height)}" rx="${fmt(artRadius)}" ry="${fmt(artRadius)}" fill="none" stroke="${esc(data.accentColor)}" stroke-width="4"/>
 
