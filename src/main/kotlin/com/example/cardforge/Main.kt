@@ -251,8 +251,8 @@ class MainApp : Application() {
 
     override fun start(stage: Stage) {
         stage.title = "Card Forge"
-        setApplicationDockIcon()
-        javaClass.getResourceAsStream("/icons/card-forge-icon.png")?.use { stage.icons.add(Image(it)) }
+        AppPlatform.setApplicationDockIcon(javaClass)
+        AppPlatform.installWindowIcon(stage, javaClass)
         loadSchemes()
         loadOverlays()
         loadTemplates()
@@ -269,20 +269,11 @@ class MainApp : Application() {
         }
         applyUiTheme()
 
-        val visual = Screen.getPrimary().visualBounds
-        // Leave room for the macOS menu bar/Dock while giving the card viewport enough
-        // height to show the complete card plus the bottom status bar.
-        // Start large enough to expose the full browser + editor + card/status area,
-        // while never exceeding the usable screen bounds. The card itself scales to fit
-        // the preview pane, so a smaller laptop screen still shows the complete card.
-        val desiredWidth = 1660.0
-        val desiredHeight = 1040.0
-        val initialWidth = min(desiredWidth, visual.width * 0.94).coerceAtLeast(1180.0).coerceAtMost(visual.width)
-        val initialHeight = min(desiredHeight, visual.height * 0.93).coerceAtLeast(760.0).coerceAtMost(visual.height)
-        scene = Scene(appRoot, initialWidth, initialHeight)
+        val initialWindow = AppPlatform.initialWindowSize()
+        scene = Scene(appRoot, initialWindow.width, initialWindow.height)
         stage.minWidth = 1120.0
         stage.minHeight = 720.0
-        javaClass.getResource("/cardforge.css")?.toExternalForm()?.let { scene.stylesheets.add(it) }
+        AppPlatform.attachStylesheet(scene, javaClass)
         applyUiTheme()
         scene.accelerators[KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN)] = Runnable { saveCurrent() }
         installUiThemeKey(scene)
@@ -359,25 +350,8 @@ class MainApp : Application() {
             chooseRecentCollectionOnStartup(stage)
             // AppKit can ignore the Dock icon if it is changed before the JavaFX
             // window/application has entered its native event loop.
-            setApplicationDockIcon()
+            AppPlatform.setApplicationDockIcon(javaClass)
             resizePreview()
-        }
-    }
-
-    private fun setApplicationDockIcon() {
-        if (!System.getProperty("os.name").contains("Mac", ignoreCase = true)) return
-        val icon = javaClass.getResourceAsStream("/icons/card-forge-icon.png")?.use(ImageIO::read) ?: return
-        runCatching {
-            if (Taskbar.isTaskbarSupported() && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
-                Taskbar.getTaskbar().setIconImage(icon)
-            }
-        }
-        // Older Apple Java runtimes exposed a dedicated Dock API. Keep this as a
-        // reflection fallback; modern JDKs generally use java.awt.Taskbar instead.
-        runCatching {
-            val applicationClass = Class.forName("com.apple.eawt.Application")
-            val application = applicationClass.getMethod("getApplication").invoke(null)
-            applicationClass.getMethod("setDockIconImage", java.awt.Image::class.java).invoke(application, icon)
         }
     }
 
