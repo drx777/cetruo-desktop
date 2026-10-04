@@ -48,21 +48,22 @@ class CollectionSettingsPane(
         children.add(sliderRow("Bleed opacity", bleedOpacity, bleedValue))
         children.add(sliderRow("Foreground opacity", foregroundOpacity, foregroundValue))
 
-        val bulk = HBox(6.0,
-            Button("Default template → all").apply {
-                tooltip = Tooltip("Remove per-card template overrides so every card follows the collection default.")
-                setOnAction { onApplyDefaultTemplateToAll() }
-            },
-            Button("Set name → all").apply {
-                tooltip = Tooltip("Apply the selected card's set name to every image in this collection.")
-                setOnAction { onApplySetNameToAll() }
-            },
-            Button("Fix # totals").apply {
-                tooltip = Tooltip("Set each card-number total to the number of images with the same set name.")
-                setOnAction { onNormalizeCollectorTotals() }
-            }
-        ).apply { alignment = Pos.CENTER_LEFT }
-        children.add(bulk)
+        val applyTemplateToAll = Button("Apply collection default template to all cards").apply {
+            maxWidth = Double.MAX_VALUE
+            tooltip = Tooltip("Remove every per-card template override so all cards follow the collection default.")
+            setOnAction { onApplyDefaultTemplateToAll() }
+        }
+        val applySetToAll = Button("Apply current set name to all cards").apply {
+            maxWidth = Double.MAX_VALUE
+            tooltip = Tooltip("Apply the selected card's set name to every image in this collection.")
+            setOnAction { onApplySetNameToAll() }
+        }
+        val fixTotals = Button("Recalculate collector-number totals").apply {
+            maxWidth = Double.MAX_VALUE
+            tooltip = Tooltip("Set each card-number total to the number of images with the same set name.")
+            setOnAction { onNormalizeCollectorTotals() }
+        }
+        children.add(VBox(6.0, applyTemplateToAll, applySetToAll, fixTotals))
 
         descriptionHeading.textProperty().addListener { _, _, value ->
             if (!suppress) publish { this.descriptionHeading = value.ifBlank { "ABILITY / DESCRIPTION" } }
