@@ -12,6 +12,10 @@ Current follow-up work for the 0.14.x line.
   - remove the duplicate “Apply selected template to all cards” control,
   - clarify collection default vs per-card override actions,
   - keep collection card count visible without adding clutter.
+- Add a lightweight full-image inspector for the selected source image:
+  - hoverable icon/action near the preview/browser and/or a keyboard shortcut,
+  - show the original source image without the card frame/template,
+  - easy to dismiss and usable without disturbing editor state.
 
 ## Regression verification
 
@@ -34,7 +38,7 @@ Current follow-up work for the 0.14.x line.
 ## Completed recently
 
 - Startup performance regression caused by image decoding during browser sorting.
-- Apply selected template explicitly to every card in a collection.
+- Apply selected template explicitly to every card in a collection; verified working in-app.
 - Collection card/image count.
 - Collection-wide set-name application including previously uninitialized images.
 - Set-aware collector-number totals and duplicate-number cleanup.
