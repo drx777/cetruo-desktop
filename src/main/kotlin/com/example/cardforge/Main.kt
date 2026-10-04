@@ -2617,7 +2617,12 @@ class MainApp : Application() {
             }
             ignoreNextUndoCapture = false
         }
-        cardDataCache[currentPath.toAbsolutePath().normalize()] = currentData.copy()
+        val normalizedCurrentPath = currentPath.toAbsolutePath().normalize()
+        cardDataCache[normalizedCurrentPath] = currentData.copy()
+        // Card-preview thumbnails depend on editor state as well as source-file mtime.
+        // Invalidate the rendered preview immediately so list/grid/contact-sheet views
+        // cannot keep showing a stale card while the editor contains newer values.
+        synchronized(cardThumbnailCache) { cardThumbnailCache.remove(normalizedCurrentPath) }
         searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
         if (renderPreview) render()
     }
