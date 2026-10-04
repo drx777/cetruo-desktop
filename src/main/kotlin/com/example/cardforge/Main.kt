@@ -1276,6 +1276,11 @@ class MainApp : Application() {
             }
         }
         form.children.add(row("Card template", templateChoice))
+        form.children.add(Button("Apply selected template to all cards").apply {
+            maxWidth = Double.MAX_VALUE
+            tooltip = Tooltip("Make the selected Card template the collection default and clear all per-card template overrides.")
+            setOnAction { applyCollectionDefaultTemplateToAll() }
+        })
         form.children.add(templateOverride.apply { tooltip = Tooltip("On: keep a template override for this card. Off: follow the collection default.") })
         form.children.add(row("Collection default", collectionTemplateChoice))
         form.children.add(Button("Reset card to collection default").apply {
