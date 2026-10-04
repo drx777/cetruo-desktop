@@ -346,8 +346,13 @@ class MainApp : Application() {
             }
         }
         stage.scene = scene
-        stage.setOnCloseRequest {
-            saveCurrent(showStatus = false)
+        stage.setOnCloseRequest { event ->
+            // A failed or cancelled save must not silently discard the current card.
+            // Keep the application open so the user can resolve the problem and retry.
+            if (!saveCurrent(showStatus = true)) {
+                event.consume()
+                return@setOnCloseRequest
+            }
             scanTask?.cancel()
             filterTask?.cancel()
             filterApplyPause.stop()
@@ -3101,6 +3106,10 @@ class MainApp : Application() {
     }
 
     override fun stop() {
+        // JavaFX normally reaches here after the window close handler has already saved
+        // and closed the collection. Keep a final best-effort save for non-window shutdown
+        // paths (for example programmatic Platform.exit()) while the database is still open.
+        if (database != null) saveCurrent(showStatus = false)
         scanTask?.cancel()
         filterTask?.cancel()
         filterApplyPause.stop()

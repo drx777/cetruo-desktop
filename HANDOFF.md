@@ -44,6 +44,7 @@ UI/rendering behavior still requires desktop smoke testing.
 
 ## Manual regression checklist
 
+- Window close is blocked if the current card save is cancelled or fails; non-window shutdown has a final best-effort save fallback.
 - Rendered-card thumbnails remain current after edits in list and grid modes.
 - In-app paged contact sheet matches the live card preview.
 - PNG, SVG, and PDF match the canonical renderer:
