@@ -4,7 +4,7 @@ Kotlin + JavaFX desktop app for creating collectible-card layouts from a directo
 
 ## Browser
 
-- Folder tree with nested collections and stable path/asset identity.
+- Folder tree with nested collections and stable path/asset identity; the Collection editor shows the current collection's card/image count.
 - List and thumbnail-grid modes with natural keyboard navigation.
 - Original-image or rendered-card previews.
 - Original and card previews are generated lazily and retained in bounded in-memory caches.
@@ -46,7 +46,7 @@ Light schemes are listed before dark schemes and show a palette preview. `SCHEME
 - JSON geometry + paired SVG base files live under `templates/`.
 - SVG decorative overlays live under `overlays/`.
 - Overlay placement can be Frames Only or Over Content.
-- Templates are selectable per collection, with optional per-card overrides. A collection action clears all per-card overrides so every card follows the collection default.
+- Templates are selectable per collection, with optional per-card overrides. **Apply selected template to all cards** makes the currently selected card template the collection default and clears all saved per-card overrides.
 
 ## Export and contact sheets
 
