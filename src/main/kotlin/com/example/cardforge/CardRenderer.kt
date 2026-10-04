@@ -155,7 +155,7 @@ object CardRenderer {
         resize(template.width, template.height)
         relocate(0.0, 0.0)
         isMouseTransparent = true
-        val visual = template.visualStyle
+        val visual = template.visualStyleFor(data.rarity)
         val first = visual.outerFrameInset.coerceAtLeast(data.borderWidth / 2.0 + 2.0)
         val second = visual.innerFrameInset.coerceAtLeast(first + 4.0)
         children.add(Rectangle(first, first, (template.width-first*2).coerceAtLeast(0.0), (template.height-first*2).coerceAtLeast(0.0)).apply {
