@@ -1000,7 +1000,7 @@ class MainApp : Application() {
         } ?: Screen.getPrimary()
         val bounds = screen.visualBounds
         val inspector = Stage().apply {
-            owner?.let(::initOwner)
+            owner?.let { initOwner(it) }
             title = "Card Forge · Source Image · ${source.fileName}"
             owner?.icons?.firstOrNull()?.let { icons.add(it) }
             scene = Scene(
