@@ -36,4 +36,12 @@ object Sidecar {
     }
 
     fun remove(image: Path): Boolean = Files.deleteIfExists(pathFor(image))
+
+    /**
+     * Transitional compatibility for stale 0.14.4 callers in Main.kt.
+     * Normal persistence is SQLite-only, so this deliberately does not write a sidecar.
+     * Explicit portable sidecars must be created with createForSharing().
+     */
+    @Deprecated("Normal saves are SQLite-only; use createForSharing() for an explicit portable sidecar")
+    fun save(@Suppress("UNUSED_PARAMETER") image: Path, @Suppress("UNUSED_PARAMETER") data: CardData) = Unit
 }
