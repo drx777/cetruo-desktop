@@ -135,7 +135,7 @@ object CardRenderer {
 
     private fun decorativeBox(rect:TemplateRect,fill:String,stroke:String,strokeWidth:Double,opacity:Double=1.0)=StackPane().apply{
         isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
-        style="-fx-background-color:${fill.withOpacity(opacity)};-fx-background-radius:${rect.radius}px;-fx-border-color:${stroke.withOpacity(opacity)};-fx-border-width:${strokeWidth}px;-fx-border-radius:${rect.radius}px;"
+        style="-fx-background-color:${fill.withOpacity(opacity)};-fx-background-radius:${rect.radius}px;-fx-border-color:$stroke;-fx-border-width:${strokeWidth}px;-fx-border-radius:${rect.radius}px;"
     }
     private fun String.withOpacity(opacity:Double):String=runCatching{val c=Color.web(this);"rgba(${(c.red*255).toInt()},${(c.green*255).toInt()},${(c.blue*255).toInt()},${opacity.coerceIn(0.0,1.0)})"}.getOrElse{this}
     private fun place(node:javafx.scene.layout.Region,spec:TemplateText){node.isManaged=false;node.prefWidth=spec.width;node.prefHeight=spec.height;node.minWidth=spec.width;node.minHeight=spec.height;node.maxWidth=spec.width;node.maxHeight=spec.height;node.resize(spec.width,spec.height);node.relocate(spec.x,spec.y);if(node is Label)node.alignment=when(spec.align.uppercase()){ "CENTER"->Pos.CENTER;"RIGHT"->Pos.CENTER_RIGHT;else->Pos.CENTER_LEFT}}
