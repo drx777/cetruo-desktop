@@ -56,10 +56,22 @@ object CardRenderer {
             minWidth = template.width; minHeight = template.height
             maxWidth = template.width; maxHeight = template.height
             resize(template.width, template.height); relocate(0.0, 0.0)
-            val borderColor = if (visual.rarityFrames) palette.outerFrame else data.accentColor
-            style = "-fx-background-color:${data.backgroundColor};-fx-background-radius:${data.cornerRadius}px;" +
-                "-fx-border-color:$borderColor;-fx-border-width:${data.borderWidth}px;-fx-border-radius:${data.cornerRadius}px;"
+            style = "-fx-background-color:${data.backgroundColor};-fx-background-radius:${data.cornerRadius}px;"
             clip = Rectangle(template.width, template.height).apply { arcWidth = data.cornerRadius * 2; arcHeight = data.cornerRadius * 2 }
+        }
+        val outerBorder = Rectangle(
+            data.borderWidth / 2.0,
+            data.borderWidth / 2.0,
+            (template.width - data.borderWidth).coerceAtLeast(0.0),
+            (template.height - data.borderWidth).coerceAtLeast(0.0)
+        ).apply {
+            val insetRadius = (data.cornerRadius - data.borderWidth / 2.0).coerceAtLeast(0.0)
+            arcWidth = insetRadius * 2
+            arcHeight = insetRadius * 2
+            fill = Color.TRANSPARENT
+            stroke = Color.web(if (visual.rarityFrames) palette.outerFrame else data.accentColor)
+            strokeWidth = data.borderWidth
+            isMouseTransparent = true
         }
 
         templateImage?.let { outer.children.add(ImageView(it).apply { isPreserveRatio=false; fitWidth=template.width; fitHeight=template.height; isMouseTransparent=true }) }
@@ -145,6 +157,7 @@ object CardRenderer {
         val stats=label(data.stats,statsSize,true,data.darkTextColor);place(stats,template.statsText);content.children.addAll(statsBox,stats)
         outer.children.add(content)
         if(backgroundOverlay!=null&&data.backgroundOverlayPlacement==OverlayPlacement.OVER_CONTENT)outer.children.add(overlayLayer(backgroundOverlay,template,data))
+        outer.children.add(outerBorder)
         root.children.add(outer)
         return Rendered(root,imageView,viewport,template.width,template.height)
     }
