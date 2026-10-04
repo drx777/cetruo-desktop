@@ -806,7 +806,7 @@ class MainApp : Application() {
         // Reuse the exact export renderer so the in-app contact sheet cannot diverge
         // from PNG/PDF output. This method is only invoked on the JavaFX thread.
         val template = templateForData(data) ?: return null
-        val templateImage = TemplateRepository.rasterize(template)
+        val templateImage = TemplateRepository.rasterize(template, data.rarity)
         val overlay = data.backgroundOverlay.takeIf { it.isNotBlank() }?.let { name ->
             OverlayRepository.resolve(name)?.let {
                 OverlayRepository.rasterize(it, template.width, template.height, data.overlayColor)
@@ -1605,7 +1605,7 @@ class MainApp : Application() {
 
     private fun loadTemplateAndOverlay() {
         val template = currentTemplate() ?: return
-        templateImage = TemplateRepository.rasterize(template)
+        templateImage = TemplateRepository.rasterize(template, currentData.rarity)
         backgroundOverlayImage = overlays.firstOrNull { it.path?.fileName?.toString() == currentData.backgroundOverlay }
             ?.path?.let { OverlayRepository.rasterize(it, template.width, template.height, currentData.overlayColor) }
     }
@@ -1617,7 +1617,7 @@ class MainApp : Application() {
 
     private fun chooseRecentCollectionOnStartup(stage: Stage) {
         if (collectionRoot != null) return
-        when (val choice = StartupCatalogChooser.choose(stage, RecentCatalogs.list())) {
+        when (val choice = StartupCatalogChooser.choose(stage, RecentCatalogs.list(), RecentCatalogs::forget)) {
             is StartupCatalogChooser.Choice.Open -> openCollectionPath(choice.path)
             StartupCatalogChooser.Choice.Browse -> {
                 val directory = DirectoryChooser().apply { title = "Choose Image Directory" }.showDialog(stage)?.toPath()
