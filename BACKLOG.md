@@ -22,12 +22,14 @@ Current follow-up work for the 0.14.x line.
 
 - Continue reducing responsibilities in `Main.kt`.
 - Extract browser/list-grid/thumbnail orchestration.
-- Extract preview/export/contact-sheet orchestration where practical.
+- Extract remaining preview/export orchestration where practical.
 - Continue using `CollectionCardStore`, `CardUndoManager`, `AppPlatform`, and collection action classes instead of duplicate state in `MainApp`.
 - Keep startup profiling available as opt-in diagnostics without adding normal-launch overhead.
 
 ## Completed recently
 
+- Contact-sheet window/paging UI extracted from `Main.kt`.
+- Source-image inspector window lifecycle extracted from `Main.kt`.
 - Source-image inspector with preview action, image context-menu action, and Cmd/Ctrl+I shortcut; native-resolution view dismisses with Esc.
 - Startup performance regression caused by image decoding during browser sorting.
 - Apply selected template explicitly to every card in a collection; verified working in-app.
