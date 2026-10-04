@@ -16,6 +16,7 @@ Included examples:
 - Relic Landscape
 - Split Prism
 - Duel Landscape
+- Classic Creature
 
 To add a template, add a matching JSON/SVG pair to this directory and use **Reload templates** in Card Forge.
 
