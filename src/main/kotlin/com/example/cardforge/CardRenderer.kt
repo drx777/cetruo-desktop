@@ -57,7 +57,7 @@ object CardRenderer {
             maxWidth = template.width; maxHeight = template.height
             resize(template.width, template.height); relocate(0.0, 0.0)
             val borderColor = if (visual.rarityFrames) palette.outerFrame else data.accentColor
-            style = "-fx-background-color:linear-gradient(to bottom right,${CardVisualSystem.lighten(data.backgroundColor, 0.06)},${data.backgroundColor} 48%,${CardVisualSystem.darken(data.backgroundColor, 0.18)});-fx-background-radius:${data.cornerRadius}px;" +
+            style = "-fx-background-color:${data.backgroundColor};-fx-background-radius:${data.cornerRadius}px;" +
                 "-fx-border-color:$borderColor;-fx-border-width:${data.borderWidth}px;-fx-border-radius:${data.cornerRadius}px;"
             clip = Rectangle(template.width, template.height).apply { arcWidth = data.cornerRadius * 2; arcHeight = data.cornerRadius * 2 }
         }
@@ -102,7 +102,7 @@ object CardRenderer {
         }
 
         val titleStroke=if(visual.rarityFrames) palette.outerFrame else data.accentColor
-        val titleBox=railBox(template.titleBox,data.backgroundColor,titleStroke,visual,fgOpacity); position(titleBox,template.titleBox)
+        val titleBox=decorativeBox(template.titleBox,data.backgroundColor,titleStroke,2.0,fgOpacity); position(titleBox,template.titleBox)
         val titleSize=CardVisualSystem.fitFontSize(data.title,data.titleFontSize,18.0,template.titleText.width,template.titleText.height,true)
         val titleLabel=label(data.title,titleSize,true,data.darkTextColor); place(titleLabel,template.titleText)
         val costLabel=label("◇ ${data.cost}",19.0,true,if(visual.rarityFrames) palette.outerFrame else data.frameColor); place(costLabel,template.costText)
@@ -120,7 +120,7 @@ object CardRenderer {
         val foregroundBorder=Rectangle(template.art.width,template.art.height).apply{isMouseTransparent=true;fill=Color.TRANSPARENT;stroke=Color.web(data.accentColor);strokeWidth=4.0;arcWidth=template.art.radius;arcHeight=template.art.radius}
         artFrame.children.addAll(frameRect,viewport,foregroundBorder);position(artFrame,template.art);content.children.add(artFrame);installImageInteractions(viewport,onImageDragged,onImageZoomed,onImageReset)
 
-        val typeBox=railBox(template.typeBox,data.backgroundColor,if(visual.rarityFrames) palette.outerFrame else data.accentColor,visual,fgOpacity);position(typeBox,template.typeBox)
+        val typeBox=decorativeBox(template.typeBox,data.backgroundColor,if(visual.rarityFrames) palette.outerFrame else data.accentColor,2.0,fgOpacity);position(typeBox,template.typeBox)
         val typeSize=CardVisualSystem.fitFontSize(data.typeLine,18.0,13.0,template.typeText.width,template.typeText.height,true)
         val typeLabel=label(data.typeLine,typeSize,true,data.darkTextColor);place(typeLabel,template.typeText)
         val rarityDisplay="◆ ${data.rarity}"
@@ -147,12 +147,6 @@ object CardRenderer {
         if(backgroundOverlay!=null&&data.backgroundOverlayPlacement==OverlayPlacement.OVER_CONTENT)outer.children.add(overlayLayer(backgroundOverlay,template,data))
         root.children.add(outer)
         return Rendered(root,imageView,viewport,template.width,template.height)
-    }
-
-    private fun railBox(rect:TemplateRect,fill:String,stroke:String,visual:TemplateVisualStyle,opacity:Double)=StackPane().apply{
-        isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
-        val top=CardVisualSystem.lighten(fill,0.07); val bottom=CardVisualSystem.darken(fill,0.12)
-        style="-fx-background-color:linear-gradient(to bottom,${top.withOpacity(opacity)},${fill.withOpacity(opacity)} 52%,${bottom.withOpacity(opacity)});-fx-background-radius:${rect.radius}px;-fx-border-color:$stroke;-fx-border-width:${visual.railStrokeWidth}px;-fx-border-radius:${rect.radius}px;-fx-effect:dropshadow(gaussian,rgba(0,0,0,0.22),${visual.railDepth*1.5},0,${visual.railDepth},${visual.railDepth});"
     }
 
     private fun decorativeBox(rect:TemplateRect,fill:String,stroke:String,strokeWidth:Double,opacity:Double=1.0)=StackPane().apply{
