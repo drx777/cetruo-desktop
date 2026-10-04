@@ -167,7 +167,7 @@ class MainApp : Application() {
     private val fullImageCache = object : LinkedHashMap<Path, CachedImage>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CachedImage>?): Boolean = size > 32
     }
-    private val thumbnailRefreshPause = PauseTransition(Duration.millis(75.0))
+    private val thumbnailRefreshPause = PauseTransition(Duration.seconds(3.0))
     private val browserPreviews by lazy {
         BrowserPreviewCoordinator(
             cardSignature = { path, data -> cardPreviewSignature(path, data) },
@@ -2414,18 +2414,13 @@ class MainApp : Application() {
         searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
 
         if (editorChanged) {
-            // Card-preview thumbnails depend on editor state as well as source-file mtime.
-            // Only invalidate/rebuild browser cells when the editor actually changed data.
-            // Selection-triggered autosave must not evict otherwise valid thumbnails.
+            // Debounce rendered browser thumbnails while editing. Keep the existing tile/image
+            // visible during the pause and refresh only this card after editing has been idle.
             browserPreviews.removeCard(normalizedCurrentPath)
-
-            // Keep rendered browser previews and card-name labels current without rebuilding
-            // cells for every keystroke. Only visible cells are recreated after the short pause.
             thumbnailRefreshPause.stop()
             thumbnailRefreshPause.setOnFinished {
                 if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalizedCurrentPath) {
-                    imageList.refresh()
-                    gridList.refresh()
+                    browserTiles.refreshPath(normalizedCurrentPath)
                 }
             }
             thumbnailRefreshPause.playFromStart()
