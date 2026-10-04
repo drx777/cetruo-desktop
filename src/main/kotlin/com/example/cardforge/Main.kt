@@ -2763,7 +2763,7 @@ class MainApp : Application() {
         exportCoordinator.exportPdfAsync(
             target = target,
             plans = plans,
-            renderPngOnFxThread = { path -> renderCardPngForPdf(path) },
+            renderSvgOnFxThread = { path -> renderCardSvgForPdf(path) },
             onSucceeded = {
                 database?.recordActivity(currentData.assetId, "EXPORT_PDF", target.toAbsolutePath().toString())
                 statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} full card(s)"
@@ -2790,7 +2790,7 @@ class MainApp : Application() {
         exportCoordinator.exportPdfAsync(
             target = target,
             plans = plans,
-            renderPngOnFxThread = { path -> renderCardPngForPdf(path) },
+            renderSvgOnFxThread = { path -> renderCardSvgForPdf(path) },
             onSucceeded = {
                 database?.recordActivity(currentData.assetId, "EXPORT_PDF_CARDS", target.toAbsolutePath().toString())
                 statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} borderless card page(s)"
@@ -2807,25 +2807,16 @@ class MainApp : Application() {
         return PdfContactSheetExporter.CardSpec(path, widthPt, heightPt)
     }
 
-    private fun renderCardPngForPdf(path: Path): ByteArray {
-        check(Platform.isFxApplicationThread()) { "PDF card rendering must run on the JavaFX application thread" }
+    private fun renderCardSvgForPdf(path: Path): String {
+        check(Platform.isFxApplicationThread()) { "PDF card SVG rendering must run on the JavaFX application thread" }
         val data = savedDataForPath(path)
         val template = templateForData(data) ?: error("No card template available for ${path.fileName}")
         val sourceImage = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
-        val templateImage = TemplateRepository.rasterize(template)
-        val overlayImage = data.backgroundOverlay.takeIf { it.isNotBlank() }?.let { name ->
-            OverlayRepository.resolve(name)?.let { overlayPath ->
-                OverlayRepository.rasterize(overlayPath, template.width, template.height, data.overlayColor)
-            }
-        }
-        return ExportRenderer.pngBytes(
+        return VectorCardSvgRenderer.svgFor(
             image = sourceImage,
             data = data,
             template = template,
-            templateImage = templateImage,
-            backgroundOverlay = overlayImage,
-            collectionPresentation = collectionPresentation,
-            scale = 1.0
+            collectionPresentation = collectionPresentation
         )
     }
 
