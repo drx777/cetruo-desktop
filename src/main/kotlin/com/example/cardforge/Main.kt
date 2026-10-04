@@ -1949,7 +1949,11 @@ class MainApp : Application() {
     }
 
     private fun applyCollectionDefaultTemplateToAll() {
-        val selected = templateChoice.value ?: currentTemplate() ?: run {
+        val selected = if (templateOverride.isSelected) {
+            templateChoice.value ?: currentTemplate()
+        } else {
+            currentTemplate() ?: templateChoice.value
+        } ?: run {
             statusBarLabel.text = "Choose a card template first."
             return
         }
