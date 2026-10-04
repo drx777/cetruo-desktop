@@ -28,11 +28,12 @@ object FileIdentityReconciler {
         if (database == null) return Result(removed, added, emptyMap())
 
         // Order matters: detach missing assets first, then match new files by content hash.
-        removed.forEach { path -> database.markMissing(path) }
+        removed.forEach { path -> runCatching { database.markMissing(path) } }
 
         val reattached = linkedMapOf<Path, String>()
         added.forEach { path ->
-            database.reconcileAdded(path)?.let { assetId -> reattached[path] = assetId }
+            runCatching { database.reconcileAdded(path) }.getOrNull()
+                ?.let { assetId -> reattached[path] = assetId }
         }
         return Result(removed, added, reattached)
     }
