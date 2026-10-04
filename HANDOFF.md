@@ -33,6 +33,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+Autosave transition gating is now centralized in `AutosaveGuard` and covered for success/failure semantics; desktop verification of the actual UI entry points remains on the smoke-test checklist.
+
 Edited-card thumbnail refreshes are now targeted to the active card after 3 seconds of inactivity; list/grid-wide refreshes are not used for editor changes.
 
 Browser preview cache validity rules are now covered: original previews depend on source size/mtime, while rendered-card previews also depend on the render signature.
