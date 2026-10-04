@@ -48,4 +48,41 @@ class CardVisualStyleTest {
         assertTrue(long < short)
         assertTrue(long >= 18.0)
     }
+    @Test
+    fun templateCanSwapSvgAndVisualStyleByRarityTier() {
+        val baseVisual = TemplateVisualStyle(outerFrameInset = 8.0)
+        val mythicVisual = TemplateVisualStyle(outerFrameInset = 13.0, innerFrameInset = 22.0)
+        val template = CardTemplate(
+            name = "Variant test",
+            svgFile = "base.svg",
+            width = 630.0,
+            height = 880.0,
+            art = TemplateRect(0.0, 0.0, 1.0, 1.0),
+            titleBox = TemplateRect(0.0, 0.0, 1.0, 1.0),
+            titleText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            costText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            typeBox = TemplateRect(0.0, 0.0, 1.0, 1.0),
+            typeText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            rarityText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            descriptionBox = TemplateRect(0.0, 0.0, 1.0, 1.0),
+            descriptionHeading = TemplateText(0.0, 0.0, 1.0, 1.0),
+            descriptionText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            flavorText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            footerText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            statsBox = TemplateRect(0.0, 0.0, 1.0, 1.0),
+            statsText = TemplateText(0.0, 0.0, 1.0, 1.0),
+            visualStyle = baseVisual,
+            rarityVariants = mapOf(
+                "MYTHIC" to TemplateRarityVariant(
+                    svgFile = "mythic.svg",
+                    visualStyle = mythicVisual
+                )
+            )
+        )
+
+        assertEquals("base.svg", template.svgFileFor("Rare"))
+        assertEquals("mythic.svg", template.svgFileFor("Mythic Rare"))
+        assertEquals(baseVisual, template.visualStyleFor("Rare"))
+        assertEquals(mythicVisual, template.visualStyleFor("Legendary"))
+    }
 }
