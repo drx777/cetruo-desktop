@@ -1052,14 +1052,21 @@ class MainApp : Application() {
         cardThumbnailWaiters.computeIfAbsent(absolute) { CopyOnWriteArrayList() }.add(onLoaded)
         if (!cardThumbnailLoads.add(absolute)) return
         thumbnailLoadExecutor.submit {
-            val source = runCatching {
+            // Decode once off the JavaFX thread. Reuse that decode both for the thumbnail
+            // source and for initial image-derived scheme selection, so card preview creation
+            // never blocks the UI by re-reading the original image.
+            val decoded = runCatching {
                 val buffered = ImageIO.read(absolute.toFile()) ?: return@runCatching null
+                val derivedColor = ImageColorAnalyzer.dominantColor(buffered)
                 val scaled = scaleThumbnail(buffered, 900)
-                SwingFXUtils.toFXImage(scaled, null)
-            }.getOrNull()?.takeIf { it.width > 0.0 && it.height > 0.0 }
+                val fxImage = SwingFXUtils.toFXImage(scaled, null)
+                fxImage to derivedColor
+            }.getOrNull()
+            val source = decoded?.first?.takeIf { it.width > 0.0 && it.height > 0.0 }
+            val derivedColor = decoded?.second
             Platform.runLater {
                 try {
-                    val data = savedDataForPath(absolute)
+                    val data = savedDataForPath(absolute, derivedColor, analyzeImageIfNeeded = false)
                     val effectiveSource = source ?: runCatching {
                         Image(absolute.toUri().toString(), 900.0, 900.0, true, true, false)
                     }.getOrNull()?.takeIf { !it.isError && it.width > 0.0 && it.height > 0.0 }
@@ -1104,11 +1111,15 @@ class MainApp : Application() {
         }.getOrNull()
     }
 
-    private fun savedDataForPath(path: Path): CardData {
+    private fun savedDataForPath(
+        path: Path,
+        derivedColorOverride: Color? = null,
+        analyzeImageIfNeeded: Boolean = true
+    ): CardData {
         val normalized = path.toAbsolutePath().normalize()
         cardDataCache[normalized]?.let { return it.copy() }
         val result = database?.dataSnapshotForPath(normalized)?.takeIf(::hasMeaningfulCardData)?.copy()
-            ?: newCardDefaults(normalized)
+            ?: newCardDefaults(normalized, derivedColorOverride, analyzeImageIfNeeded)
         cardDataCache[normalized] = result.copy()
         return result
     }
@@ -2282,16 +2293,25 @@ class MainApp : Application() {
     }
 
     private fun resolveCardDataForSelection(path: Path): CardData? {
-        val db = database ?: return newCardDefaults(path)
-        val dbData = db.dataSnapshotForPath(path)
+        val normalized = path.toAbsolutePath().normalize()
+        val db = database ?: return cardDataCache[normalized]?.copy() ?: newCardDefaults(normalized)
+        val dbData = db.dataSnapshotForPath(normalized)
         if (dbData != null && hasMeaningfulCardData(dbData)) {
             if (dbData.collectorNumber.isBlank()) {
                 dbData.collectorNumber = nextUnusedCollectorNumber()
-                db.save(path, dbData)
+                db.save(normalized, dbData)
             }
             return dbData
         }
-        return newCardDefaults(path).also { defaults ->
+        // Unsaved cards may already have deterministic in-memory defaults generated for a
+        // card thumbnail. Reuse them so selecting the card does not randomize it again or
+        // decode the image a second time.
+        cardDataCache[normalized]?.let { cached ->
+            return cached.copy().also { data ->
+                dbData?.assetId?.takeIf { it.isNotBlank() }?.let { data.assetId = it }
+            }
+        }
+        return newCardDefaults(normalized).also { defaults ->
             dbData?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
         }
     }
@@ -2301,7 +2321,11 @@ class MainApp : Application() {
             JsonSupport.mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(b)
     }.getOrDefault(false)
 
-    private fun newCardDefaults(path: Path? = null): CardData {
+    private fun newCardDefaults(
+        path: Path? = null,
+        derivedColorOverride: Color? = null,
+        analyzeImageIfNeeded: Boolean = true
+    ): CardData {
         val random = randomGenerator()
         val data = CardData(
             assetId = UUID.randomUUID().toString(),
@@ -2318,7 +2342,7 @@ class MainApp : Application() {
             imageMode = ImageMode.COVER,
             imageBleedOverFrame = false
         )
-        val derived = path?.let(ImageColorAnalyzer::dominantColor)
+        val derived = derivedColorOverride ?: if (analyzeImageIfNeeded) path?.let(ImageColorAnalyzer::dominantColor) else null
         val scheme = derived?.let { ImageColorAnalyzer.bestMatchingScheme(it, schemes) } ?: schemes.randomOrNull(random)
         scheme?.applyTo(data)
         return data
