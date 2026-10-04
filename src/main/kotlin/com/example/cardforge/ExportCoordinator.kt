@@ -28,8 +28,6 @@ class ExportCoordinator {
             data = input.data,
             template = input.template,
             target = target,
-            templateImage = input.templateImage,
-            backgroundOverlay = input.backgroundOverlay,
             collectionPresentation = input.collectionPresentation
         )
     }
@@ -68,17 +66,17 @@ class ExportCoordinator {
     fun exportPdfAsync(
         target: Path,
         plans: List<PdfContactSheetExporter.PagePlan>,
-        renderPngOnFxThread: (Path) -> ByteArray,
+        renderSvgOnFxThread: (Path) -> String,
         onSucceeded: () -> Unit,
         onFailed: (Throwable) -> Unit
     ) {
         val task = object : Task<Unit>() {
             override fun call() {
-                PdfContactSheetExporter.export(target, plans) { path ->
-                    val future = CompletableFuture<ByteArray>()
+                PdfContactSheetExporter.exportVector(target, plans) { path ->
+                    val future = CompletableFuture<String>()
                     Platform.runLater {
                         try {
-                            future.complete(renderPngOnFxThread(path))
+                            future.complete(renderSvgOnFxThread(path))
                         } catch (t: Throwable) {
                             future.completeExceptionally(t)
                         }
