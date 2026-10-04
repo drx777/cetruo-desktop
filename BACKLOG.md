@@ -9,7 +9,7 @@ Current follow-up work for the 0.14.x line.
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits; cache validity rules are now covered automatically.
 - Verify the paged in-app contact sheet matches the live card preview.
-- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners.
+- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners; PDF page planning is now covered automatically.
 - Verify list/grid viewport scrolling behavior with virtualized JavaFX cells; list/grid index-to-row mapping is now covered automatically.
 - Verify initial window sizing and macOS Dock/window icons in the packaged app.
 - Verify auto-save on card switch, collection switch, app close, and Cmd/Ctrl+S; save-success/failure gating is now covered automatically.
@@ -24,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- PDF page planning now has expanded regression coverage for scale/margin/gap clamping, orientation choice, mixed-size grouping, and card preservation.
 - Explicit Save / Cmd/Ctrl+S now bypasses the thumbnail edit debounce and refreshes only the active card thumbnail immediately.
 - Collection-wide set-name application now has regression coverage for initialization, metadata preservation, collector-number normalization, affected sets, and idempotence.
 - Autosave transition gating now has regression coverage; card switch, collection/folder switch, and window close share the same save-success guard.

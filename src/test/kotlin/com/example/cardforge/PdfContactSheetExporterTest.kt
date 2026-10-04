@@ -77,4 +77,62 @@ class PdfContactSheetExporterTest {
         assertTrue(PdfContactSheetExporter.planSingleCardPages(emptyList()).isEmpty())
     }
 
+    @Test
+    fun a4ScaleIsClampedToSupportedRange() {
+        val tooSmall = PdfContactSheetExporter.planA4(listOf(card("small.png")), scale = 0.01)
+            .single().slots.single()
+        val tooLarge = PdfContactSheetExporter.planA4(listOf(card("large.png")), scale = 5.0)
+            .single().slots.single()
+
+        assertEquals(45.0, tooSmall.widthPt, 0.001)
+        assertEquals(63.0, tooSmall.heightPt, 0.001)
+        assertEquals(180.0, tooLarge.widthPt, 0.001)
+        assertEquals(252.0, tooLarge.heightPt, 0.001)
+    }
+
+    @Test
+    fun a4MarginAndGapAreClampedWithoutPushingSlotsOutsidePage() {
+        val pages = PdfContactSheetExporter.planA4(
+            cards = List(20) { card("card-$it.png") },
+            marginMm = 999.0,
+            gapMm = 999.0
+        )
+
+        assertTrue(pages.isNotEmpty())
+        pages.forEach { page ->
+            page.slots.forEach { slot ->
+                assertTrue(slot.x >= 0.0)
+                assertTrue(slot.y >= 0.0)
+                assertTrue(slot.x + slot.widthPt <= page.pageSize.width + 0.001)
+                assertTrue(slot.y + slot.heightPt <= page.pageSize.height + 0.001)
+            }
+        }
+    }
+
+    @Test
+    fun plannerChoosesLandscapeWhenItFitsMoreCards() {
+        val wide = card("wide.png", width = 300.0, height = 120.0)
+        val page = PdfContactSheetExporter.planA4(List(4) { wide }).first()
+
+        assertTrue(page.pageSize.width > page.pageSize.height)
+    }
+
+    @Test
+    fun mixedSizePlanningPreservesEveryCardExactlyOnce() {
+        val cards = listOf(
+            card("a.png"),
+            card("b.png"),
+            card("c.png", 252.0, 180.0),
+            card("d.png", 252.0, 180.0),
+            card("e.png", 200.0, 280.0)
+        )
+
+        val plannedPaths = PdfContactSheetExporter.planA4(cards)
+            .flatMap { it.slots }
+            .map { it.card.path.toString() }
+
+        assertEquals(cards.map { it.path.toString() }.sorted(), plannedPaths.sorted())
+        assertEquals(cards.size, plannedPaths.size)
+    }
+
 }
