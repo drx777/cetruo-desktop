@@ -145,6 +145,7 @@ class CollectionBulkActionsTest {
                 CardData(
                     title = path.fileName.toString().substringBeforeLast('.'),
                     artist = "Generated",
+                    setName = "",
                     collectorNumber = ""
                 )
             }
