@@ -84,6 +84,17 @@ object CardRenderer {
         }
         if (templateView != null) outer.children.add(templateView)
 
+        // Optional borderless-art treatment: place a second copy of the artwork behind
+        // the normal card content. Text boxes remain above it; the description panel's
+        // existing opacity therefore controls how much artwork can show through there.
+        val bleedImageView = if (data.imageBleedOverFrame && image != null) ImageView(image).apply {
+            isSmooth = true
+            isManaged = false
+            isMouseTransparent = true
+            updateBleedImageView(this, image, data, template)
+        } else null
+        if (bleedImageView != null) outer.children.add(bleedImageView)
+
         if (backgroundOverlay != null && data.backgroundOverlayPlacement == OverlayPlacement.FRAMES_ONLY) {
             outer.children.add(overlayLayer(backgroundOverlay, template, data))
         }
@@ -149,6 +160,7 @@ object CardRenderer {
             }
         }
         val imageView = ImageView(image).apply { isSmooth = true; isManaged = false }
+        if (bleedImageView != null) imageView.properties["cardforge.bleedImageView"] = bleedImageView
         updateImageView(imageView, image, data, template)
         viewport.children.add(imageView)
         if (showCropGuides) addCropGuides(viewport)
@@ -312,6 +324,18 @@ object CardRenderer {
         view.fitHeight = layout.height
         view.translateX = layout.x
         view.translateY = layout.y
+        (view.properties["cardforge.bleedImageView"] as? ImageView)?.let {
+            updateBleedImageView(it, image, data, template)
+        }
+    }
+
+    private fun updateBleedImageView(view: ImageView, image: Image?, data: CardData, template: CardTemplate) {
+        val layout = imageLayout(image, data, template)
+        view.isPreserveRatio = false
+        view.fitWidth = layout.width
+        view.fitHeight = layout.height
+        view.translateX = template.art.x + layout.x
+        view.translateY = template.art.y + layout.y
     }
 
     private fun addCropGuides(viewport: StackPane) {

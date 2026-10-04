@@ -215,6 +215,7 @@ class MainApp : Application() {
     private val description = TextArea()
     private val flavor = TextArea()
     private val imageMode = ComboBox<ImageMode>()
+    private val imageBleedOverFrame = CheckBox("Artwork bleeds over frame")
     private val statusChoice = ComboBox<CardStatus>()
     private val collectionDescriptionLabel = TextField()
     private val collectionCopyright = CheckBox("Show © before artist")
@@ -407,6 +408,10 @@ class MainApp : Application() {
         val history = Button("History").apply { setOnAction { showHistory() } }
         val databaseInfo = Button("Database").apply { setOnAction { showDatabaseInfo() } }
         val backup = Button("Backup catalog").apply { setOnAction { backupCatalog(stage) } }
+        val shareSidecar = Button("Share sidecar").apply {
+            tooltip = Tooltip("Explicitly create a portable .card.json sidecar for the selected card. Normal saves use SQLite only.")
+            setOnAction { createSharingSidecar() }
+        }
         val exportSvg = Button("Export SVG").apply { setOnAction { exportSvg(stage) } }
         val exportPng = Button("Export PNG").apply { setOnAction { exportPng(stage) } }
         val exportPdf = Button("A4 Contact Sheet PDF").apply {
@@ -417,7 +422,7 @@ class MainApp : Application() {
             tooltip = Tooltip("Open a paged visual contact sheet for the current image scope.")
             setOnAction { showContactSheet(stage) }
         }
-        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, Separator(), exportSvg, exportPng, exportPdf, contactSheet)
+        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, shareSidecar, Separator(), exportSvg, exportPng, exportPdf, contactSheet)
     }
 
     private fun browser(): VBox {
@@ -533,6 +538,13 @@ class MainApp : Application() {
                         else -> "📁 ${item.fileName}"
                     }
                     tooltip = Tooltip(if (root != null) relativePath(item) else item.toString())
+                    contextMenu = ContextMenu(
+                        MenuItem("Open in Finder").apply { setOnAction { revealInFinder(item) } },
+                        MenuItem("Copy Path").apply { setOnAction {
+                            val content = ClipboardContent().apply { putString(item.toAbsolutePath().toString()) }
+                            Clipboard.getSystemClipboard().setContent(content)
+                        } }
+                    )
                 }
             }
         }
@@ -1093,24 +1105,8 @@ class MainApp : Application() {
     private fun savedDataForPath(path: Path): CardData {
         val normalized = path.toAbsolutePath().normalize()
         cardDataCache[normalized]?.let { return it.copy() }
-        val sidecarData = Sidecar.load(normalized)
-        val pathSnapshot = database?.dataSnapshotForPath(normalized)
-        val pathAssetId = database?.assetIdForPath(normalized)
-        val sidecarId = sidecarData?.assetId?.takeIf { it.isNotBlank() }
-        val sidecarCatalogPath = sidecarId?.let { database?.assetRelativePath(it) }
-        val sidecarIdMatchesPath = sidecarId == null || pathAssetId == sidecarId || sidecarCatalogPath == null || sidecarCatalogPath == relativePath(normalized)
-        val idSnapshot = sidecarId
-            ?.takeIf { sidecarIdMatchesPath }
-            ?.let { database?.dataSnapshot(it) }
-
-        // A copied sidecar whose asset ID points at another live catalog record must never
-        // make a second image inherit that other card's properties. Selection itself offers
-        // an explicit conflict-resolution dialog; passive previews use the sidecar directly.
-        val candidates = listOfNotNull(pathSnapshot, idSnapshot, sidecarData)
-        val result = candidates.firstOrNull { hasMeaningfulCardData(it) }?.copy()
-            ?: newCardDefaults().also { defaults ->
-                candidates.firstOrNull()?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
-            }
+        val result = database?.dataSnapshotForPath(normalized)?.takeIf(::hasMeaningfulCardData)?.copy()
+            ?: newCardDefaults(normalized)
         cardDataCache[normalized] = result.copy()
         return result
     }
@@ -1237,6 +1233,10 @@ class MainApp : Application() {
                 maxWidth = Double.MAX_VALUE
                 HBox.setHgrow(this, Priority.ALWAYS)
             })
+            children.add(Button("From image").apply {
+                tooltip = Tooltip("Choose the closest coordinated color scheme from the dominant artwork color.")
+                setOnAction { applySchemeFromCurrentImage() }
+            })
             children.add(Button("Reload schemes").apply { setOnAction { loadSchemes() } })
         })
         schemeChoice.valueProperty().addListener { _, old, value ->
@@ -1302,7 +1302,12 @@ class MainApp : Application() {
             }
         }
         form.children.add(row("Fit", imageMode))
-        form.children.add(helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×.") )
+        imageBleedOverFrame.apply {
+            tooltip = Tooltip("Extend artwork behind the surrounding card frame. The description panel remains above it; panel opacity controls how much artwork can show through there.")
+            selectedProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
+        }
+        form.children.add(imageBleedOverFrame)
+        form.children.add(helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×."))
 
         val cropActions = HBox(8.0).apply {
             val fill = Button("Crop to Fill").apply { setOnAction { setArtwork(ImageMode.COVER, 1.0, 0.0, 0.0) } }
@@ -1913,6 +1918,7 @@ class MainApp : Application() {
                 startCollectionWatcher(normalized)
                 allImages.clear()
                 allImages.addAll(task.value.images)
+                migrateLegacySidecars(newDatabase, allImages)
                 visibleImages.clear()
                 currentIndex = -1
                 currentLoadedPath = null
@@ -2028,8 +2034,8 @@ class MainApp : Application() {
         val normalized = path.toAbsolutePath().normalize()
         cardDataCache[normalized]?.let { return it }
         val data = runCatching {
-            database?.dataSnapshotForPath(normalized) ?: Sidecar.load(normalized) ?: newCardDefaults()
-        }.getOrDefault(newCardDefaults())
+            database?.dataSnapshotForPath(normalized) ?: newCardDefaults(normalized)
+        }.getOrDefault(newCardDefaults(normalized))
         cardDataCache[normalized] = data.copy()
         return data
     }
@@ -2209,7 +2215,7 @@ class MainApp : Application() {
         val relative = relativePath(path)
         val cached = snapshot[relative]
         if (cached != null) return cached
-        val data = Sidecar.load(path) ?: newCardDefaults().also { it.assetId = "" }
+        val data = database?.dataSnapshotForPath(path) ?: newCardDefaults(path).also { it.assetId = "" }
         val json = runCatching { JsonSupport.mapper.writeValueAsString(data) }.getOrDefault("")
         val searchable = ("$relative ${path.fileName} ${data.assetId} ${data.status.name} $json").lowercase()
         if (snapshot === searchIndex) searchIndex[relative] = searchable
@@ -2217,58 +2223,16 @@ class MainApp : Application() {
     }
 
     private fun resolveCardDataForSelection(path: Path): CardData? {
-        val sidecarExists = Sidecar.exists(path)
-        val sidecarData = if (sidecarExists) Sidecar.load(path) else null
-        val db = database ?: return sidecarData ?: newCardDefaults()
-        val pathDbData = db.dataSnapshotForPath(path)
-        val idDbData = sidecarData?.assetId?.takeIf { it.isNotBlank() }?.let { assetId ->
-            db.dataSnapshot(assetId)
-        }
-        val sidecarCatalogPath = sidecarData?.assetId?.takeIf { it.isNotBlank() }?.let { db.assetRelativePath(it) }
-        val idPointsElsewhere = sidecarData?.assetId?.isNotBlank() == true &&
-            sidecarCatalogPath != null && sidecarCatalogPath != relativePath(path)
-        val dbData = pathDbData ?: idDbData
-
-        if (sidecarData != null && dbData != null) {
-            val same = dataEquivalent(dbData, sidecarData) && !idPointsElsewhere
-            if (!same) {
-                val choices = arrayOf("Use catalog", "Use sidecar", "Cancel")
-                val alert = Alert(Alert.AlertType.CONFIRMATION).apply {
-                    title = "Card data discrepancy"
-                    headerText = "Catalog and sidecar disagree for ${path.fileName}"
-                    contentText = buildString {
-                        append("The SQLite catalog and ${Sidecar.pathFor(path).fileName} contain different data.")
-                        if (idPointsElsewhere) append(" The sidecar asset ID points to a different catalog record.")
-                        append("\n\nChoose which version should become the authoritative card data.")
-                    }
-                    buttonTypes.setAll(choices.map(::ButtonType))
-                }
-                val result = alert.showAndWait().orElse(ButtonType("Cancel"))
-                when (result.text) {
-                    "Use catalog" -> {
-                        Sidecar.save(path, dbData)
-                        db.recordActivity(dbData.assetId, "CONFLICT_RESOLVE", "catalog selected; sidecar synchronized")
-                        return dbData
-                    }
-                    "Use sidecar" -> {
-                        var chosen = sidecarData
-                        if (idPointsElsewhere && sidecarCatalogPath != null && Files.exists((collectionRoot ?: path.parent).resolve(sidecarCatalogPath))) {
-                            // A copied sidecar should create a new catalog identity instead of stealing a live card.
-                            chosen = chosen.copy(assetId = UUID.randomUUID().toString())
-                        }
-                        db.save(path, chosen)
-                        Sidecar.save(path, chosen)
-                        db.recordActivity(chosen.assetId, "CONFLICT_RESOLVE", "sidecar selected; catalog synchronized")
-                        return chosen
-                    }
-                    else -> return null
-                }
+        val db = database ?: return newCardDefaults(path)
+        val dbData = db.dataSnapshotForPath(path)
+        if (dbData != null && hasMeaningfulCardData(dbData)) {
+            if (dbData.collectorNumber.isBlank()) {
+                dbData.collectorNumber = nextUnusedCollectorNumber()
+                db.save(path, dbData)
             }
             return dbData
         }
-        if (sidecarData != null) return sidecarData
-        if (dbData != null && hasMeaningfulCardData(dbData)) return dbData
-        return newCardDefaults().also { defaults ->
+        return newCardDefaults(path).also { defaults ->
             dbData?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
         }
     }
@@ -2278,15 +2242,41 @@ class MainApp : Application() {
             JsonSupport.mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(b)
     }.getOrDefault(false)
 
-    private fun newCardDefaults(): CardData {
+    private fun newCardDefaults(path: Path? = null): CardData {
+        val random = randomGenerator()
         val data = CardData(
             assetId = UUID.randomUUID().toString(),
             status = CardStatus.NEW,
-            templateName = ""
+            title = path?.fileName?.toString()?.substringBeforeLast('.', path.fileName.toString()) ?: "CARD NAME",
+            cost = random.nextInt(0, 10).toString(),
+            typeLine = listOf("CREATURE — MYSTIC", "LEGENDARY CHARACTER", "ARTIFACT — RELIC", "SORCERY — RITUAL", "SPELL — ARCANE", "ALLY — KNIGHT").random(random),
+            rarity = weightedRarity(random),
+            artist = artistPatterns.random(random),
+            collectorNumber = nextUnusedCollectorNumber(random),
+            stats = "${random.nextInt(0, 13)} / ${random.nextInt(0, 13)}",
+            templateName = templates.randomOrNull(random)?.name.orEmpty(),
+            backgroundOverlay = "",
+            imageMode = ImageMode.COVER,
+            imageBleedOverFrame = false
         )
-        val scheme = schemes.firstOrNull { it.name.equals("Classic", ignoreCase = true) } ?: schemes.firstOrNull()
-        if (scheme != null) scheme.applyTo(data)
+        val derived = path?.let(ImageColorAnalyzer::dominantColor)
+        val scheme = derived?.let { ImageColorAnalyzer.bestMatchingScheme(it, schemes) } ?: schemes.randomOrNull(random)
+        scheme?.applyTo(data)
         return data
+    }
+
+    private fun weightedRarity(random: kotlin.random.Random): String = when (random.nextInt(100)) {
+        in 0..49 -> "COMMON"
+        in 50..74 -> "UNCOMMON"
+        in 75..91 -> "RARE"
+        in 92..97 -> "MYTHIC"
+        else -> "LEGENDARY"
+    }
+
+    private fun nextUnusedCollectorNumber(random: kotlin.random.Random = randomGenerator(), total: Int = 100): String {
+        val used = database?.usedCollectorNumbers(null).orEmpty()
+        val available = (1..total).map { "%03d/%d".format(it, total) }.filterNot(used::contains)
+        return available.randomOrNull(random) ?: "%03d/%d".format(random.nextInt(1, total + 1), total)
     }
 
     private fun select(newIndex: Int, scrollIntoView: Boolean = false) {
@@ -2348,6 +2338,7 @@ class MainApp : Application() {
             templateChoice.value = effectiveTemplate
             templateOverride.isSelected = currentData.templateName.isNotBlank()
             imageMode.value = currentData.imageMode
+            imageBleedOverFrame.isSelected = currentData.imageBleedOverFrame
             zoom.value = currentData.imageZoom.coerceIn(0.1, 4.0)
             populateColorPickersFromData()
             border.valueFactory.value = currentData.borderWidth
@@ -2545,6 +2536,7 @@ class MainApp : Application() {
         currentData.status = statusChoice.value ?: currentData.status
         currentData.templateName = if (templateOverride.isSelected) (templateChoice.value?.name ?: currentData.templateName) else ""
         currentData.imageMode = imageMode.value ?: currentData.imageMode
+        currentData.imageBleedOverFrame = imageBleedOverFrame.isSelected
         currentData.imageZoom = zoom.value
         currentData.imageOffsetX = currentActualPanX()
         currentData.imageOffsetY = currentActualPanY()
@@ -2650,17 +2642,52 @@ class MainApp : Application() {
         rendered.root.scaleY = scale
     }
 
-    private fun usedCollectorNumbersForCollection(excludingAssetId: String? = null): Set<String> {
-        val used = linkedSetOf<String>()
-        database?.usedCollectorNumbers(excludingAssetId)?.let(used::addAll)
-        // Sidecars can contain saved data that has not yet been imported into SQLite.
-        // Include those too so the duplicate check matches the whole collection.
-        allImages.forEach { image ->
-            val sidecar = Sidecar.load(image) ?: return@forEach
-            if (excludingAssetId != null && sidecar.assetId == excludingAssetId) return@forEach
-            sidecar.collectorNumber.trim().takeIf { it.isNotBlank() }?.let(used::add)
+    private fun usedCollectorNumbersForCollection(excludingAssetId: String? = null): Set<String> =
+        database?.usedCollectorNumbers(excludingAssetId).orEmpty()
+
+    private fun migrateLegacySidecars(db: CollectionDatabase, images: List<Path>) {
+        var imported = 0
+        var removed = 0
+        images.forEach { image ->
+            if (!Sidecar.exists(image) || Sidecar.isExplicitShare(image)) return@forEach
+            val legacy = Sidecar.load(image)
+            if (legacy != null) {
+                val existing = db.dataSnapshotForPath(image)
+                if (existing == null || !hasMeaningfulCardData(existing)) {
+                    db.save(image, legacy)
+                    imported++
+                }
+            }
+            if (Sidecar.remove(image)) removed++
         }
-        return used
+        if (removed > 0) statusBarLabel.text = "Migrated $imported legacy sidecars; removed $removed legacy files."
+    }
+
+    private fun createSharingSidecar() {
+        val path = imagesCurrentPath() ?: return
+        if (!saveCurrent(showStatus = false)) return
+        runCatching { Sidecar.createForSharing(path, currentData) }
+            .onSuccess { target -> statusBarLabel.text = "Sharing sidecar created • ${target.fileName}" }
+            .onFailure { showError("Could not create sharing sidecar", it) }
+    }
+
+    private fun applySchemeFromCurrentImage() {
+        val path = imagesCurrentPath() ?: return
+        val dominant = ImageColorAnalyzer.dominantColor(path) ?: run {
+            statusBarLabel.text = "Could not determine a useful dominant image color."
+            return
+        }
+        val scheme = ImageColorAnalyzer.bestMatchingScheme(dominant, schemes) ?: return
+        captureUndoSnapshot()
+        suppressEditorUpdates = true
+        try {
+            scheme.applyTo(currentData)
+            schemeChoice.value = scheme
+            populateColorPickersFromData()
+        } finally { suppressEditorUpdates = false }
+        updateFromEditor(renderPreview = false)
+        render()
+        statusBarLabel.text = "Matched image color to scheme '${scheme.name}'"
     }
 
     private fun saveCurrent(showStatus: Boolean = true): Boolean {
@@ -2692,7 +2719,6 @@ class MainApp : Application() {
                 if (confirm == ButtonType.CANCEL) return false
             }
             val result = db.save(path, currentData)
-            Sidecar.save(path, currentData)
             synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
             if (result.changed) db.recordActivity(result.assetId, "SAVE", "revision=${result.revisionNumber}")
             searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
