@@ -2791,11 +2791,36 @@ class MainApp : Application() {
                 }.showAndWait().orElse(ButtonType.CANCEL)
                 if (confirm == ButtonType.CANCEL) return false
             }
+            val previousSet = previous?.setName?.trim().orEmpty()
+            val nextSet = currentData.setName.trim()
+            val shouldNormalizeSetTotals = previous == null || previousSet != nextSet
             val result = db.save(path, currentData)
-            synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
+
+            if (shouldNormalizeSetTotals) {
+                val affectedSets = linkedSetOf<String>().apply {
+                    previousSet.takeIf { it.isNotBlank() }?.let(::add)
+                    nextSet.takeIf { it.isNotBlank() }?.let(::add)
+                }
+                if (affectedSets.isNotEmpty()) {
+                    CollectionBulkActions.normalizeCollectorTotals(allImages, db, affectedSets)
+                    db.dataSnapshotForPath(path)?.let { persisted ->
+                        currentData.collectorNumber = persisted.collectorNumber
+                        suppressEditorUpdates = true
+                        try { fields["collectorNumber"]?.text = persisted.collectorNumber }
+                        finally { suppressEditorUpdates = false }
+                    }
+                    cardDataCache.clear()
+                    synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+                    searchIndex.clear()
+                    searchIndex.putAll(db.searchIndex())
+                }
+            } else {
+                synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
+                searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
+                cardDataCache[path.toAbsolutePath().normalize()] = currentData.copy()
+            }
+
             if (result.changed) db.recordActivity(result.assetId, "SAVE", "revision=${result.revisionNumber}")
-            searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
-            cardDataCache[path.toAbsolutePath().normalize()] = currentData.copy()
             if (showStatus) {
                 statusBarLabel.text = if (result.changed) {
                     "Saved • ${relativePath(path)} • revision ${result.revisionNumber} • ${statusLabel(currentData.status)}"
