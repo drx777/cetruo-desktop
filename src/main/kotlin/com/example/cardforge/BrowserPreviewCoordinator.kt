@@ -55,7 +55,14 @@ class BrowserPreviewCoordinator(
         val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(-1L)
 
         synchronized(thumbnailCache) {
-            thumbnailCache[absolute]?.takeIf { it.size == size && it.modified == modified }?.let { cached ->
+            thumbnailCache[absolute]?.takeIf {
+                BrowserPreviewCachePolicy.originalIsCurrent(
+                    cachedSize = it.size,
+                    cachedModified = it.modified,
+                    sourceSize = size,
+                    sourceModified = modified
+                )
+            }?.let { cached ->
                 Platform.runLater { onLoaded(cached.image) }
                 return
             }
@@ -97,9 +104,14 @@ class BrowserPreviewCoordinator(
 
         synchronized(cardThumbnailCache) {
             cardThumbnailCache[absolute]?.takeIf {
-                it.sourceSize == size &&
-                    it.sourceModified == modified &&
-                    it.renderSignature == expectedSignature
+                BrowserPreviewCachePolicy.cardIsCurrent(
+                    cachedSize = it.sourceSize,
+                    cachedModified = it.sourceModified,
+                    cachedSignature = it.renderSignature,
+                    sourceSize = size,
+                    sourceModified = modified,
+                    expectedSignature = expectedSignature
+                )
             }?.let { cached ->
                 Platform.runLater { onLoaded(cached.image) }
                 return
