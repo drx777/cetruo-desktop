@@ -37,6 +37,7 @@ class CollectionSettingsPane(
     private val foregroundValue = Label()
 
     init {
+        StartupProfiler.installFxStallMonitor()
         descriptionHeading.promptText = "ABILITY / DESCRIPTION"
         descriptionHeading.tooltip = Tooltip("Heading used above the rules/description text on every card in this collection.")
         bleedOpacity.tooltip = Tooltip("Opacity of artwork only where it bleeds outside the image aperture. Bleed remains clipped inside the outer card frame.")
