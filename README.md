@@ -26,7 +26,7 @@ Kotlin + JavaFX desktop app for creating collectible-card layouts from a directo
 - A catalog backup command is available from the toolbar.
 - Undo/redo is available per card.
 - Destructive saves that would blank many populated fields require confirmation.
-- Deleting or inserting files cannot cause the edited card's data to be written into its neighbour.
+- Deleting or inserting files cannot cause the edited card's data to be written into its neighbour. Removed assets are detached from their old path; if the same file is moved/renamed while Card Forge is running, content-hash reconciliation preserves its asset ID, while an unrelated replacement at the old filename starts as a new asset.
 
 ## Schemes
 
@@ -60,7 +60,7 @@ Light schemes are listed before dark schemes and show a palette preview. `SCHEME
 - Collection-scoped bleed opacity controls only artwork outside the normal image aperture.
 - Collection foreground opacity controls title/type/description/P-T surface fills while borders and text remain crisp.
 - Description background opacity remains a per-card control and composes with collection foreground opacity.
-- Set name can be applied collection-wide and collector-number totals can be normalized by set membership.
+- Set name can be applied collection-wide, including images that had not been initialized yet; collector-number totals are kept synchronized with set membership and bulk assignment avoids duplicate numeric prefixes.
 - Startup offers up to the five most recently opened catalogs.
 
 ## Editor UX
