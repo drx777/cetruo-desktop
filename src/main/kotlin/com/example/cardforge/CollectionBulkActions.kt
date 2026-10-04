@@ -93,10 +93,12 @@ object CollectionBulkActions {
             if (onlySets != null && setName !in onlySets) continue
             affected += setName
             val total = members.size
+            val usedNumbers = linkedSetOf<Int>()
             members.forEachIndexed { index, (image, data) ->
-                val normalized = CollectorNumbers.withTotal(
-                    data.collectorNumber,
-                    total,
+                val normalized = CollectorNumbers.withUniqueTotal(
+                    value = data.collectorNumber,
+                    total = total,
+                    usedNumbers = usedNumbers,
                     fallbackNumber = index + 1
                 )
                 if (normalized != data.collectorNumber) {
