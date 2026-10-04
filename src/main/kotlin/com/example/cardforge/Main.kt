@@ -166,6 +166,8 @@ class MainApp : Application() {
     }.getOrDefault(UiTheme.DARK)
     private lateinit var scene: Scene
     private lateinit var appRoot: BorderPane
+    private var primaryStage: Stage? = null
+    private var sourceInspectorStage: Stage? = null
     private var watchService: WatchService? = null
     private var watchThread: Thread? = null
     private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
@@ -256,6 +258,7 @@ class MainApp : Application() {
     private var filterTask: Task<List<Path>>? = null
 
     override fun start(stage: Stage) {
+        primaryStage = stage
         stage.title = "Card Forge"
         AppPlatform.setApplicationDockIcon(javaClass)
         AppPlatform.installWindowIcon(stage, javaClass)
@@ -289,6 +292,9 @@ class MainApp : Application() {
         }
         scene.accelerators[KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN)] = Runnable {
             showEditorGuides.isSelected = !showEditorGuides.isSelected
+        }
+        scene.accelerators[KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN)] = Runnable {
+            showSourceImageInspector()
         }
         scene.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
             if (event.code == KeyCode.Z && (event.isMetaDown || event.isControlDown) && !isTextInputFocus()) {
@@ -347,6 +353,8 @@ class MainApp : Application() {
             filterApplyPause.stop()
             thumbnailRefreshPause.stop()
             stopCollectionWatcher()
+            sourceInspectorStage?.close()
+            sourceInspectorStage = null
             closeCollection()
             thumbnailLoadExecutor.shutdownNow()
         }
@@ -942,6 +950,8 @@ class MainApp : Application() {
     }
 
     private fun imageContextMenu(path: Path): ContextMenu {
+        val inspect = MenuItem("Inspect Source Image")
+        inspect.setOnAction { showSourceImageInspector(path) }
         val reveal = MenuItem("Reveal in Finder")
         reveal.setOnAction { revealInFinder(path) }
         val copy = MenuItem("Copy Path")
@@ -949,7 +959,82 @@ class MainApp : Application() {
             val content = ClipboardContent().apply { putString(path.toAbsolutePath().toString()) }
             Clipboard.getSystemClipboard().setContent(content)
         }
-        return ContextMenu(reveal, copy)
+        return ContextMenu(inspect, reveal, copy)
+    }
+
+    private fun showSourceImageInspector(path: Path? = imagesCurrentPath()) {
+        val source = path?.toAbsolutePath()?.normalize() ?: return
+        if (!Files.isRegularFile(source)) {
+            statusBarLabel.text = "Source image is no longer available."
+            return
+        }
+
+        sourceInspectorStage?.close()
+
+        val image = Image(source.toUri().toString(), true)
+        val imageView = ImageView(image).apply {
+            isPreserveRatio = true
+            isSmooth = true
+        }
+        val details = Label("${source.fileName} · Loading original image…").apply {
+            styleClass.add("browser-meta")
+        }
+        val scroll = ScrollPane(imageView).apply {
+            isPannable = true
+            isFitToWidth = false
+            isFitToHeight = false
+            style = "-fx-background-color:transparent;"
+        }
+        val root = BorderPane(scroll).apply {
+            padding = Insets(10.0)
+            top = HBox(10.0, details, Region(), Label("Native size · Esc to close")).apply {
+                alignment = Pos.CENTER_LEFT
+                HBox.setHgrow(children[1], Priority.ALWAYS)
+            }
+            style = if (uiTheme == UiTheme.DARK) "-fx-background-color:#20242A;" else "-fx-background-color:#F6F7F9;"
+        }
+
+        val owner = primaryStage
+        val screen = owner?.let {
+            Screen.getScreensForRectangle(it.x, it.y, it.width.coerceAtLeast(1.0), it.height.coerceAtLeast(1.0)).firstOrNull()
+        } ?: Screen.getPrimary()
+        val bounds = screen.visualBounds
+        val inspector = Stage().apply {
+            owner?.let(::initOwner)
+            title = "Card Forge · Source Image · ${source.fileName}"
+            owner?.icons?.firstOrNull()?.let { icons.add(it) }
+            scene = Scene(
+                root,
+                (bounds.width * 0.85).coerceAtMost(1500.0).coerceAtLeast(640.0),
+                (bounds.height * 0.85).coerceAtMost(1100.0).coerceAtLeast(480.0)
+            ).also { inspectorScene ->
+                AppPlatform.attachStylesheet(inspectorScene, javaClass)
+                inspectorScene.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
+                    if (event.code == KeyCode.ESCAPE) {
+                        close()
+                        event.consume()
+                    }
+                }
+            }
+            setOnHidden {
+                if (sourceInspectorStage === this) sourceInspectorStage = null
+            }
+        }
+        sourceInspectorStage = inspector
+
+        fun refreshDetails() {
+            details.text = when {
+                image.isError -> "${source.fileName} · Could not load original image"
+                image.progress < 1.0 -> "${source.fileName} · Loading original image…"
+                else -> "${source.fileName} · ${image.width.roundToInt()} × ${image.height.roundToInt()} px"
+            }
+        }
+        image.progressProperty().addListener { _, _, _ -> refreshDetails() }
+        image.errorProperty().addListener { _, _, _ -> refreshDetails() }
+        refreshDetails()
+
+        inspector.show()
+        inspector.centerOnScreen()
     }
 
     private fun cachedThumbnail(path: Path): Image? = synchronized(thumbnailCache) {
@@ -1156,10 +1241,14 @@ class MainApp : Application() {
         previewHost.style = "-fx-background-color:#20242A;"
         previewHost.widthProperty().addListener { _, _, _ -> resizePreview() }
         previewHost.heightProperty().addListener { _, _, _ -> resizePreview() }
+        val inspectSource = Button("⤢ Source").apply {
+            tooltip = Tooltip("Inspect the original source image at native resolution (Cmd/Ctrl+I).")
+            setOnAction { showSourceImageInspector() }
+        }
         val header = HBox(10.0, Label("Card Preview"), Region()).apply {
             alignment = Pos.CENTER_LEFT
             HBox.setHgrow(children[1], Priority.ALWAYS)
-            children.add(showEditorGuides)
+            children.addAll(inspectSource, showEditorGuides)
         }
         return VBox(8.0, header, previewHost).apply {
             minWidth = 500.0
