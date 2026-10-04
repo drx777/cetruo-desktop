@@ -54,7 +54,7 @@ class CollectionSettingsPane(
 
         val applyTemplateToAll = Button("Apply selected template to all cards").apply {
             maxWidth = Double.MAX_VALUE
-            tooltip = Tooltip("Use the template currently selected in Card template as the collection default, and remove every per-card template override.")
+            tooltip = Tooltip("Apply the template currently selected in Card template explicitly to every card in the collection; it also becomes the collection default.")
             setOnAction { onApplyDefaultTemplateToAll() }
         }
         val applySetToAll = Button("Apply current set name to all cards").apply {
