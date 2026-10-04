@@ -4,6 +4,7 @@ Current follow-up work for the 0.14.x line.
 
 ## UX / browser
 
+- Add a PDF export mode with one card per page and no white page frame/margin around the card.
 ## Regression verification
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits.
