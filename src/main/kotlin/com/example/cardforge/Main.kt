@@ -4,7 +4,6 @@ import javafx.animation.PauseTransition
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.concurrent.Task
-import javafx.embed.swing.SwingFXUtils
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Cursor
@@ -60,8 +59,6 @@ import javafx.stage.Stage
 import javafx.util.Duration
 import java.awt.Desktop
 import java.awt.Taskbar
-import java.awt.RenderingHints
-import java.awt.image.BufferedImage
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -74,8 +71,6 @@ import java.nio.file.WatchService
 import java.nio.file.attribute.BasicFileAttributes
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -85,9 +80,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.prefs.Preferences
 import java.util.UUID
 import java.util.Locale
-import javax.imageio.ImageIO
 import kotlin.math.floor
-import kotlin.math.roundToInt
 import kotlin.math.max
 import kotlin.math.min
 
