@@ -238,8 +238,20 @@ object VectorCardSvgRenderer {
                   <stop offset="0.28" stop-color="${esc(data.panelColor)}"/>
                   <stop offset="1" stop-color="${esc(CardVisualSystem.darken(data.panelColor,0.08))}"/>
                 </linearGradient>
-                <filter id="card-soft-depth" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="${fmt(visual.railDepth)}" dy="${fmt(visual.railDepth)}" stdDeviation="${fmt(visual.railDepth*0.75)}" flood-color="#000000" flood-opacity="0.22"/></filter>
-                <filter id="card-panel-shadow" x="-10%" y="-15%" width="120%" height="135%"><feDropShadow dx="0" dy="${fmt(visual.descriptionDepth)}" stdDeviation="${fmt(visual.descriptionDepth*0.8)}" flood-color="#000000" flood-opacity="0.28"/></filter>
+                <filter id="card-soft-depth" x="-10%" y="-20%" width="120%" height="140%">
+                  <feGaussianBlur in="SourceAlpha" stdDeviation="${fmt(visual.railDepth*0.75)}" result="blur"/>
+                  <feOffset in="blur" dx="${fmt(visual.railDepth)}" dy="${fmt(visual.railDepth)}" result="offsetBlur"/>
+                  <feFlood flood-color="#000000" flood-opacity="0.22" result="shadowColor"/>
+                  <feComposite in="shadowColor" in2="offsetBlur" operator="in" result="shadow"/>
+                  <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="card-panel-shadow" x="-10%" y="-15%" width="120%" height="135%">
+                  <feGaussianBlur in="SourceAlpha" stdDeviation="${fmt(visual.descriptionDepth*0.8)}" result="panelBlur"/>
+                  <feOffset in="panelBlur" dx="0" dy="${fmt(visual.descriptionDepth)}" result="panelOffset"/>
+                  <feFlood flood-color="#000000" flood-opacity="0.28" result="panelShadowColor"/>
+                  <feComposite in="panelShadowColor" in2="panelOffset" operator="in" result="panelShadow"/>
+                  <feMerge><feMergeNode in="panelShadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
               </defs>
               <g clip-path="url(#${outerClipId})">
                 <rect x="${fmt(data.borderWidth / 2.0)}" y="${fmt(data.borderWidth / 2.0)}"
