@@ -34,6 +34,8 @@ The current focus is regression hardening before larger browser refactoring or n
 
 ## Current hardening work
 
+PDF page planning now has expanded deterministic coverage for clamping, orientation choice, mixed-size grouping, and one-to-one card preservation; visual renderer parity still requires desktop smoke testing.
+
 Collection-wide set-name application is now covered for initialization, metadata preservation, unique collector numbering, affected-set reporting, and idempotence.
 
 Autosave transition gating is now centralized in `AutosaveGuard` and covered for success/failure semantics; desktop verification of the actual UI entry points remains on the smoke-test checklist.
