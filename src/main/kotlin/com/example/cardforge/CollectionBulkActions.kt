@@ -29,7 +29,7 @@ object CollectionBulkActions {
     }
 
     /** Clear every per-card template override so all cards follow the collection default. */
-    fun applyCollectionDefaultTemplate(
+    private fun applyCollectionDefaultTemplate(
         images: Collection<Path>,
         database: CollectionDatabase
     ): Result {
@@ -132,11 +132,4 @@ object CollectorNumbers {
         return number.toString().padStart(width, '0') + "/" + safeTotal.toString().padStart(width, '0')
     }
 
-    fun withTotal(value: String, total: Int, fallbackNumber: Int): String {
-        val safeTotal = total.coerceAtLeast(1)
-        val parsed = leadingNumber.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
-        val number = (parsed ?: fallbackNumber).coerceAtLeast(1)
-        val width = maxOf(3, safeTotal.toString().length, number.toString().length)
-        return number.toString().padStart(width, '0') + "/" + safeTotal.toString().padStart(width, '0')
-    }
 }
