@@ -20,6 +20,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.3")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
     implementation("org.apache.xmlgraphics:batik-transcoder:1.19")
+    implementation("org.apache.xmlgraphics:fop:2.11")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
     testImplementation(kotlin("test-junit5"))
 }
