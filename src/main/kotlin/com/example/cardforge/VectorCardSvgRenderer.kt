@@ -54,17 +54,6 @@ object VectorCardSvgRenderer {
     private fun rail(rect: TemplateRect, fill: String, stroke: String, visual: TemplateVisualStyle, opacity: Double, gradientId: String): String =
         """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="url(#${gradientId})" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="${fmt(visual.railStrokeWidth)}" filter="url(#card-soft-depth)"/>"""
 
-    private fun descriptionPanel(rect: TemplateRect, stroke: String, opacity: Double): String =
-        """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="url(#card-panel-depth)" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2" filter="url(#card-panel-shadow)"/>"""
-
-    private fun statsJewel(rect: TemplateRect, fill: String, stroke: String, visual: TemplateVisualStyle, opacity: Double): String {
-        val inset = visual.statsJewelInset.coerceAtLeast(2.0)
-        val innerRadius = (rect.radius - inset).coerceAtLeast(1.0)
-        val innerWidth = (rect.width - inset * 2).coerceAtLeast(1.0)
-        val innerHeight = (rect.height - inset * 2).coerceAtLeast(1.0)
-        return """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2.2"/><rect x="${fmt(rect.x+inset)}" y="${fmt(rect.y+inset)}" width="${fmt(innerWidth)}" height="${fmt(innerHeight)}" rx="${fmt(innerRadius)}" ry="${fmt(innerRadius)}" fill="none" stroke="${esc(CardVisualSystem.lighten(stroke,0.22))}" stroke-width="0.9" opacity="0.62"/>"""
-    }
-
     private val fontRenderContext = FontRenderContext(null, true, true)
 
     private fun awtFont(size: Double, bold: Boolean, italic: Boolean): Font {
@@ -260,13 +249,13 @@ object VectorCardSvgRenderer {
                 ${textBlock(data.typeLine, template.typeText, CardVisualSystem.fitFontSize(data.typeLine,18.0,13.0,template.typeText.width,template.typeText.height,true), data.darkTextColor, bold = true)}
                 ${textBlock("◆ ${data.rarity}", template.rarityText, CardVisualSystem.fitFontSize("◆ ${data.rarity}",15.0,9.5,template.rarityText.width,template.rarityText.height,true), if(visual.rarityFrames) palette.outerFrame else data.frameColor, bold = true)}
 
-                ${descriptionPanel(template.descriptionBox, if(visual.rarityFrames) palette.outerFrame else data.accentColor, descriptionOpacity)}
+                ${rect(template.descriptionBox, data.panelColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, 4.0, descriptionOpacity)}
                 ${textBlock(collectionPresentation.descriptionHeading, template.descriptionHeading, CardVisualSystem.fitFontSize(collectionPresentation.descriptionHeading,17.0,13.0,template.descriptionHeading.width,template.descriptionHeading.height,true), data.textColor, bold = true)}
                 ${textBlock(data.description, template.descriptionText, CardVisualSystem.fitFontSize(data.description,data.bodyFontSize,11.5,template.descriptionText.width,template.descriptionText.height), data.textColor)}
                 ${textBlock(data.flavorText, template.flavorText, 14.0, data.textColor, italic = true)}
                 ${textBlock("${data.setName} • ${data.collectorNumber} • ${copyright}${data.artist}", template.footerText, 10.0, data.textColor)}
 
-                ${statsJewel(template.statsBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, visual, foregroundOpacity)}
+                ${rect(template.statsBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, 3.0, foregroundOpacity)}
                 ${textBlock(data.stats, template.statsText, CardVisualSystem.fitFontSize(data.stats,25.0,17.0,template.statsText.width,template.statsText.height,true), data.darkTextColor, bold = true)}
                 ${contentOverlay}
               </g>
