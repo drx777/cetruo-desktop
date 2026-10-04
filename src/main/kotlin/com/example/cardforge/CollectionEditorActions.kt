@@ -8,13 +8,14 @@ import java.nio.file.Path
  */
 class CollectionEditorActions(
     private val database: CollectionDatabase,
-    private val images: () -> Collection<Path>
+    private val images: () -> Collection<Path>,
+    private val initializeCard: (Path) -> CardData
 ) {
     fun applyDefaultTemplateToAll(): CollectionBulkActions.Result =
         CollectionBulkActions.applyCollectionDefaultTemplate(images(), database)
 
     fun applySetNameToAll(setName: String): CollectionBulkActions.Result =
-        CollectionBulkActions.applySetName(images(), database, setName)
+        CollectionBulkActions.applySetName(images(), database, setName, initializeCard)
 
     fun normalizeCollectorTotals(sets: Set<String>? = null): CollectionBulkActions.Result =
         CollectionBulkActions.normalizeCollectorTotals(images(), database, sets)
