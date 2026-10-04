@@ -1,60 +1,63 @@
 # Card Forge Backlog
 
-Current follow-up work for the 0.14.x line.
+Card Forge 0.14.x is functionally wrapped. Keep this file focused on unresolved work rather than completed implementation history.
 
-## UX / browser
+## 0.14.x — remaining smoke verification
 
+These checks are intentionally manual because they depend on JavaFX rendering, virtualization, packaging, or platform behavior.
 
-## Regression verification
+- Compare live preview, PNG, SVG, and PDF for:
+  - artwork crop/pan/zoom,
+  - bleed behavior,
+  - foreground opacity,
+  - overlay placement/tint/opacity,
+  - text wrapping and alignment,
+  - full outer-border thickness,
+  - transparent pixels outside rounded/cut-out card corners.
+- Verify the paged in-app contact sheet matches the live preview.
+- Verify rendered-card thumbnails remain current after edits in both list and grid modes.
+- Verify list/grid keyboard navigation, scrolling, and JavaFX virtualization behavior.
+- Verify autosave on:
+  - card switch,
+  - collection switch,
+  - application close,
+  - Cmd/Ctrl+S.
+- Verify packaged-app behavior on macOS:
+  - initial window sizing,
+  - window icon,
+  - Dock icon.
 
-- Verify rendered-card thumbnails in list and grid modes remain current after edits; cache validity rules are now covered automatically.
-- Verify the paged in-app contact sheet matches the live card preview.
-- Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, text wrapping, overlays, and transparent pixels outside the card silhouette/corners; vector border/text/artwork invariants and PDF page planning are now covered automatically.
-- Verify list/grid viewport scrolling behavior with virtualized JavaFX cells; list/grid index-to-row mapping is now covered automatically.
-- Verify initial window sizing and macOS Dock/window icons in the packaged app; sizing math and required icon/CSS resources are now covered automatically.
-- Verify auto-save on card switch, collection switch, app close, and Cmd/Ctrl+S; save-success/failure gating is now covered automatically.
+If these checks reveal concrete regressions, fix those regressions on 0.14.x. Otherwise consider the line frozen.
 
-## Refactoring / maintenance
+## 0.15 — visual/template phase
+
+Primary direction for the next feature line:
+
+- stronger template/background structure,
+- more convincing material/depth/embossing,
+- rarity-dependent outer frames,
+- flatter title/type rails with subtle depth,
+- improved P/T treatment,
+- restrained jewel/gem treatment,
+- tighter typography and text fitting,
+- stronger description-box depth and layering,
+- final palette discipline: five main colors plus gold and gray,
+- more systematic template/theme architecture,
+- continue adding sports and other template families without coupling them to existing templates.
+
+## Later / structural
+
+Only pursue these when they solve a concrete product need:
 
 - Continue reducing responsibilities in `Main.kt`.
-- Browser list/grid/thumbnail orchestration is now split across selection, tile, and preview-cache coordinators; keep further browser changes behavior-preserving.
-- Remaining export execution orchestration is extracted; keep further preview/export changes behavior-preserving.
-- Continue using `CollectionCardStore`, `CardUndoManager`, `AppPlatform`, and collection action classes instead of duplicate state in `MainApp`.
-- Keep startup profiling available as opt-in diagnostics without adding normal-launch overhead.
-
-## Completed recently
-
-- Vector export regressions now cover full outer-border thickness, path-based text, and artwork href/xlink compatibility.
-- SVG and PDF export now use a shared vector card representation; Card Forge text/shapes/template/overlay remain vector while source artwork stays raster.
-- Initial window sizing math and packaged UI resource presence now have regression coverage.
-- PDF page planning now has expanded regression coverage for scale/margin/gap clamping, orientation choice, mixed-size grouping, and card preservation.
-- Explicit Save / Cmd/Ctrl+S now bypasses the thumbnail edit debounce and refreshes only the active card thumbnail immediately.
-- Collection-wide set-name application now has regression coverage for initialization, metadata preservation, collector-number normalization, affected sets, and idempotence.
-- Autosave transition gating now has regression coverage; card switch, collection/folder switch, and window close share the same save-success guard.
-- Edited-card browser thumbnail refresh is now scoped to the active card and debounced until 3 seconds of inactivity, avoiding browser-wide flicker.
-- Borderless one-card-per-page PDF export added alongside the existing A4 contact-sheet PDF mode.
-- Browser preview cache validity now has regression coverage for source metadata and rendered-card signature changes.
-- Browser list/grid index-to-row selection mapping now has regression coverage, including zero-column safety.
-- Filesystem watcher identity reconciliation now has deterministic scan-cycle regression coverage for rename/move recovery and unrelated replacements.
-- Collection-wide template application now has regression coverage for explicit per-card persistence, default persistence, initialization, metadata preservation, and idempotence.
-- Application shutdown now cancels window close when the current card cannot be saved, with a final best-effort save in `Application.stop()` for non-window shutdown paths.
-- PNG/SVG/PDF export execution and PDF FX-thread bridging extracted from `Main.kt`.
-- Browser original/card preview request de-duplication and cache orchestration extracted from `Main.kt`.
-- Browser list/grid cell and tile construction extracted from `Main.kt`.
-- Browser list/grid selection, focus, and scroll coordination extracted from `Main.kt`.
-- Collection/Layout template UX consolidated: duplicate bulk-template action removed, collection default vs per-card template semantics clarified, and card count retained.
-- Regression test foundation for undo, collector numbering, PDF planning, and asset identity reconciliation.
-- Permanent pull-request/main verification workflow.
-- Canonical export snapshots now explicitly preserve transparent pixels outside the card silhouette.
-- Export target/options UI extracted from `Main.kt`.
-- Contact-sheet window/paging UI extracted from `Main.kt`.
-- Source-image inspector window lifecycle extracted from `Main.kt`.
-- Source-image inspector with preview action, image context-menu action, and Cmd/Ctrl+I shortcut; native-resolution view dismisses with Esc.
-- Startup performance regression caused by image decoding during browser sorting.
-- Apply selected template explicitly to every card in a collection; verified working in-app.
-- Collection card/image count.
-- Collection-wide set-name application including previously uninitialized images.
-- Set-aware collector-number totals and duplicate-number cleanup.
-- Recent-catalog chooser.
-- Collection bleed/foreground opacity controls.
-- File identity reconciliation for removal/move/rename.
+- Keep browser responsibilities split across:
+  - `BrowserSelectionCoordinator`,
+  - `BrowserTileFactory`,
+  - `BrowserPreviewCoordinator`.
+- Keep export execution in `ExportCoordinator`.
+- Continue routing persistence/undo/collection behavior through:
+  - `CollectionCardStore`,
+  - `CardUndoManager`,
+  - `AppPlatform`,
+  - collection action/settings helpers.
+- Keep startup profiling opt-in and zero-cost during normal launch.
