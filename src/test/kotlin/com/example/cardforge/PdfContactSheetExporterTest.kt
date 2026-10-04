@@ -111,7 +111,7 @@ class PdfContactSheetExporterTest {
 
     @Test
     fun plannerChoosesLandscapeWhenItFitsMoreCards() {
-        val wide = card("wide.png", width = 250.0, height = 120.0)
+        val wide = card("wide.png", width = 300.0, height = 120.0)
         val page = PdfContactSheetExporter.planA4(List(4) { wide }).first()
 
         assertTrue(page.pageSize.width > page.pageSize.height)
