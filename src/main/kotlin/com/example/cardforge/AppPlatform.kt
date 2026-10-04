@@ -14,11 +14,15 @@ object AppPlatform {
 
     fun initialWindowSize(): WindowSize {
         val visual = Screen.getPrimary().visualBounds
+        return initialWindowSizeFor(visual.width, visual.height)
+    }
+
+    fun initialWindowSizeFor(visualWidth: Double, visualHeight: Double): WindowSize {
         val desiredWidth = 1660.0
         val desiredHeight = 1040.0
         return WindowSize(
-            width = min(desiredWidth, visual.width * 0.94).coerceAtLeast(1180.0).coerceAtMost(visual.width),
-            height = min(desiredHeight, visual.height * 0.93).coerceAtLeast(760.0).coerceAtMost(visual.height)
+            width = min(desiredWidth, visualWidth * 0.94).coerceAtLeast(1180.0).coerceAtMost(visualWidth),
+            height = min(desiredHeight, visualHeight * 0.93).coerceAtLeast(760.0).coerceAtMost(visualHeight)
         )
     }
 
