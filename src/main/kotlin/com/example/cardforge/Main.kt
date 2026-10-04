@@ -35,7 +35,6 @@ import javafx.scene.control.Tooltip
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
 import javafx.scene.control.Dialog
-import javafx.scene.control.Pagination
 import javafx.scene.control.TreeCell
 import javafx.scene.control.TreeItem
 import javafx.scene.control.TreeView
@@ -3122,72 +3121,11 @@ class MainApp : Application() {
     private fun showContactSheet(owner: Stage) {
         if (visibleImages.isEmpty()) return
         if (!saveCurrent(showStatus = false)) return
-        val paths = visibleImages.toList()
-        val perPage = 6
-        val pageCount = ((paths.size + perPage - 1) / perPage).coerceAtLeast(1)
-        val pagination = Pagination(pageCount, 0).apply {
-            maxPageIndicatorCount = 9
-            pageFactory = javafx.util.Callback { pageIndex: Int ->
-                val pagePaths = paths.drop(pageIndex * perPage).take(perPage)
-                createContactSheetPage(pagePaths)
-            }
-        }
-        val stage = Stage()
-        stage.initOwner(owner)
-        stage.title = "Card Forge · Contact Sheet"
-        owner.icons.firstOrNull()?.let { stage.icons.add(it) }
-        val root = BorderPane(pagination).apply {
-            padding = Insets(14.0)
-            style = if (uiTheme == UiTheme.DARK) "-fx-background-color:#20242A;" else "-fx-background-color:#F6F7F9;"
-        }
-        val scene = Scene(root, 1040.0, 820.0)
-        javaClass.getResource("/cardforge.css")?.toExternalForm()?.let { scene.stylesheets.add(it) }
-        stage.scene = scene
-        stage.show()
-    }
-
-    private fun createContactSheetPage(paths: List<Path>): Node {
-        val grid = GridPane().apply {
-            hgap = 18.0
-            vgap = 18.0
-            alignment = Pos.CENTER
-        }
-        paths.forEachIndexed { index, path ->
-            val slot = StackPane().apply {
-                prefWidth = 310.0
-                prefHeight = 370.0
-                minWidth = 310.0
-                minHeight = 370.0
-                style = "-fx-background-color:rgba(255,255,255,0.035);-fx-background-radius:12px;"
-            }
-            val loading = Label("Rendering…").apply {
-                style = "-fx-text-fill:#AEB7C2;-fx-font-size:12px;"
-            }
-            slot.children.add(loading)
-            grid.add(slot, index % 3, index / 3)
-            Platform.runLater {
-                requestCardThumbnail(path) { preview ->
-                slot.children.clear()
-                if (preview != null) {
-                    slot.children.add(ImageView(preview).apply {
-                        fitWidth = 285.0
-                        fitHeight = 345.0
-                        isPreserveRatio = true
-                        isSmooth = true
-                    })
-                } else {
-                    slot.children.add(Label("Preview unavailable").apply {
-                        style = "-fx-text-fill:#AEB7C2;-fx-font-size:12px;"
-                    })
-                }
-                }
-            }
-        }
-        return ScrollPane(StackPane(grid)).apply {
-            isFitToWidth = true
-            isFitToHeight = true
-            style = "-fx-background-color:transparent;"
-        }
+        ContactSheetWindow(
+            resourceOwner = MainApp::class.java,
+            isDarkTheme = { uiTheme == UiTheme.DARK },
+            requestPreview = { path, callback -> requestCardThumbnail(path, callback) }
+        ).show(owner, visibleImages.toList())
     }
 
     private fun markExported() {
