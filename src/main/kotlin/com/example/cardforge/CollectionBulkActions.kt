@@ -37,18 +37,20 @@ object CollectionBulkActions {
         initialize: (Path) -> CardData
     ): Result {
         val normalizedSet = setName.trim()
-        val cards = images.map { image ->
-            image to (database.dataSnapshotForPath(image) ?: initialize(image))
-        }
-        val oldSets = cards.map { it.second.setName.trim() }.filter { it.isNotBlank() }.toSet()
-        val total = cards.size
+        val orderedImages = images.toList()
+        val total = orderedImages.size
+        val oldSets = linkedSetOf<String>()
+        val usedNumbers = linkedSetOf<Int>()
         var changed = 0
 
-        cards.forEachIndexed { index, (image, data) ->
+        orderedImages.forEachIndexed { index, image ->
+            val data = database.dataSnapshotForPath(image) ?: initialize(image)
+            data.setName.trim().takeIf { it.isNotBlank() }?.let(oldSets::add)
             data.setName = normalizedSet
-            data.collectorNumber = CollectorNumbers.withTotal(
-                data.collectorNumber,
-                total,
+            data.collectorNumber = CollectorNumbers.withUniqueTotal(
+                value = data.collectorNumber,
+                total = total,
+                usedNumbers = usedNumbers,
                 fallbackNumber = index + 1
             )
             if (database.save(image, data).changed) changed++
@@ -95,6 +97,24 @@ object CollectionBulkActions {
 
 object CollectorNumbers {
     private val leadingNumber = Regex("^\\s*(\\d+)")
+
+    fun withUniqueTotal(
+        value: String,
+        total: Int,
+        usedNumbers: MutableSet<Int>,
+        fallbackNumber: Int
+    ): String {
+        val safeTotal = total.coerceAtLeast(1)
+        val parsed = leadingNumber.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        val preferred = parsed?.takeIf { it > 0 && it !in usedNumbers }
+        val fallback = generateSequence(fallbackNumber.coerceAtLeast(1)) { it + 1 }
+            .firstOrNull { it !in usedNumbers }
+            ?: 1
+        val number = preferred ?: fallback
+        usedNumbers += number
+        val width = maxOf(3, safeTotal.toString().length, number.toString().length)
+        return number.toString().padStart(width, '0') + "/" + safeTotal.toString().padStart(width, '0')
+    }
 
     fun withTotal(value: String, total: Int, fallbackNumber: Int): String {
         val safeTotal = total.coerceAtLeast(1)
