@@ -64,23 +64,21 @@ class CollectionSettingsPane(
         children.add(bulk)
 
         descriptionHeading.textProperty().addListener { _, _, value ->
-            if (!suppress) publish { descriptionHeading = value.ifBlank { "ABILITY / DESCRIPTION" } }
+            if (!suppress) publish { this.descriptionHeading = value.ifBlank { "ABILITY / DESCRIPTION" } }
         }
         artistCopyright.selectedProperty().addListener { _, _, value ->
-            if (!suppress) publish { showArtistCopyright = value }
+            if (!suppress) publish { this.showArtistCopyright = value }
         }
         bleedOpacity.valueProperty().addListener { _, _, value ->
             updateValueLabels()
-            if (!suppress) publish { bleedOpacity = value.toDouble().coerceIn(0.0, 1.0) }
+            if (!suppress) publish { this.bleedOpacity = value.toDouble().coerceIn(0.0, 1.0) }
         }
         foregroundOpacity.valueProperty().addListener { _, _, value ->
             updateValueLabels()
-            if (!suppress) publish { foregroundOpacity = value.toDouble().coerceIn(0.0, 1.0) }
+            if (!suppress) publish { this.foregroundOpacity = value.toDouble().coerceIn(0.0, 1.0) }
         }
 
-        installReset(descriptionHeading) {
-            descriptionHeading.text = "ABILITY / DESCRIPTION"
-        }
+        installReset(descriptionHeading) { descriptionHeading.text = "ABILITY / DESCRIPTION" }
         installReset(bleedOpacity, 1.0)
         installReset(foregroundOpacity, 1.0)
         setPresentation(initial)
@@ -123,14 +121,10 @@ class CollectionSettingsPane(
     }
 
     private fun installReset(field: TextField, reset: () -> Unit) {
-        field.setOnMouseClicked { event ->
-            if (event.clickCount == 2) reset()
-        }
+        field.setOnMouseClicked { event -> if (event.clickCount == 2) reset() }
     }
 
     private fun installReset(slider: Slider, defaultValue: Double) {
-        slider.setOnMouseClicked { event ->
-            if (event.clickCount == 2) slider.value = defaultValue
-        }
+        slider.setOnMouseClicked { event -> if (event.clickCount == 2) slider.value = defaultValue }
     }
 }
