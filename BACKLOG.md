@@ -18,12 +18,13 @@ Current follow-up work for the 0.14.x line.
 
 - Continue reducing responsibilities in `Main.kt`.
 - Browser list/grid/thumbnail orchestration is now split across selection, tile, and preview-cache coordinators; keep further browser changes behavior-preserving.
-- Extract remaining preview/export execution orchestration where practical.
+- Remaining export execution orchestration is extracted; keep further preview/export changes behavior-preserving.
 - Continue using `CollectionCardStore`, `CardUndoManager`, `AppPlatform`, and collection action classes instead of duplicate state in `MainApp`.
 - Keep startup profiling available as opt-in diagnostics without adding normal-launch overhead.
 
 ## Completed recently
 
+- PNG/SVG/PDF export execution and PDF FX-thread bridging extracted from `Main.kt`.
 - Browser original/card preview request de-duplication and cache orchestration extracted from `Main.kt`.
 - Browser list/grid cell and tile construction extracted from `Main.kt`.
 - Browser list/grid selection, focus, and scroll coordination extracted from `Main.kt`.
