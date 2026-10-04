@@ -12,7 +12,7 @@ Current follow-up work for the 0.14.x line.
 - Verify PNG, SVG, and PDF output remain visually consistent with the canonical renderer, including bleed, opacity, and transparent pixels outside the card silhouette/corners.
 - Verify list/grid viewport scrolling behavior with virtualized JavaFX cells; list/grid index-to-row mapping is now covered automatically.
 - Verify initial window sizing and macOS Dock/window icons in the packaged app.
-- Verify auto-save on card switch, collection switch, app close, and Cmd/Ctrl+S.
+- Verify auto-save on card switch, collection switch, app close, and Cmd/Ctrl+S; save-success/failure gating is now covered automatically.
 
 ## Refactoring / maintenance
 
@@ -24,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Autosave transition gating now has regression coverage; card switch, collection/folder switch, and window close share the same save-success guard.
 - Edited-card browser thumbnail refresh is now scoped to the active card and debounced until 3 seconds of inactivity, avoiding browser-wide flicker.
 - Borderless one-card-per-page PDF export added alongside the existing A4 contact-sheet PDF mode.
 - Browser preview cache validity now has regression coverage for source metadata and rendered-card signature changes.

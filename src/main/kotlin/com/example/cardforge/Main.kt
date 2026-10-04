@@ -168,6 +168,7 @@ class MainApp : Application() {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CachedImage>?): Boolean = size > 32
     }
     private val thumbnailRefreshPause = PauseTransition(Duration.seconds(3.0))
+    private val autosaveGuard by lazy { AutosaveGuard { showStatus -> saveCurrent(showStatus) } }
     private val browserPreviews by lazy {
         BrowserPreviewCoordinator(
             cardSignature = { path, data -> cardPreviewSignature(path, data) },
@@ -349,7 +350,7 @@ class MainApp : Application() {
         stage.setOnCloseRequest { event ->
             // A failed or cancelled save must not silently discard the current card.
             // Keep the application open so the user can resolve the problem and retry.
-            if (!saveCurrent(showStatus = true)) {
+            if (!autosaveGuard.ensureSaved(showStatus = true)) {
                 event.consume()
                 return@setOnCloseRequest
             }
@@ -555,7 +556,7 @@ class MainApp : Application() {
                 return@addListener
             }
             if (folder != selectedFolder) {
-                if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return@addListener
+                if (currentIndex in visibleImages.indices && !autosaveGuard.ensureSaved()) return@addListener
                 selectedFolder = folder
                 requestVisibleImagesRebuild()
             }
@@ -1699,7 +1700,7 @@ class MainApp : Application() {
     }
 
     private fun openCollectionPath(directory: Path) {
-        if (!saveCurrent(showStatus = false)) return
+        if (!autosaveGuard.ensureSaved()) return
         val normalized = directory.toAbsolutePath().normalize()
         scanTask?.cancel()
         filterTask?.cancel()
@@ -2136,7 +2137,7 @@ class MainApp : Application() {
             if (scrollIntoView) scrollToBrowserPath(imagePath, true)
             return
         }
-        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
+        if (currentIndex in visibleImages.indices && !autosaveGuard.ensureSaved()) return
         val resolvedData = resolveCardDataForSelection(imagePath) ?: return
         currentIndex = newIndex
         currentLoadedPath = imagePath
