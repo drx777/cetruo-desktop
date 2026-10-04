@@ -90,11 +90,11 @@ object VectorCardSvgRenderer {
         val overlayTintId = "card-overlay-tint"
 
         val templateSvg = TemplateRepository.resolveSvg(template)
-            ?.let { runCatching { path -> Files.readString(path) }.getOrNull() }
+            ?.let { path -> runCatching { Files.readString(path) }.getOrNull() }
             ?.let { nativeSvg(it, template.width, template.height) }.orEmpty()
         val overlaySvg = data.backgroundOverlay.takeIf { it.isNotBlank() }
             ?.let(OverlayRepository::resolve)
-            ?.let { runCatching { path -> Files.readString(path) }.getOrNull() }
+            ?.let { path -> runCatching { Files.readString(path) }.getOrNull() }
             ?.let { nativeSvg(it, template.width, template.height) }.orEmpty()
 
         val foregroundOpacity = CollectionVisualSettings.foregroundOpacity(collectionPresentation)
