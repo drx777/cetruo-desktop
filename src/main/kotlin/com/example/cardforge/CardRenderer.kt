@@ -177,11 +177,11 @@ object CardRenderer {
         style="-fx-background-color:linear-gradient(to bottom,${top.withOpacity(opacity)},${fill.withOpacity(opacity)} 28%,${bottom.withOpacity(opacity)});-fx-background-radius:${rect.radius}px;-fx-border-color:${CardVisualSystem.mix(stroke,fill,0.28)} $stroke;-fx-border-width:1px 2px 3px 2px;-fx-border-radius:${rect.radius}px;-fx-effect:dropshadow(gaussian,rgba(0,0,0,0.28),${visual.descriptionDepth*1.6},0,0,${visual.descriptionDepth});"
     }
 
-    private fun statsJewel(rect:TemplateRect,fillColor:String,strokeColor:String,visual:TemplateVisualStyle,opacity:Double)=Pane().apply{
+    private fun statsJewel(rect:TemplateRect,fillColor:String,strokeColor:String,visual:TemplateVisualStyle,alpha:Double)=Pane().apply{
         isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
         val cut=visual.statsJewelCut.coerceIn(4.0,minOf(rect.width,rect.height)/3.0)
         val outer=Polygon(cut,0.0,rect.width-cut,0.0,rect.width,cut,rect.width,rect.height-cut,rect.width-cut,rect.height,cut,rect.height,0.0,rect.height-cut,0.0,cut).apply{
-            fill=Color.web(fillColor,opacity);stroke=Color.web(strokeColor);strokeWidth=2.2
+            fill=Color.web(fillColor,alpha);stroke=Color.web(strokeColor);strokeWidth=2.2
         }
         val inset=visual.statsJewelInset.coerceAtLeast(2.0)
         val innerCut=(cut-inset/2.0).coerceAtLeast(2.0)
