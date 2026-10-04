@@ -9,10 +9,7 @@ import javafx.scene.image.ImageView
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.ScrollEvent
-import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.StackPane
 import javafx.scene.paint.Color
 import javafx.scene.shape.Line
@@ -72,6 +69,10 @@ object CardRenderer {
             style = "-fx-background-color:${data.backgroundColor};-fx-background-radius:${data.cornerRadius}px;" +
                 "-fx-border-color:${data.accentColor};-fx-border-width:${data.borderWidth}px;" +
                 "-fx-border-radius:${data.cornerRadius}px;"
+            clip = Rectangle(template.width, template.height).apply {
+                arcWidth = data.cornerRadius * 2.0
+                arcHeight = data.cornerRadius * 2.0
+            }
         }
 
         val templateView = templateImage?.let {
@@ -84,13 +85,11 @@ object CardRenderer {
         }
         if (templateView != null) outer.children.add(templateView)
 
-        // Optional borderless-art treatment: place a second copy of the artwork behind
-        // the normal card content. Text boxes remain above it; the description panel's
-        // existing opacity therefore controls how much artwork can show through there.
         val bleedImageView = if (data.imageBleedOverFrame && image != null) ImageView(image).apply {
             isSmooth = true
             isManaged = false
             isMouseTransparent = true
+            opacity = data.imageBleedOpacity.coerceIn(0.0, 1.0)
             updateBleedImageView(this, image, data, template)
         } else null
         if (bleedImageView != null) outer.children.add(bleedImageView)
@@ -238,8 +237,6 @@ object CardRenderer {
     }.getOrElse { this }
 
     private fun place(node: javafx.scene.layout.Region, spec: TemplateText) {
-        // Template coordinates are absolute. Keep these nodes out of parent layout so
-        // StackPane/Pane cannot resize or relocate them after we position them.
         node.isManaged = false
         node.prefWidth = spec.width
         node.prefHeight = spec.height
@@ -332,6 +329,7 @@ object CardRenderer {
     private fun updateBleedImageView(view: ImageView, image: Image?, data: CardData, template: CardTemplate) {
         val layout = imageLayout(image, data, template)
         view.isPreserveRatio = false
+        view.opacity = data.imageBleedOpacity.coerceIn(0.0, 1.0)
         view.fitWidth = layout.width
         view.fitHeight = layout.height
         view.translateX = template.art.x + layout.x
