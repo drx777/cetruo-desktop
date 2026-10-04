@@ -1,33 +1,22 @@
 # Card Forge Backlog
 
-Card Forge 0.14.x is functionally wrapped. Keep this file focused on unresolved work rather than completed implementation history.
+Card Forge 0.14.x is closed and frozen. Keep this file focused on unresolved work rather than completed implementation history.
 
-## 0.14.x — remaining smoke verification
+## 0.14.x — closed
 
-These checks are intentionally manual because they depend on JavaFX rendering, virtualization, packaging, or platform behavior.
+No proactive 0.14 work remains.
 
-- Compare live preview, PNG, SVG, and PDF for:
-  - artwork crop/pan/zoom,
-  - bleed behavior,
-  - foreground opacity,
-  - overlay placement/tint/opacity,
-  - text wrapping and alignment,
-  - full outer-border thickness,
-  - transparent pixels outside rounded/cut-out card corners.
-- Verify the paged in-app contact sheet matches the live preview.
-- Verify rendered-card thumbnails remain current after edits in both list and grid modes.
-- Verify list/grid keyboard navigation, scrolling, and JavaFX virtualization behavior.
-- Verify autosave on:
-  - card switch,
-  - collection switch,
-  - application close,
-  - Cmd/Ctrl+S.
-- Verify packaged-app behavior on macOS:
-  - initial window sizing,
-  - window icon,
-  - Dock icon.
+The previous manual smoke checks are deferred and should be used only when a concrete regression is observed, especially for:
 
-If these checks reveal concrete regressions, fix those regressions on 0.14.x. Otherwise consider the line frozen.
+- data safety or persistence,
+- autosave,
+- live/PNG/SVG/PDF rendering parity,
+- transparent card corners,
+- thumbnails/contact sheets,
+- browser navigation/virtualization,
+- packaged macOS behavior.
+
+Do not reopen 0.14 for general hardening, cleanup, or speculative verification.
 
 ## 0.15 — visual/template phase
 
