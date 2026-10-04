@@ -226,7 +226,7 @@ class MainApp : Application() {
     private val schemeChoice = ComboBox<ColorScheme>()
     private val templateChoice = ComboBox<CardTemplate>()
     private val collectionTemplateChoice = ComboBox<CardTemplate>()
-    private val templateOverride = CheckBox("Override for this card")
+    private val templateOverride = CheckBox("Use a custom template for this card")
     private val backgroundOverlayChoice = ComboBox<BackgroundOverlay>()
     private val overlayPlacementChoice = ComboBox<OverlayPlacement>()
     private val zoom = Slider(0.1, 4.0, 1.0).apply { blockIncrement = 0.1; majorTickUnit = 1.0 }
@@ -1202,7 +1202,6 @@ class MainApp : Application() {
                 persistCollectionPresentation()
                 render()
             },
-            onApplyDefaultTemplateToAll = { applyCollectionDefaultTemplateToAll() },
             onApplySetNameToAll = { applyCurrentSetNameToAll() },
             onNormalizeCollectorTotals = { normalizeCollectorTotals() }
         )
@@ -1291,21 +1290,27 @@ class MainApp : Application() {
                 setCollectionDefaultTemplate(value)
             }
         }
-        form.children.add(row("Card template", templateChoice))
-        form.children.add(Button("Apply selected template to all cards").apply {
-            maxWidth = Double.MAX_VALUE
-            tooltip = Tooltip("Make the selected Card template the collection default and clear all per-card template overrides.")
-            setOnAction { applyCollectionDefaultTemplateToAll() }
+        form.children.add(row("This card template", templateChoice))
+        form.children.add(templateOverride.apply {
+            tooltip = Tooltip("On: this card stores its own template. Off: this card follows the collection default template.")
         })
-        form.children.add(templateOverride.apply { tooltip = Tooltip("On: keep a template override for this card. Off: follow the collection default.") })
-        form.children.add(row("Collection default", collectionTemplateChoice))
-        form.children.add(Button("Reset card to collection default").apply {
-            maxWidth = Double.MAX_VALUE
-            setOnAction { templateOverride.isSelected = false }
+        form.children.add(row("Collection default template", collectionTemplateChoice))
+        form.children.add(HBox(8.0).apply {
+            children.add(Button("Use collection default for this card").apply {
+                maxWidth = Double.MAX_VALUE
+                setOnAction { useCollectionDefaultForCurrentCard() }
+                HBox.setHgrow(this, Priority.ALWAYS)
+            })
+            children.add(Button("Apply this template to all cards").apply {
+                maxWidth = Double.MAX_VALUE
+                tooltip = Tooltip("Write the selected This card template explicitly to every card and also make it the collection default.")
+                setOnAction { applyCollectionDefaultTemplateToAll() }
+                HBox.setHgrow(this, Priority.ALWAYS)
+            })
         })
         val reloadTemplates = Button("Reload templates").apply { setOnAction { loadTemplates() } }
         form.children.add(reloadTemplates)
-        form.children.add(helperLabel("Choose a collection default once; cards follow it unless they have an explicit override. Add templates under templates/."))
+        form.children.add(helperLabel("Collection default is the fallback for cards without a custom template. Applying this template to all cards writes it explicitly to every card and also updates the collection default."))
 
         form.children.add(section("Artwork"))
         imageMode.items.setAll(ImageMode.entries)
@@ -1869,6 +1874,24 @@ class MainApp : Application() {
         }
     }
 
+    private fun useCollectionDefaultForCurrentCard() {
+        if (currentIndex !in visibleImages.indices) return
+        val collectionTemplate = templates.firstOrNull { it.name == collectionDefaultTemplateName }
+            ?: collectionTemplateChoice.value
+            ?: return
+
+        // Clearing the override changes the persisted model/effective renderer template.
+        // Synchronize the visible per-card selector as well so the UI cannot display a
+        // stale custom template while the card is actually following the collection default.
+        templateOverride.isSelected = false
+        suppressEditorUpdates = true
+        try {
+            templateChoice.value = collectionTemplate
+        } finally {
+            suppressEditorUpdates = false
+        }
+    }
+
     private fun setCollectionDefaultTemplate(template: CardTemplate) {
         val db = database ?: return
         if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
@@ -1926,7 +1949,11 @@ class MainApp : Application() {
     }
 
     private fun applyCollectionDefaultTemplateToAll() {
-        val selected = templateChoice.value ?: currentTemplate() ?: run {
+        val selected = if (templateOverride.isSelected) {
+            templateChoice.value ?: currentTemplate()
+        } else {
+            currentTemplate() ?: templateChoice.value
+        } ?: run {
             statusBarLabel.text = "Choose a card template first."
             return
         }

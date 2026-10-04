@@ -22,7 +22,6 @@ import javafx.scene.layout.VBox
 class CollectionSettingsPane(
     initial: CollectionPresentation,
     private val onPresentationChanged: (CollectionPresentation) -> Unit,
-    private val onApplyDefaultTemplateToAll: () -> Unit,
     private val onApplySetNameToAll: () -> Unit,
     private val onNormalizeCollectorTotals: () -> Unit
 ) : VBox(8.0) {
@@ -52,11 +51,6 @@ class CollectionSettingsPane(
         children.add(sliderRow("Bleed opacity", bleedOpacity, bleedValue))
         children.add(sliderRow("Foreground opacity", foregroundOpacity, foregroundValue))
 
-        val applyTemplateToAll = Button("Apply selected template to all cards").apply {
-            maxWidth = Double.MAX_VALUE
-            tooltip = Tooltip("Apply the template currently selected in Card template explicitly to every card in the collection; it also becomes the collection default.")
-            setOnAction { onApplyDefaultTemplateToAll() }
-        }
         val applySetToAll = Button("Apply current set name to all cards").apply {
             maxWidth = Double.MAX_VALUE
             tooltip = Tooltip("Apply the selected card's set name to every image in this collection.")
@@ -67,7 +61,7 @@ class CollectionSettingsPane(
             tooltip = Tooltip("Set each card-number total to the number of images with the same set name.")
             setOnAction { onNormalizeCollectorTotals() }
         }
-        children.add(VBox(6.0, applyTemplateToAll, applySetToAll, fixTotals))
+        children.add(VBox(6.0, applySetToAll, fixTotals))
 
         descriptionHeading.textProperty().addListener { _, _, value ->
             if (!suppress) publish { this.descriptionHeading = value.ifBlank { "ABILITY / DESCRIPTION" } }
