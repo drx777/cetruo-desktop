@@ -11,6 +11,9 @@ class CollectionEditorActions(
     private val images: () -> Collection<Path>,
     private val initializeCard: (Path) -> CardData
 ) {
+    fun applyTemplateToAll(templateName: String): CollectionBulkActions.Result =
+        CollectionBulkActions.applyTemplateToAll(images(), database, templateName)
+
     fun applyDefaultTemplateToAll(): CollectionBulkActions.Result =
         CollectionBulkActions.applyCollectionDefaultTemplate(images(), database)
 
