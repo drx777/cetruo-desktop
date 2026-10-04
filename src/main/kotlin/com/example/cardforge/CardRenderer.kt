@@ -131,7 +131,7 @@ object CardRenderer {
         };place(rarityLabel,template.rarityText);content.children.addAll(typeBox,typeLabel,rarityLabel)
 
         val descOpacity=(data.panelOpacity.coerceIn(0.0,1.0)*fgOpacity).coerceIn(0.0,1.0)
-        val descPanel=descriptionPanel(template.descriptionBox,data.panelColor,if(visual.rarityFrames) palette.outerFrame else data.accentColor,visual,descOpacity);position(descPanel,template.descriptionBox);content.children.add(descPanel)
+        val descPanel=decorativeBox(template.descriptionBox,data.panelColor,if(visual.rarityFrames) palette.outerFrame else data.accentColor,4.0,descOpacity);position(descPanel,template.descriptionBox);content.children.add(descPanel)
         val headingSize=CardVisualSystem.fitFontSize(collectionPresentation.descriptionHeading,17.0,13.0,template.descriptionHeading.width,template.descriptionHeading.height,true)
         val heading=label(collectionPresentation.descriptionHeading,headingSize,true,data.textColor);place(heading,template.descriptionHeading)
         val bodySize=CardVisualSystem.fitFontSize(data.description,data.bodyFontSize,11.5,template.descriptionText.width,template.descriptionText.height)
@@ -140,7 +140,7 @@ object CardRenderer {
         val copyright=if(collectionPresentation.showArtistCopyright)"© " else ""
         val footer=label("${data.setName} • ${data.collectorNumber} • ${copyright}${data.artist}",10.0,false,data.textColor);place(footer,template.footerText);content.children.addAll(heading,description,flavor,footer)
 
-        val statsBox=statsJewel(template.statsBox,data.backgroundColor,if(visual.rarityFrames) palette.outerFrame else data.accentColor,visual,fgOpacity);position(statsBox,template.statsBox)
+        val statsBox=decorativeBox(template.statsBox,data.backgroundColor,if(visual.rarityFrames) palette.outerFrame else data.accentColor,3.0,fgOpacity);position(statsBox,template.statsBox)
         val statsSize=CardVisualSystem.fitFontSize(data.stats,25.0,17.0,template.statsText.width,template.statsText.height,true)
         val stats=label(data.stats,statsSize,true,data.darkTextColor);place(stats,template.statsText);content.children.addAll(statsBox,stats)
         outer.children.add(content)
@@ -153,28 +153,6 @@ object CardRenderer {
         isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
         val top=CardVisualSystem.lighten(fill,0.07); val bottom=CardVisualSystem.darken(fill,0.12)
         style="-fx-background-color:linear-gradient(to bottom,${top.withOpacity(opacity)},${fill.withOpacity(opacity)} 52%,${bottom.withOpacity(opacity)});-fx-background-radius:${rect.radius}px;-fx-border-color:$stroke;-fx-border-width:${visual.railStrokeWidth}px;-fx-border-radius:${rect.radius}px;-fx-effect:dropshadow(gaussian,rgba(0,0,0,0.22),${visual.railDepth*1.5},0,${visual.railDepth},${visual.railDepth});"
-    }
-
-    private fun descriptionPanel(rect:TemplateRect,fill:String,stroke:String,visual:TemplateVisualStyle,opacity:Double)=StackPane().apply{
-        isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
-        val top=CardVisualSystem.lighten(fill,0.05); val bottom=CardVisualSystem.darken(fill,0.08)
-        style="-fx-background-color:linear-gradient(to bottom,${top.withOpacity(opacity)},${fill.withOpacity(opacity)} 28%,${bottom.withOpacity(opacity)});-fx-background-radius:${rect.radius}px;-fx-border-color:${CardVisualSystem.mix(stroke,fill,0.28)} $stroke;-fx-border-width:1px 2px 3px 2px;-fx-border-radius:${rect.radius}px;-fx-effect:dropshadow(gaussian,rgba(0,0,0,0.28),${visual.descriptionDepth*1.6},0,0,${visual.descriptionDepth});"
-    }
-
-    private fun statsJewel(rect:TemplateRect,fillColor:String,strokeColor:String,visual:TemplateVisualStyle,alpha:Double)=Pane().apply{
-        isManaged=false;prefWidth=rect.width;prefHeight=rect.height;minWidth=rect.width;minHeight=rect.height;maxWidth=rect.width;maxHeight=rect.height;resize(rect.width,rect.height)
-        val outer=Rectangle(rect.width,rect.height).apply{
-            arcWidth=rect.radius*2;arcHeight=rect.radius*2
-            fill=Color.web(fillColor,alpha);stroke=Color.web(strokeColor);strokeWidth=2.2
-        }
-        val inset=visual.statsJewelInset.coerceAtLeast(2.0)
-        val w=(rect.width-inset*2).coerceAtLeast(1.0);val h=(rect.height-inset*2).coerceAtLeast(1.0)
-        val innerRadius=(rect.radius-inset).coerceAtLeast(1.0)
-        val inner=Rectangle(inset,inset,w,h).apply{
-            arcWidth=innerRadius*2;arcHeight=innerRadius*2
-            fill=Color.TRANSPARENT;stroke=Color.web(CardVisualSystem.lighten(strokeColor,0.22));strokeWidth=0.9;opacity=0.62
-        }
-        children.addAll(outer,inner)
     }
 
     private fun decorativeBox(rect:TemplateRect,fill:String,stroke:String,strokeWidth:Double,opacity:Double=1.0)=StackPane().apply{
