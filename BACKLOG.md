@@ -4,19 +4,10 @@ Current follow-up work for the 0.14.x line.
 
 ## UX / browser
 
-- Add a quick way to inspect the selected source image at full size:
-  - hoverable icon/action near the preview/browser, and/or
-  - keyboard shortcut while browsing/editing.
-  - It should show the original image without the card frame/template and be easy to dismiss.
 - Revisit Collection/Layout UI after functionality is stable:
   - remove the duplicate “Apply selected template to all cards” control,
   - clarify collection default vs per-card override actions,
   - keep collection card count visible without adding clutter.
-- Add a lightweight full-image inspector for the selected source image:
-  - hoverable icon/action near the preview/browser and/or a keyboard shortcut,
-  - show the original source image without the card frame/template,
-  - easy to dismiss and usable without disturbing editor state.
-
 ## Regression verification
 
 - Verify rendered-card thumbnails in list and grid modes remain current after edits.
@@ -37,6 +28,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Source-image inspector with preview action, image context-menu action, and Cmd/Ctrl+I shortcut; native-resolution view dismisses with Esc.
 - Startup performance regression caused by image decoding during browser sorting.
 - Apply selected template explicitly to every card in a collection; verified working in-app.
 - Collection card/image count.
