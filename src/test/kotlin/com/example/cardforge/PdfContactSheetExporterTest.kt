@@ -1,5 +1,7 @@
 package com.example.cardforge
 
+import org.apache.pdfbox.Loader
+import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -135,4 +137,59 @@ class PdfContactSheetExporterTest {
         assertEquals(cards.size, plannedPaths.size)
     }
 
+    @Test
+    fun vectorPdfExportPreservesPlannedPageSizeWithoutRasterizingPureSvg() {
+        val root = Files.createTempDirectory("cardforge-vector-pdf")
+        val target = root.resolve("vector.pdf")
+        val spec = card("vector.svg", width = 180.0, height = 252.0)
+        val plans = PdfContactSheetExporter.planSingleCardPages(listOf(spec))
+
+        PdfContactSheetExporter.exportVector(target, plans) {
+            """
+                <svg xmlns="http://www.w3.org/2000/svg" width="180" height="252" viewBox="0 0 180 252">
+                  <rect x="5" y="5" width="170" height="242" rx="8" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+                  <text x="20" y="40" font-family="serif" font-size="18">Vector Card</text>
+                </svg>
+            """.trimIndent()
+        }
+
+        Loader.loadPDF(target.toFile()).use { document ->
+            assertEquals(1, document.numberOfPages)
+            val page = document.getPage(0)
+            assertEquals(180f, page.mediaBox.width, 0.01f)
+            assertEquals(252f, page.mediaBox.height, 0.01f)
+            assertTrue(page.resources.xObjectNames.none(), "Pure SVG page should not contain raster/image XObjects")
+        }
+    }
+
+    @Test
+    fun vectorPdfPreservesExternalArtworkImageResource() {
+        val root = Files.createTempDirectory("cardforge-vector-pdf-artwork")
+        val target = root.resolve("vector-artwork.pdf")
+        val artwork = root.resolve("artwork.png")
+        val spec = card("vector.svg", width = 180.0, height = 252.0)
+        val plans = PdfContactSheetExporter.planSingleCardPages(listOf(spec))
+        val pixel = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z0iAAAAAASUVORK5CYII="
+        )
+        Files.write(artwork, pixel)
+        val href = artwork.toUri().toString()
+
+        PdfContactSheetExporter.exportVector(target, plans) {
+            """
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                     width="180" height="252" viewBox="0 0 180 252">
+                  <image x="0" y="0" width="180" height="252"
+                         href="$href"
+                         xlink:href="$href"/>
+                </svg>
+            """.trimIndent()
+        }
+
+        Loader.loadPDF(target.toFile()).use { document ->
+            assertEquals(1, document.numberOfPages)
+            val page = document.getPage(0)
+            assertTrue(page.resources.xObjectNames.any(), "Artwork should survive as a PDF image resource")
+        }
+    }
 }
