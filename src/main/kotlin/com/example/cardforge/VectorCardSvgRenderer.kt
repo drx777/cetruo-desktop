@@ -52,7 +52,7 @@ object VectorCardSvgRenderer {
         """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0, 1.0))}" stroke="${esc(stroke)}" stroke-width="${fmt(strokeWidth)}"/>"""
 
     private fun materialFrames(template: CardTemplate, data: CardData, palette: CardVisualPalette): String {
-        val visual = template.visualStyle
+        val visual = template.visualStyleFor(data.rarity)
         val first = visual.outerFrameInset.coerceAtLeast(data.borderWidth / 2.0 + 2.0)
         val second = visual.innerFrameInset.coerceAtLeast(first + 4.0)
         fun frame(inset: Double, color: String, width: Double, opacity: Double): String {
@@ -183,7 +183,7 @@ object VectorCardSvgRenderer {
         val bleedClipId = "card-bleed-clip"
         val overlayTintId = "card-overlay-tint"
 
-        val templateSvg = TemplateRepository.resolveSvg(template)
+        val templateSvg = TemplateRepository.resolveSvg(template, data.rarity)
             ?.let { path -> runCatching { Files.readString(path) }.getOrNull() }
             ?.let { nativeSvg(it, template.width, template.height) }.orEmpty()
         val overlaySvg = data.backgroundOverlay.takeIf { it.isNotBlank() }
@@ -277,7 +277,7 @@ object VectorCardSvgRenderer {
 
                 ${rail(template.typeBox, data.backgroundColor, palette.outerFrame, visual, foregroundOpacity, "card-rail-depth")}
                 ${textBlock(data.typeLine, template.typeText, CardVisualSystem.fitFontSize(data.typeLine,18.0,13.0,template.typeText.width,template.typeText.height,true), data.darkTextColor, bold = true)}
-                ${textBlock("◆ ${data.rarity}", template.rarityText, CardVisualSystem.fitFontSize(data.rarity,15.0,11.5,template.rarityText.width,template.rarityText.height,true), palette.outerFrame, bold = true)}
+                ${textBlock("◆ ${data.rarity}", template.rarityText, CardVisualSystem.fitFontSize("◆ ${data.rarity}",15.0,9.5,template.rarityText.width,template.rarityText.height,true), palette.outerFrame, bold = true)}
 
                 ${descriptionPanel(template.descriptionBox, palette.outerFrame, descriptionOpacity)}
                 ${textBlock(collectionPresentation.descriptionHeading, template.descriptionHeading, CardVisualSystem.fitFontSize(collectionPresentation.descriptionHeading,17.0,13.0,template.descriptionHeading.width,template.descriptionHeading.height,true), data.textColor, bold = true)}
