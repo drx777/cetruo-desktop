@@ -1872,25 +1872,13 @@ class MainApp : Application() {
 
     private fun chooseRecentCollectionOnStartup(stage: Stage) {
         if (collectionRoot != null) return
-        val recent = RecentCatalogs.list()
-        if (recent.isEmpty()) return
-        val dialog = Dialog<Path?>().apply {
-            title = "Open recent collection"
-            headerText = "Choose a recent collection, or browse for another directory."
-            dialogPane.buttonTypes.addAll(ButtonType("Browse…"), ButtonType.CANCEL)
-        }
-        val choice = ComboBox<Path>().apply {
-            items.setAll(recent)
-            value = recent.firstOrNull()
-            maxWidth = Double.MAX_VALUE
-        }
-        dialog.dialogPane.content = VBox(8.0, Label("Recent collections"), choice)
-        dialog.setResultConverter { button ->
-            if (button.buttonData == ButtonType.CANCEL.buttonData) null else choice.value
-        }
-        val selected = dialog.showAndWait().orElse(null)
-        if (selected != null) openCollectionPath(selected) else if (dialog.result == null) {
-            // Cancel means keep the empty workspace; Browse is available from the toolbar.
+        when (val choice = StartupCatalogChooser.choose(stage, RecentCatalogs.list())) {
+            is StartupCatalogChooser.Choice.Open -> openCollectionPath(choice.path)
+            StartupCatalogChooser.Choice.Browse -> {
+                val directory = DirectoryChooser().apply { title = "Choose Image Directory" }.showDialog(stage)?.toPath()
+                if (directory != null) openCollectionPath(directory)
+            }
+            StartupCatalogChooser.Choice.Cancel -> Unit
         }
     }
 
