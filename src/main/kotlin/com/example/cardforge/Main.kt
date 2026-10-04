@@ -1927,7 +1927,7 @@ class MainApp : Application() {
 
         refreshAfterCollectionMutation()
         statusBarLabel.text =
-            "Template '${selected.name}' is now the collection default; cleared overrides on ${result.changedCards} saved card(s)."
+            "Applied template '${selected.name}' to ${result.changedCards} card(s); it is also the collection default."
     }
 
     private fun applyCurrentSetNameToAll() {
