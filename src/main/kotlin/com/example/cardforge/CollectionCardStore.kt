@@ -39,7 +39,7 @@ class CollectionCardStore(
     fun clear() = cache.clear()
 
     fun retainOnly(paths: Collection<Path>) {
-        val live = paths.mapTo(hashSetOf(), ::normalized)
+        val live = paths.mapTo(hashSetOf()) { normalized(it) }
         cache.keys.retainAll(live)
     }
 
