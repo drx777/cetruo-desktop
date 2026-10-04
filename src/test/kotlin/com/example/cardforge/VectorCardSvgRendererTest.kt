@@ -83,7 +83,7 @@ class VectorCardSvgRendererTest {
         assertTrue(svg.contains("""xlink:href="$href""""))
     }
     @Test
-    fun rarityControlsOuterFrameAndStatsUseJewelGeometry() {
+    fun rarityControlsOuterFrameAndStatsKeepTemplateRoundedGeometry() {
         val svg = VectorCardSvgRenderer.svgFor(
             image = image(),
             data = CardData(rarity = "Rare"),
@@ -95,7 +95,7 @@ class VectorCardSvgRendererTest {
         assertTrue(svg.contains("""stroke="#D6B45A""""))
         assertTrue(svg.contains("card-background-material"))
         assertTrue(svg.contains("card-panel-depth"))
-        assertTrue(svg.contains("""<path d="M"""))
+        assertTrue(svg.contains("""<rect x="480" y="778" width="115" height="70" rx="12" ry="12""""))
     }
 
     @Test
