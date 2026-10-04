@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'scripts/apply-0144.py'
+      - 'scripts/fix-0144-integration.py'
       - '.github/workflows/apply-0144.yml'
 
 permissions:
@@ -21,7 +22,9 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Apply integration
-        run: python3 scripts/apply-0144.py
+        run: |
+          python3 scripts/apply-0144.py
+          python3 scripts/fix-0144-integration.py
       - name: Compile
         run: ./gradlew compileKotlin
       - name: Commit integrated sources
