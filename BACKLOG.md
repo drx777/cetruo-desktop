@@ -24,6 +24,7 @@ Current follow-up work for the 0.14.x line.
 
 ## Completed recently
 
+- Collection-wide template application now has regression coverage for explicit per-card persistence, default persistence, initialization, metadata preservation, and idempotence.
 - Application shutdown now cancels window close when the current card cannot be saved, with a final best-effort save in `Application.stop()` for non-window shutdown paths.
 - PNG/SVG/PDF export execution and PDF FX-thread bridging extracted from `Main.kt`.
 - Browser original/card preview request de-duplication and cache orchestration extracted from `Main.kt`.
