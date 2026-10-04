@@ -1874,29 +1874,44 @@ class MainApp : Application() {
     }
 
     private fun applyCollectionDefaultTemplateToAll() {
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
         val result = collectionActions()?.applyDefaultTemplateToAll() ?: return
-        cardDataCache.clear()
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
-        if (currentIndex in visibleImages.indices) select(currentIndex)
-        statusBarLabel.text = "Collection default template applied to ${result.changedCards} card(s)."
+        refreshAfterCollectionMutation()
+        statusBarLabel.text = "Collection default template applied to ${result.changedCards} saved card(s); unsaved cards already follow the collection default."
     }
 
     private fun applyCurrentSetNameToAll() {
         val setName = currentData.setName.trim()
         if (setName.isBlank()) { statusBarLabel.text = "Enter a set name on the selected card first."; return }
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
         val result = collectionActions()?.applySetNameToAll(setName) ?: return
-        cardDataCache.clear()
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
-        if (currentIndex in visibleImages.indices) select(currentIndex)
+        refreshAfterCollectionMutation()
         statusBarLabel.text = "Set name applied to ${result.changedCards} card(s)."
     }
 
     private fun normalizeCollectorTotals() {
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
         val result = collectionActions()?.normalizeCollectorTotals() ?: return
-        cardDataCache.clear()
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
-        if (currentIndex in visibleImages.indices) select(currentIndex)
+        refreshAfterCollectionMutation()
         statusBarLabel.text = "Collector-number totals fixed on ${result.changedCards} card(s)."
+    }
+
+    private fun refreshAfterCollectionMutation() {
+        val selectedPath = currentLoadedPath?.toAbsolutePath()?.normalize()
+        cardDataCache.clear()
+        searchIndex.clear()
+        database?.searchIndex()?.let(searchIndex::putAll)
+        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        if (selectedPath != null) {
+            val index = visibleImages.indexOfFirst { it.toAbsolutePath().normalize() == selectedPath }
+            if (index >= 0) {
+                currentIndex = -1
+                currentLoadedPath = null
+                select(index, scrollIntoView = false)
+            }
+        }
+        imageList.refresh()
+        gridList.refresh()
     }
 
     private fun openDirectory(stage: Stage) {
