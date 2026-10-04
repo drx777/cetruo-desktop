@@ -10,6 +10,10 @@ import java.util.concurrent.atomic.AtomicReference
 
 /** Lightweight elapsed-time logging and JavaFX stall diagnostics for collection startup/open. */
 object StartupProfiler {
+    private val enabled: Boolean =
+        java.lang.Boolean.getBoolean("cardforge.profileStartup") ||
+            System.getenv("CARDFORGE_PROFILE_STARTUP") == "1"
+
     private val starts = ConcurrentHashMap<String, Long>()
     private val stallMonitorInstalled = AtomicBoolean(false)
     private val fxThread = AtomicReference<Thread?>()
@@ -18,11 +22,13 @@ object StartupProfiler {
     private val lastReportedProbe = AtomicLong(0L)
 
     fun begin(name: String) {
+        if (!enabled) return
         starts[name] = System.nanoTime()
         log("BEGIN $name")
     }
 
     fun end(name: String, detail: String = "") {
+        if (!enabled) return
         val started = starts.remove(name)
         val elapsedMs = started?.let { (System.nanoTime() - it) / 1_000_000.0 }
         val timing = elapsedMs?.let { "%.1f ms".format(it) } ?: "unknown"
@@ -39,10 +45,13 @@ object StartupProfiler {
         }
     }
 
-    fun mark(message: String) = log(message)
+    fun mark(message: String) {
+        if (enabled) log(message)
+    }
 
     /** Installs a low-overhead watchdog that reports JavaFX event-thread stalls. */
     fun installFxStallMonitor(warningAfterMs: Long = 700, pollEveryMs: Long = 200) {
+        if (!enabled) return
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater { installFxStallMonitor(warningAfterMs, pollEveryMs) }
             return
