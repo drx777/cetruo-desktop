@@ -200,6 +200,16 @@ class MainApp : Application() {
     private val folderTree = TreeView<Path>()
     private val imageList = ListView<Path>()
     private val gridList = ListView<GridRow>()
+    private val browserSelection by lazy {
+        BrowserSelectionCoordinator(
+            listView = imageList,
+            gridView = gridList,
+            visiblePaths = { visibleImages },
+            isGridMode = { imageBrowserMode == ImageBrowserMode.THUMBNAILS },
+            columns = { browserColumns.coerceAtLeast(1) },
+            firstPathInGridRow = { row -> row.paths.firstOrNull() }
+        )
+    }
     private lateinit var browserStack: StackPane
     private val filterField = TextField()
     private val collectionChoice = ComboBox<CollectionOption>()
@@ -838,7 +848,7 @@ class MainApp : Application() {
         refreshBrowserSelectionStyles()
     }
 
-    private fun activeBrowserNodeList(): javafx.scene.control.ListView<*> = if (imageBrowserMode == ImageBrowserMode.THUMBNAILS) gridList else imageList
+    private fun activeBrowserNodeList(): ListView<*> = browserSelection.activeList()
 
     private fun rebuildGrid(anchorPath: Path? = null) {
         browserColumns = calculateBrowserColumns()
@@ -858,60 +868,16 @@ class MainApp : Application() {
         if (imageBrowserMode == ImageBrowserMode.LIST && anchorPath != null) scrollToBrowserPath(anchorPath, false)
     }
 
-    private fun refreshBrowserSelectionStyles() {
-        imageList.refresh()
-        gridList.refresh()
-    }
+    private fun refreshBrowserSelectionStyles() = browserSelection.refresh()
 
-    private fun scrollToBrowserPath(path: Path?, force: Boolean) {
-        if (path == null) return
-        val index = visibleImages.indexOf(path)
-        if (index !in visibleImages.indices) return
-        val view = activeBrowserNodeList()
-        val row = if (imageBrowserMode == ImageBrowserMode.THUMBNAILS) index / browserColumns.coerceAtLeast(1) else index
-        Platform.runLater {
-            if (force) {
-                view.scrollTo(row)
-                return@runLater
-            }
-            val cells = view.lookupAll(".list-cell").filterIsInstance<ListCell<*>>()
-            val target = cells.firstOrNull { it.index == row }
-            if (target == null) {
-                view.scrollTo(row)
-                return@runLater
-            }
-            val viewportTop = view.localToScene(0.0, 0.0).y
-            val viewportBottom = viewportTop + view.height
-            val cellTop = target.localToScene(0.0, 0.0).y
-            val cellBottom = cellTop + target.height
-            if (cellTop < viewportTop || cellBottom > viewportBottom) view.scrollTo(row)
-        }
-    }
+    private fun scrollToBrowserPath(path: Path?, force: Boolean) =
+        browserSelection.scrollToPath(path, force)
 
-    private fun firstVisibleBrowserPath(view: javafx.scene.control.ListView<*>, grid: Boolean): Path? {
-        val cells = view.lookupAll(".list-cell").filterIsInstance<ListCell<*>>()
-        if (cells.isEmpty()) return null
-        val viewportTop = view.localToScene(0.0, 0.0).y
-        val cell = cells.filter { it.index >= 0 && it.localToScene(0.0, 0.0).y + it.height >= viewportTop }
-            .minByOrNull { it.localToScene(0.0, 0.0).y } ?: return null
-        val item = cell.item
-        return if (grid) (item as? GridRow)?.paths?.firstOrNull() else item as? Path
-    }
+    private fun firstVisibleBrowserPath(view: ListView<*>, grid: Boolean): Path? =
+        browserSelection.firstVisiblePath(view, grid)
 
-    private fun syncBrowserSelection(path: Path?, forceScroll: Boolean) {
-        if (path == null) return
-        val index = visibleImages.indexOf(path)
-        if (index !in visibleImages.indices) return
-        if (imageBrowserMode == ImageBrowserMode.LIST) {
-            imageList.selectionModel.select(path)
-            imageList.focusModel.focus(index)
-        } else {
-            val row = index / browserColumns.coerceAtLeast(1)
-            gridList.selectionModel.select(row)
-            gridList.focusModel.focus(row)
-        }
-        if (forceScroll) scrollToBrowserPath(path, true) else scrollToBrowserPath(path, false)
-    }
+    private fun syncBrowserSelection(path: Path?, forceScroll: Boolean) =
+        browserSelection.syncSelection(path, forceScroll)
 
     private fun selectPath(path: Path, scrollIntoView: Boolean = false) {
         val normalized = path.toAbsolutePath().normalize()
