@@ -165,10 +165,18 @@ object PdfContactSheetExporter {
             pages.forEach { plan ->
                 val pageSvg = vectorPageSvg(plan, renderSvg)
                 val pdfBytes = ByteArrayOutputStream().use { output ->
+                    val input = TranscoderInput(StringReader(pageSvg)).apply {
+                        // FOP/Batik applies same-origin checks to external resources. The generated
+                        // page SVG lives in memory, so give it a real document URL rooted beside
+                        // the card source files; otherwise file: artwork references are rejected.
+                        uri = plan.slots.firstOrNull()?.card?.path
+                            ?.toAbsolutePath()?.normalize()?.parent
+                            ?.toUri()?.toString()
+                    }
                     PDFTranscoder().apply {
                         addTranscodingHint(PDFTranscoder.KEY_STROKE_TEXT, true)
                     }.transcode(
-                        TranscoderInput(StringReader(pageSvg)),
+                        input,
                         TranscoderOutput(output)
                     )
                     output.toByteArray()
