@@ -16,6 +16,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.StackPane
 import javafx.scene.layout.VBox
 import java.nio.file.Path
+import java.util.WeakHashMap
 
 data class GridRow(val paths: List<Path>)
 
@@ -34,6 +35,24 @@ class BrowserTileFactory(
     private val onListSelected: (Path) -> Unit,
     private val onGridSelected: (Path) -> Unit
 ) {
+    private data class TileState(
+        val path: Path,
+        val thumbnail: Boolean,
+        var hovered: Boolean = false
+    )
+
+    private val liveTiles = WeakHashMap<VBox, TileState>()
+
+    /**
+     * Selection-only updates must not rebuild ListView cells: rebuilding them re-requests
+     * thumbnails and causes visible flicker. Restyle the currently live tile nodes instead.
+     */
+    fun refreshSelectionStyles() {
+        liveTiles.forEach { (tile, state) ->
+            tile.style = tileStyle(state.path == currentPath(), state.hovered, state.thumbnail)
+        }
+    }
+
     fun listCell() = object : ListCell<Path>() {
         override fun updateItem(item: Path?, empty: Boolean) {
             super.updateItem(item, empty)
@@ -193,6 +212,9 @@ class BrowserTileFactory(
     }
 
     private fun installInteractions(tile: VBox, path: Path, thumbnail: Boolean, onSelected: (Path) -> Unit) {
+        val state = TileState(path = path, thumbnail = thumbnail)
+        liveTiles[tile] = state
+
         tile.setOnContextMenuRequested { event ->
             contextMenuFor(path).show(tile, event.screenX, event.screenY)
             event.consume()
@@ -204,12 +226,18 @@ class BrowserTileFactory(
             }
         }
 
-        fun applyStyle(hovered: Boolean) {
-            tile.style = tileStyle(path == currentPath(), hovered, thumbnail)
+        fun applyStyle() {
+            tile.style = tileStyle(path == currentPath(), state.hovered, thumbnail)
         }
-        applyStyle(hovered = false)
-        tile.setOnMouseEntered { applyStyle(hovered = true) }
-        tile.setOnMouseExited { applyStyle(hovered = false) }
+        applyStyle()
+        tile.setOnMouseEntered {
+            state.hovered = true
+            applyStyle()
+        }
+        tile.setOnMouseExited {
+            state.hovered = false
+            applyStyle()
+        }
     }
 
     private fun tileStyle(selected: Boolean, hovered: Boolean, thumbnail: Boolean): String {
