@@ -46,8 +46,8 @@ class PdfContactSheetExporterTest {
     }
     @Test
     fun singleCardPagesUseExactCardDimensionsWithoutMargins() {
-        val first = PdfContactSheetExporter.CardSpec(Path.of("first.png"), 180.0, 252.0)
-        val second = PdfContactSheetExporter.CardSpec(Path.of("second.png"), 200.0, 280.0)
+        val first = PdfContactSheetExporter.CardSpec(Paths.get("first.png"), 180.0, 252.0)
+        val second = PdfContactSheetExporter.CardSpec(Paths.get("second.png"), 200.0, 280.0)
 
         val pages = PdfContactSheetExporter.planSingleCardPages(listOf(first, second))
 
