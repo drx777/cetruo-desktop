@@ -38,6 +38,11 @@ class CollectionCardStore(
 
     fun clear() = cache.clear()
 
+    fun retainOnly(paths: Collection<Path>) {
+        val live = paths.mapTo(hashSetOf(), ::normalized)
+        cache.keys.retainAll(live)
+    }
+
     fun invalidate(paths: Iterable<Path>) {
         paths.forEach { remove(it) }
     }
