@@ -693,7 +693,7 @@ class MainApp : Application() {
         if (imageBrowserMode == ImageBrowserMode.LIST && anchorPath != null) scrollToBrowserPath(anchorPath, false)
     }
 
-    private fun refreshBrowserSelectionStyles() = browserSelection.refresh()
+    private fun refreshBrowserSelectionStyles() = browserTiles.refreshSelectionStyles()
 
     private fun scrollToBrowserPath(path: Path?, force: Boolean) =
         browserSelection.scrollToPath(path, force)
