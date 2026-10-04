@@ -1286,7 +1286,7 @@ class MainApp : Application() {
         }
         form.children.add(row("Fit", imageMode))
         imageBleedOverFrame.apply {
-            tooltip = Tooltip("Extend artwork behind the surrounding card frame. The description panel remains above it; panel opacity controls how much artwork can show through there.")
+            tooltip = Tooltip("Extend artwork behind the surrounding card frame. The description panel remains above it; description background opacity controls how much artwork can show through there.")
             selectedProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
         }
         form.children.add(imageBleedOverFrame)
@@ -1400,7 +1400,7 @@ class MainApp : Application() {
         form.children.add(row("Accent", accentColor))
         form.children.add(row("Border", border))
         form.children.add(row("Corner radius", radius))
-        form.children.add(sliderRow("Panel opacity", panelOpacity, Label(), "%.2f"))
+        form.children.add(sliderRow("Description background opacity", panelOpacity, Label(), "%.2f"))
         form.children.add(row("Title size", titleSize))
         form.children.add(row("Body size", bodySize))
 
