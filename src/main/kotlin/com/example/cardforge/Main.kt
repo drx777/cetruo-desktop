@@ -185,7 +185,12 @@ class MainApp : Application() {
     private val thumbnailWaiters = ConcurrentHashMap<Path, CopyOnWriteArrayList<(Image?) -> Unit>>()
     private val thumbnailLastFailure = ConcurrentHashMap<Path, Long>()
     private val thumbnailRefreshPause = PauseTransition(Duration.millis(75.0))
-    private data class CardPreviewEntry(val image: Image, val sourceSize: Long, val sourceModified: Long)
+    private data class CardPreviewEntry(
+        val image: Image,
+        val sourceSize: Long,
+        val sourceModified: Long,
+        val renderSignature: String
+    )
     private val cardThumbnailCache = object : LinkedHashMap<Path, CardPreviewEntry>(128, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CardPreviewEntry>?): Boolean = size > 240
     }
@@ -1015,8 +1020,13 @@ class MainApp : Application() {
         val absolute = path.toAbsolutePath().normalize()
         val size = runCatching { Files.size(absolute) }.getOrDefault(-1L)
         val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(-1L)
+        val expectedSignature = cardPreviewSignature(absolute)
         synchronized(cardThumbnailCache) {
-            cardThumbnailCache[absolute]?.takeIf { it.sourceSize == size && it.sourceModified == modified }?.let { cached ->
+            cardThumbnailCache[absolute]?.takeIf {
+                it.sourceSize == size &&
+                    it.sourceModified == modified &&
+                    it.renderSignature == expectedSignature
+            }?.let { cached ->
                 Platform.runLater { onLoaded(cached.image) }
                 return
             }
@@ -1045,7 +1055,12 @@ class MainApp : Application() {
                     val preview = if (effectiveSource != null) renderCardPreviewImage(effectiveSource, data) else null
                     if (preview != null) {
                         synchronized(cardThumbnailCache) {
-                            cardThumbnailCache[absolute] = CardPreviewEntry(preview, size, modified)
+                            cardThumbnailCache[absolute] = CardPreviewEntry(
+                                image = preview,
+                                sourceSize = size,
+                                sourceModified = modified,
+                                renderSignature = cardPreviewSignature(absolute, data)
+                            )
                         }
                     }
                     val waiters = cardThumbnailWaiters.remove(absolute).orEmpty()
@@ -1055,6 +1070,19 @@ class MainApp : Application() {
                 }
             }
         }
+    }
+
+    private fun cardPreviewSignature(path: Path, dataOverride: CardData? = null): String {
+        val normalized = path.toAbsolutePath().normalize()
+        val data = dataOverride
+            ?: if (currentLoadedPath?.toAbsolutePath()?.normalize() == normalized) currentData
+            else cardDataCache[normalized] ?: database?.dataSnapshotForPath(normalized)
+        val dataSignature = data?.let { runCatching { JsonSupport.mapper.writeValueAsString(it) }.getOrDefault(it.toString()) }
+            ?: "UNINITIALIZED"
+        val presentationSignature = runCatching {
+            JsonSupport.mapper.writeValueAsString(collectionPresentation)
+        }.getOrDefault(collectionPresentation.toString())
+        return "$collectionDefaultTemplateName|$presentationSignature|$dataSignature"
     }
 
     private fun renderCardPreviewImage(image: Image, data: CardData): Image? {
