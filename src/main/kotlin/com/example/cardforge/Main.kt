@@ -4,7 +4,6 @@ import javafx.animation.PauseTransition
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.concurrent.Task
-import javafx.embed.swing.SwingFXUtils
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Cursor
@@ -60,8 +59,6 @@ import javafx.stage.Stage
 import javafx.util.Duration
 import java.awt.Desktop
 import java.awt.Taskbar
-import java.awt.RenderingHints
-import java.awt.image.BufferedImage
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -74,8 +71,6 @@ import java.nio.file.WatchService
 import java.nio.file.attribute.BasicFileAttributes
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -85,9 +80,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.prefs.Preferences
 import java.util.UUID
 import java.util.Locale
-import javax.imageio.ImageIO
 import kotlin.math.floor
-import kotlin.math.roundToInt
 import kotlin.math.max
 import kotlin.math.min
 
@@ -171,30 +164,17 @@ class MainApp : Application() {
     private val randomSequence = AtomicLong()
 
     private data class CachedImage(val size: Long, val modified: Long, val image: Image)
-    private val thumbnailCache = object : LinkedHashMap<Path, CachedImage>(512, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CachedImage>?): Boolean = size > 1200
-    }
     private val fullImageCache = object : LinkedHashMap<Path, CachedImage>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CachedImage>?): Boolean = size > 32
     }
-    private val thumbnailLoadExecutor: ExecutorService = Executors.newFixedThreadPool(4) { runnable ->
-        Thread(runnable, "card-forge-thumbnail").apply { isDaemon = true }
-    }
-    private val thumbnailLoads = ConcurrentHashMap.newKeySet<Path>()
-    private val thumbnailWaiters = ConcurrentHashMap<Path, CopyOnWriteArrayList<(Image?) -> Unit>>()
-    private val thumbnailLastFailure = ConcurrentHashMap<Path, Long>()
     private val thumbnailRefreshPause = PauseTransition(Duration.millis(75.0))
-    private data class CardPreviewEntry(
-        val image: Image,
-        val sourceSize: Long,
-        val sourceModified: Long,
-        val renderSignature: String
-    )
-    private val cardThumbnailCache = object : LinkedHashMap<Path, CardPreviewEntry>(128, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Path, CardPreviewEntry>?): Boolean = size > 240
+    private val browserPreviews by lazy {
+        BrowserPreviewCoordinator(
+            cardSignature = { path, data -> cardPreviewSignature(path, data) },
+            cardDataFor = { path, color -> savedDataForPath(path, color, analyzeImageIfNeeded = false) },
+            renderCardPreview = { image, data -> renderCardPreviewImage(image, data) }
+        )
     }
-    private val cardThumbnailLoads = ConcurrentHashMap.newKeySet<Path>()
-    private val cardThumbnailWaiters = ConcurrentHashMap<Path, CopyOnWriteArrayList<(Image?) -> Unit>>()
 
     private val folderTree = TreeView<Path>()
     private val imageList = ListView<Path>()
@@ -375,7 +355,7 @@ class MainApp : Application() {
             stopCollectionWatcher()
             sourceImageInspector.close()
             closeCollection()
-            thumbnailLoadExecutor.shutdownNow()
+            browserPreviews.shutdown()
         }
         stage.show()
         stage.centerOnScreen()
@@ -770,13 +750,6 @@ class MainApp : Application() {
         )
     }
 
-    private fun cachedThumbnail(path: Path): Image? = synchronized(thumbnailCache) {
-        val absolute = path.toAbsolutePath().normalize()
-        val size = runCatching { Files.size(absolute) }.getOrDefault(-1L)
-        val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(-1L)
-        thumbnailCache[absolute]?.takeIf { it.size == size && it.modified == modified }?.image
-    }
-
     private fun cachedFullImage(path: Path): Image? = synchronized(fullImageCache) { cachedFullImageUnlocked(path) }
 
     private fun cachedFullImageUnlocked(path: Path): Image? {
@@ -791,107 +764,13 @@ class MainApp : Application() {
 
     private fun requestBrowserPreview(path: Path, mode: BrowserPreviewMode, onLoaded: (Image?) -> Unit) {
         when (mode) {
-            BrowserPreviewMode.ORIGINAL -> requestThumbnail(path, onLoaded)
-            BrowserPreviewMode.CARD -> requestCardThumbnail(path, onLoaded)
+            BrowserPreviewMode.ORIGINAL -> browserPreviews.requestOriginal(path, onLoaded)
+            BrowserPreviewMode.CARD -> browserPreviews.requestCard(path, onLoaded)
         }
     }
 
-    private fun requestThumbnail(path: Path, onLoaded: (Image?) -> Unit = {}) {
-        val absolute = path.toAbsolutePath().normalize()
-        val size = runCatching { Files.size(absolute) }.getOrDefault(-1L)
-        val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(-1L)
-        synchronized(thumbnailCache) {
-            thumbnailCache[absolute]?.takeIf { it.size == size && it.modified == modified }?.let { cached ->
-                Platform.runLater { onLoaded(cached.image) }
-                return
-            }
-        }
-        thumbnailWaiters.computeIfAbsent(absolute) { CopyOnWriteArrayList() }.add(onLoaded)
-        if (!thumbnailLoads.add(absolute)) return
-        thumbnailLoadExecutor.submit {
-            val fxImage = runCatching {
-                // Decode off the FX thread with ImageIO, then cross the JavaFX boundary
-                // only once. This avoids the intermittent blank-thumbnail behaviour of
-                // constructing Image objects from worker threads.
-                val buffered = ImageIO.read(absolute.toFile()) ?: return@runCatching null
-                val scaled = scaleThumbnail(buffered, 180)
-                SwingFXUtils.toFXImage(scaled, null)
-            }.getOrNull()?.takeIf { it.width > 0.0 && it.height > 0.0 }
-            Platform.runLater {
-                try {
-                    val finalImage = fxImage ?: runCatching {
-                        Image(absolute.toUri().toString(), 180.0, 180.0, true, true, false)
-                    }.getOrNull()?.takeIf { !it.isError && it.width > 0.0 && it.height > 0.0 }
-                    if (finalImage != null) {
-                        synchronized(thumbnailCache) { thumbnailCache[absolute] = CachedImage(size, modified, finalImage) }
-                        thumbnailLastFailure.remove(absolute)
-                    } else {
-                        thumbnailLastFailure[absolute] = System.currentTimeMillis()
-                    }
-                    val waiters = thumbnailWaiters.remove(absolute).orEmpty()
-                    waiters.forEach { callback -> callback(finalImage) }
-                } finally {
-                    thumbnailLoads.remove(absolute)
-                }
-            }
-        }
-    }
-
-    private fun requestCardThumbnail(path: Path, onLoaded: (Image?) -> Unit) {
-        val absolute = path.toAbsolutePath().normalize()
-        val size = runCatching { Files.size(absolute) }.getOrDefault(-1L)
-        val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(-1L)
-        val expectedSignature = cardPreviewSignature(absolute)
-        synchronized(cardThumbnailCache) {
-            cardThumbnailCache[absolute]?.takeIf {
-                it.sourceSize == size &&
-                    it.sourceModified == modified &&
-                    it.renderSignature == expectedSignature
-            }?.let { cached ->
-                Platform.runLater { onLoaded(cached.image) }
-                return
-            }
-        }
-        cardThumbnailWaiters.computeIfAbsent(absolute) { CopyOnWriteArrayList() }.add(onLoaded)
-        if (!cardThumbnailLoads.add(absolute)) return
-        thumbnailLoadExecutor.submit {
-            // Decode once off the JavaFX thread. Reuse that decode both for the thumbnail
-            // source and for initial image-derived scheme selection, so card preview creation
-            // never blocks the UI by re-reading the original image.
-            val decoded = runCatching {
-                val buffered = ImageIO.read(absolute.toFile()) ?: return@runCatching null
-                val derivedColor = ImageColorAnalyzer.dominantColor(buffered)
-                val scaled = scaleThumbnail(buffered, 900)
-                val fxImage = SwingFXUtils.toFXImage(scaled, null)
-                fxImage to derivedColor
-            }.getOrNull()
-            val source = decoded?.first?.takeIf { it.width > 0.0 && it.height > 0.0 }
-            val derivedColor = decoded?.second
-            Platform.runLater {
-                try {
-                    val data = savedDataForPath(absolute, derivedColor, analyzeImageIfNeeded = false)
-                    val effectiveSource = source ?: runCatching {
-                        Image(absolute.toUri().toString(), 900.0, 900.0, true, true, false)
-                    }.getOrNull()?.takeIf { !it.isError && it.width > 0.0 && it.height > 0.0 }
-                    val preview = if (effectiveSource != null) renderCardPreviewImage(effectiveSource, data) else null
-                    if (preview != null) {
-                        synchronized(cardThumbnailCache) {
-                            cardThumbnailCache[absolute] = CardPreviewEntry(
-                                image = preview,
-                                sourceSize = size,
-                                sourceModified = modified,
-                                renderSignature = cardPreviewSignature(absolute, data)
-                            )
-                        }
-                    }
-                    val waiters = cardThumbnailWaiters.remove(absolute).orEmpty()
-                    waiters.forEach { callback -> callback(preview) }
-                } finally {
-                    cardThumbnailLoads.remove(absolute)
-                }
-            }
-        }
-    }
+    private fun requestCardThumbnail(path: Path, onLoaded: (Image?) -> Unit) =
+        browserPreviews.requestCard(path, onLoaded)
 
     private fun cardPreviewSignature(path: Path, dataOverride: CardData? = null): String {
         val normalized = path.toAbsolutePath().normalize()
@@ -952,21 +831,6 @@ class MainApp : Application() {
     private fun templateForData(data: CardData): CardTemplate? {
         val effectiveName = data.templateName.ifBlank { collectionDefaultTemplateName }
         return templates.firstOrNull { it.name == effectiveName } ?: templates.firstOrNull()
-    }
-
-    private fun scaleThumbnail(source: BufferedImage, maxSize: Int): BufferedImage {
-        val sourceW = source.width.coerceAtLeast(1)
-        val sourceH = source.height.coerceAtLeast(1)
-        val scale = min(maxSize.toDouble() / sourceW, maxSize.toDouble() / sourceH).coerceAtMost(1.0)
-        val width = (sourceW * scale).roundToInt().coerceAtLeast(1)
-        val height = (sourceH * scale).roundToInt().coerceAtLeast(1)
-        val result = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-        val graphics = result.createGraphics()
-        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED)
-        graphics.drawImage(source, 0, 0, width, height, null)
-        graphics.dispose()
-        return result
     }
 
     private fun previewPane(): VBox {
@@ -1703,7 +1567,7 @@ class MainApp : Application() {
         if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
         collectionDefaultTemplateName = template.name
         db.setDefaultTemplateName(template.name)
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        browserPreviews.clearCards()
         suppressEditorUpdates = true
         try {
             collectionTemplateChoice.value = template
@@ -1800,7 +1664,7 @@ class MainApp : Application() {
         cardStore.clear()
         searchIndex.clear()
         database?.searchIndex()?.let { searchIndex.putAll(it) }
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        browserPreviews.clearCards()
         if (selectedPath != null) {
             val index = visibleImages.indexOfFirst { it.toAbsolutePath().normalize() == selectedPath }
             if (index >= 0) {
@@ -1858,8 +1722,8 @@ class MainApp : Application() {
                 currentLoadedPath = null
                 currentData = newCardDefaults()
                 selectedFolder = normalized
-                synchronized(thumbnailCache) { thumbnailCache.clear() }
-                synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+                browserPreviews.clearOriginals()
+                browserPreviews.clearCards()
                 fullImageCache.clear()
                 TemplateRepository.clearCache()
                 OverlayRepository.clearCache()
@@ -2533,7 +2397,7 @@ class MainApp : Application() {
         // Card-preview thumbnails depend on editor state as well as source-file mtime.
         // Invalidate the rendered preview immediately so list/grid/contact-sheet views
         // cannot keep showing a stale card while the editor contains newer values.
-        synchronized(cardThumbnailCache) { cardThumbnailCache.remove(normalizedCurrentPath) }
+        browserPreviews.removeCard(normalizedCurrentPath)
         searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
 
         // Keep rendered browser previews and card-name labels current without rebuilding
@@ -2718,12 +2582,12 @@ class MainApp : Application() {
                         finally { suppressEditorUpdates = false }
                     }
                     cardStore.clear()
-                    synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+                    browserPreviews.clearCards()
                     searchIndex.clear()
                     searchIndex.putAll(db.searchIndex())
                 }
             } else {
-                synchronized(cardThumbnailCache) { cardThumbnailCache.remove(path.toAbsolutePath().normalize()) }
+                browserPreviews.removeCard(path.toAbsolutePath().normalize())
                 searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
                 cardStore.put(path, currentData)
             }
@@ -3083,9 +2947,9 @@ class MainApp : Application() {
             searchIndex.keys.retainAll(result.images.map(::relativePath).toSet())
             cardStore.retainOnly(livePaths)
             previousSet.asSequence().filter { it !in nextSet }.forEach { removed ->
-                synchronized(thumbnailCache) { thumbnailCache.remove(removed) }
+                browserPreviews.removeOriginal(removed)
                 synchronized(fullImageCache) { fullImageCache.remove(removed) }
-                synchronized(cardThumbnailCache) { cardThumbnailCache.remove(removed) }
+                browserPreviews.removeCard(removed)
                 searchIndex.remove(relativePath(removed))
             }
         }
@@ -3126,9 +2990,9 @@ class MainApp : Application() {
         val normalized = path.toAbsolutePath().normalize()
         val ext = normalized.fileName.toString().substringAfterLast('.', "").lowercase()
         if (ext !in supportedExtensions) return
-        synchronized(thumbnailCache) { thumbnailCache.remove(normalized) }
+        browserPreviews.removeOriginal(normalized)
         synchronized(fullImageCache) { fullImageCache.remove(normalized) }
-        synchronized(cardThumbnailCache) { cardThumbnailCache.remove(normalized) }
+        browserPreviews.removeCard(normalized)
         Platform.runLater {
             if (currentIndex in visibleImages.indices && visibleImages[currentIndex].toAbsolutePath().normalize() == normalized) {
                 cropImage = cachedFullImage(normalized)
@@ -3172,7 +3036,7 @@ class MainApp : Application() {
 
     private fun persistCollectionPresentation() {
         database?.setCollectionPresentation(collectionPresentation)
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        browserPreviews.clearCards()
     }
 
     private fun clearEditorForNoSelection() {
@@ -3248,7 +3112,7 @@ class MainApp : Application() {
         scanTask?.cancel()
         filterTask?.cancel()
         filterApplyPause.stop()
-        thumbnailLoadExecutor.shutdownNow()
+        browserPreviews.shutdown()
         database?.close()
         database = null
     }
@@ -3274,8 +3138,8 @@ class MainApp : Application() {
         cardStore.clear()
         suppressCollectionChoice = true
         try { collectionChoice.items.clear() } finally { suppressCollectionChoice = false }
-        synchronized(thumbnailCache) { thumbnailCache.clear() }
-        synchronized(cardThumbnailCache) { cardThumbnailCache.clear() }
+        browserPreviews.clearOriginals()
+        browserPreviews.clearCards()
         synchronized(fullImageCache) { fullImageCache.clear() }
         imageList.items.clear()
         gridList.items.clear()
