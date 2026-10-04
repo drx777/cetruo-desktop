@@ -2,13 +2,15 @@
 
 Target branch: `main`
 
-Current line: `0.14.x`
+Current line: `0.15.x`
 
-Status: **wrapped / freeze candidate**
+0.14.x status: **closed / frozen**
 
 ## Current state
 
-Card Forge 0.14.4 is integrated on `main` and the hardening pass is complete enough to move on unless manual smoke testing reveals a concrete regression.
+Card Forge 0.14.4 is complete and closed. The 0.14 hardening line should not receive further proactive work.
+
+The remaining manual smoke checks are intentionally deferred while the application is used in normal workflows. Reopen 0.14 only for a concrete regression that materially affects stability, persistence, rendering/export correctness, or data safety.
 
 Major completed work includes:
 
@@ -68,27 +70,13 @@ Important vector-export details already fixed and regression-covered:
 - outer border is inset by half the stroke width so the full configured thickness remains visible,
 - multi-card PDF pages scope SVG IDs to avoid clip/filter collisions.
 
-## Manual regression checklist
+## Deferred 0.14 verification
 
-Before declaring 0.14.x fully frozen, smoke-test:
+The previous manual smoke checklist is no longer a release gate for 0.14. It remains useful as a regression checklist if a real issue is reported in live/PNG/SVG/PDF parity, contact sheets, thumbnails, keyboard/virtualization behavior, autosave, or packaged macOS behavior.
 
-- live preview vs PNG/SVG/PDF:
-  - artwork crop/pan/zoom,
-  - bleed,
-  - foreground opacity,
-  - overlays,
-  - text wrapping/alignment,
-  - border thickness,
-  - transparent/cut-out corners;
-- in-app contact sheet vs live preview;
-- list/grid rendered thumbnails after edits;
-- list/grid keyboard navigation, scroll and virtualization;
-- autosave on card switch, collection switch, close and Cmd/Ctrl+S;
-- packaged macOS initial sizing, window icon and Dock icon.
+Do not perform additional 0.14 refactoring, hardening, or verification for its own sake.
 
-If these pass, do not continue hardening for its own sake.
-
-## Next phase: 0.15 visual/template work
+## Current phase: 0.15 visual/template work
 
 The next planned line should focus on visual quality and template capability rather than architecture churn.
 
