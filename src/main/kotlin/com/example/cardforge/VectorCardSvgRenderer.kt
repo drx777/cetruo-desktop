@@ -51,26 +51,6 @@ object VectorCardSvgRenderer {
     private fun rect(rect: TemplateRect, fill: String, stroke: String, strokeWidth: Double, opacity: Double = 1.0): String =
         """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0, 1.0))}" stroke="${esc(stroke)}" stroke-width="${fmt(strokeWidth)}"/>"""
 
-    private fun rail(rect: TemplateRect, fill: String, stroke: String, visual: TemplateVisualStyle, opacity: Double, gradientId: String): String =
-        """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="url(#${gradientId})" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="${fmt(visual.railStrokeWidth)}" filter="url(#card-soft-depth)"/>"""
-
-    private fun descriptionPanel(rect: TemplateRect, stroke: String, opacity: Double): String =
-        """<rect x="${fmt(rect.x)}" y="${fmt(rect.y)}" width="${fmt(rect.width)}" height="${fmt(rect.height)}" rx="${fmt(rect.radius)}" ry="${fmt(rect.radius)}" fill="url(#card-panel-depth)" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2" filter="url(#card-panel-shadow)"/>"""
-
-    private fun jewelPath(rect: TemplateRect, cut: Double, inset: Double = 0.0): String {
-        val x = rect.x + inset
-        val y = rect.y + inset
-        val w = (rect.width - inset * 2).coerceAtLeast(1.0)
-        val h = (rect.height - inset * 2).coerceAtLeast(1.0)
-        val c = (cut - inset / 2.0).coerceIn(2.0, minOf(w, h) / 3.0)
-        return "M${fmt(x+c)} ${fmt(y)} L${fmt(x+w-c)} ${fmt(y)} L${fmt(x+w)} ${fmt(y+c)} L${fmt(x+w)} ${fmt(y+h-c)} L${fmt(x+w-c)} ${fmt(y+h)} L${fmt(x+c)} ${fmt(y+h)} L${fmt(x)} ${fmt(y+h-c)} L${fmt(x)} ${fmt(y+c)} Z"
-    }
-
-    private fun statsJewel(rect: TemplateRect, fill: String, stroke: String, visual: TemplateVisualStyle, opacity: Double): String {
-        val inner = jewelPath(rect, visual.statsJewelCut, visual.statsJewelInset)
-        return """<path d="${jewelPath(rect, visual.statsJewelCut)}" fill="${esc(fill)}" fill-opacity="${fmt(opacity.coerceIn(0.0,1.0))}" stroke="${esc(stroke)}" stroke-width="2.2"/><path d="${inner}" fill="none" stroke="${esc(CardVisualSystem.lighten(stroke,0.22))}" stroke-width="0.9" opacity="0.62"/>"""
-    }
-
     private val fontRenderContext = FontRenderContext(null, true, true)
 
     private fun awtFont(size: Double, bold: Boolean, italic: Boolean): Font {
@@ -211,28 +191,11 @@ object VectorCardSvgRenderer {
                   <feFlood flood-color="${esc(data.overlayColor)}" result="tint"/>
                   <feComposite in="tint" in2="SourceAlpha" operator="in"/>
                 </filter>
-                <linearGradient id="card-background-material" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="${esc(CardVisualSystem.lighten(data.backgroundColor,0.06))}"/>
-                  <stop offset="0.48" stop-color="${esc(data.backgroundColor)}"/>
-                  <stop offset="1" stop-color="${esc(CardVisualSystem.darken(data.backgroundColor,0.18))}"/>
-                </linearGradient>
-                <linearGradient id="card-rail-depth" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="${esc(CardVisualSystem.lighten(data.backgroundColor,0.07))}"/>
-                  <stop offset="0.52" stop-color="${esc(data.backgroundColor)}"/>
-                  <stop offset="1" stop-color="${esc(CardVisualSystem.darken(data.backgroundColor,0.12))}"/>
-                </linearGradient>
                 <linearGradient id="card-panel-depth" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0" stop-color="${esc(CardVisualSystem.lighten(data.panelColor,0.05))}"/>
                   <stop offset="0.28" stop-color="${esc(data.panelColor)}"/>
                   <stop offset="1" stop-color="${esc(CardVisualSystem.darken(data.panelColor,0.08))}"/>
                 </linearGradient>
-                <filter id="card-soft-depth" x="-10%" y="-20%" width="120%" height="140%">
-                  <feGaussianBlur in="SourceAlpha" stdDeviation="${fmt(visual.railDepth*0.75)}" result="blur"/>
-                  <feOffset in="blur" dx="${fmt(visual.railDepth)}" dy="${fmt(visual.railDepth)}" result="offsetBlur"/>
-                  <feFlood flood-color="#000000" flood-opacity="0.22" result="shadowColor"/>
-                  <feComposite in="shadowColor" in2="offsetBlur" operator="in" result="shadow"/>
-                  <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
                 <filter id="card-panel-shadow" x="-10%" y="-15%" width="120%" height="135%">
                   <feGaussianBlur in="SourceAlpha" stdDeviation="${fmt(visual.descriptionDepth*0.8)}" result="panelBlur"/>
                   <feOffset in="panelBlur" dx="0" dy="${fmt(visual.descriptionDepth)}" result="panelOffset"/>
@@ -247,12 +210,12 @@ object VectorCardSvgRenderer {
                       height="${fmt((template.height - data.borderWidth).coerceAtLeast(0.0))}"
                       rx="${fmt((data.cornerRadius - data.borderWidth / 2.0).coerceAtLeast(0.0))}"
                       ry="${fmt((data.cornerRadius - data.borderWidth / 2.0).coerceAtLeast(0.0))}"
-                      fill="url(#card-background-material)" stroke="${esc(if(visual.rarityFrames) palette.outerFrame else data.accentColor)}" stroke-width="${fmt(data.borderWidth)}"/>
+                      fill="${esc(data.backgroundColor)}" stroke="${esc(if(visual.rarityFrames) palette.outerFrame else data.accentColor)}" stroke-width="${fmt(data.borderWidth)}"/>
                 ${templateSvg}
                 ${bleed}
                 ${framesOverlay}
 
-                ${rail(template.titleBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, visual, foregroundOpacity, "card-rail-depth")}
+                ${rect(template.titleBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, 2.0, foregroundOpacity)}
                 ${textBlock(data.title, template.titleText, CardVisualSystem.fitFontSize(data.title,data.titleFontSize,18.0,template.titleText.width,template.titleText.height,true), data.darkTextColor, bold = true)}
                 ${textBlock("◇ ${data.cost}", template.costText, 19.0, if(visual.rarityFrames) palette.outerFrame else data.frameColor, bold = true)}
 
@@ -262,17 +225,17 @@ object VectorCardSvgRenderer {
                 </g>
                 <rect x="${fmt(template.art.x)}" y="${fmt(template.art.y)}" width="${fmt(template.art.width)}" height="${fmt(template.art.height)}" rx="${fmt(artRadius)}" ry="${fmt(artRadius)}" fill="none" stroke="${esc(data.accentColor)}" stroke-width="4"/>
 
-                ${rail(template.typeBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, visual, foregroundOpacity, "card-rail-depth")}
+                ${rect(template.typeBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, 2.0, foregroundOpacity)}
                 ${textBlock(data.typeLine, template.typeText, CardVisualSystem.fitFontSize(data.typeLine,18.0,13.0,template.typeText.width,template.typeText.height,true), data.darkTextColor, bold = true)}
                 ${textBlock("◆ ${data.rarity}", template.rarityText, CardVisualSystem.fitFontSize("◆ ${data.rarity}",15.0,9.5,template.rarityText.width,template.rarityText.height,true), if(visual.rarityFrames) palette.outerFrame else data.frameColor, bold = true)}
 
-                ${descriptionPanel(template.descriptionBox, if(visual.rarityFrames) palette.outerFrame else data.accentColor, descriptionOpacity)}
+                ${rect(template.descriptionBox, data.panelColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, 4.0, descriptionOpacity)}
                 ${textBlock(collectionPresentation.descriptionHeading, template.descriptionHeading, CardVisualSystem.fitFontSize(collectionPresentation.descriptionHeading,17.0,13.0,template.descriptionHeading.width,template.descriptionHeading.height,true), data.textColor, bold = true)}
                 ${textBlock(data.description, template.descriptionText, CardVisualSystem.fitFontSize(data.description,data.bodyFontSize,11.5,template.descriptionText.width,template.descriptionText.height), data.textColor)}
                 ${textBlock(data.flavorText, template.flavorText, 14.0, data.textColor, italic = true)}
                 ${textBlock("${data.setName} • ${data.collectorNumber} • ${copyright}${data.artist}", template.footerText, 10.0, data.textColor)}
 
-                ${statsJewel(template.statsBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, visual, foregroundOpacity)}
+                ${rect(template.statsBox, data.backgroundColor, if(visual.rarityFrames) palette.outerFrame else data.accentColor, 3.0, foregroundOpacity)}
                 ${textBlock(data.stats, template.statsText, CardVisualSystem.fitFontSize(data.stats,25.0,17.0,template.statsText.width,template.statsText.height,true), data.darkTextColor, bold = true)}
                 ${contentOverlay}
               </g>
