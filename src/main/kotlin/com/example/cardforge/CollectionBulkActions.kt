@@ -14,6 +14,20 @@ object CollectionBulkActions {
         val affectedSets: Set<String> = emptySet()
     )
 
+    /**
+     * Make one template the collection default and clear every per-card template override.
+     * Uninitialized images need no row update: once initialized they inherit the collection
+     * default because their override is blank.
+     */
+    fun applyTemplateToAll(
+        images: Collection<Path>,
+        database: CollectionDatabase,
+        templateName: String
+    ): Result {
+        database.setDefaultTemplateName(templateName)
+        return applyCollectionDefaultTemplate(images, database)
+    }
+
     /** Clear every per-card template override so all cards follow the collection default. */
     fun applyCollectionDefaultTemplate(
         images: Collection<Path>,
