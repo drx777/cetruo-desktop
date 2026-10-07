@@ -4,6 +4,7 @@ import de.cetruo.desktop.browser.*
 import de.cetruo.desktop.editor.*
 import de.cetruo.desktop.visual.CardVisualDefaults
 import de.cetruo.desktop.ui.AppToolbar
+import de.cetruo.desktop.ui.CardPreviewPane
 import javafx.animation.PauseTransition
 import javafx.application.Application
 import javafx.application.Platform
@@ -132,10 +133,15 @@ class MainApp : Application() {
     private var templates: List<CardTemplate> = emptyList()
     private var imageBrowserMode = ImageBrowserMode.LIST
     private var browserPreviewMode = BrowserPreviewMode.ORIGINAL
-    private val showEditorGuides = CheckBox("Editor guides").apply {
-        isSelected = AppPreferences.getBoolean("showEditorGuides", false)
-        tooltip = Tooltip("Show center alignment guides and drag/zoom help. Turn off to see the card exactly as it will print/export.")
+    private val cardPreviewPane by lazy {
+        CardPreviewPane(
+            initialShowGuides = AppPreferences.getBoolean("showEditorGuides", false),
+            onInspectSource = { showSourceImageInspector() },
+            onSizeChanged = ::resizePreview
+        )
     }
+    private val previewHost get() = cardPreviewPane.host
+    private val showEditorGuides get() = cardPreviewPane.showEditorGuides
     private var selectedFolder: Path? = null
     private var collectionDefaultTemplateName: String = ""
     private var collectionPresentation = CollectionPresentation()
@@ -320,7 +326,6 @@ class MainApp : Application() {
     private val browserCountLabel = Label("0 images")
     private val browserSortChoice = ComboBox<BrowserSort>()
     private val browserSortDescending = CheckBox("Descending")
-    private val previewHost = StackPane()
     private val statusBarLabel = Label("Open an image directory.")
     private val fields = linkedMapOf<String, TextField>()
     private val description = TextArea()
@@ -486,7 +491,7 @@ class MainApp : Application() {
         loadOverlays()
         loadTemplates()
 
-        val mainSplit = SplitPane(browser(), previewPane()).apply {
+        val mainSplit = SplitPane(browser(), cardPreviewPane).apply {
             setDividerPosition(0, 0.34)
         }
         appToolbar = AppToolbar(
@@ -1035,29 +1040,6 @@ class MainApp : Application() {
     private fun templateForData(data: CardData): CardTemplate? {
         val effectiveName = data.templateName.ifBlank { collectionDefaultTemplateName }
         return templates.firstOrNull { it.name == effectiveName } ?: templates.firstOrNull()
-    }
-
-    private fun previewPane(): VBox {
-        previewHost.alignment = Pos.CENTER
-        previewHost.styleClass.add("card-preview-host")
-        previewHost.widthProperty().addListener { _, _, _ -> resizePreview() }
-        previewHost.heightProperty().addListener { _, _, _ -> resizePreview() }
-        val inspectSource = Button("⤢ Source").apply {
-            tooltip = Tooltip("Inspect the original source image at native resolution (Cmd/Ctrl+I).")
-            setOnAction { showSourceImageInspector() }
-        }
-        val header = HBox(10.0, Label("Card Preview"), Region()).apply {
-            alignment = Pos.CENTER_LEFT
-            HBox.setHgrow(children[1], Priority.ALWAYS)
-            children.addAll(inspectSource, showEditorGuides)
-        }
-        return VBox(8.0, header, previewHost).apply {
-            minWidth = 500.0
-            prefWidth = 800.0
-            alignment = Pos.TOP_CENTER
-            padding = Insets(12.0)
-            VBox.setVgrow(previewHost, Priority.ALWAYS)
-        }
     }
 
     private fun editor(): ScrollPane {
