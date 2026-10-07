@@ -6,6 +6,20 @@ import kotlin.test.assertTrue
 
 class CardPersistenceServiceTest {
     @Test
+    fun meaningfulCardDataRequiresAtLeastThreePopulatedFields() {
+        assertFalse(
+            CardPersistenceService.hasMeaningfulCardData(
+                CardData(title = "Title", rarity = "RARE")
+            )
+        )
+        assertTrue(
+            CardPersistenceService.hasMeaningfulCardData(
+                CardData(title = "Title", rarity = "RARE", typeLine = "TYPE")
+            )
+        )
+    }
+
+    @Test
     fun accidentalClearRequiresManyPopulatedFieldsToBeBlanked() {
         val before = CardData(
             title = "Title",
