@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDDocument

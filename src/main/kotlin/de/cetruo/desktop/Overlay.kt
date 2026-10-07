@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.Image

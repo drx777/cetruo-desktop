@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 data class CardData(
     var assetId: String = "",

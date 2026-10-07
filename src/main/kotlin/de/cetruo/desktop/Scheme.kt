@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import javafx.scene.paint.Color
 import java.nio.file.Files
