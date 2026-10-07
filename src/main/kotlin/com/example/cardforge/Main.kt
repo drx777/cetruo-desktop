@@ -1808,7 +1808,8 @@ class MainApp : Application() {
             name.endsWith(".card.svg") ||
             name.endsWith("-card.png") ||
             name.endsWith("-card.svg") ||
-            name.contains("cetruo-export") ||\n            name.contains("card-forge-export")
+            name.contains("cetruo-export") ||
+            name.contains("card-forge-export")
     }
 
     private fun refreshCollectionChoices() {
