@@ -145,6 +145,7 @@ class MainApp : Application() {
             usedCollectorNumbers = { database?.usedCollectorNumbers(null).orEmpty() }
         )
     }
+    private val cardPersistence = CardPersistenceService()
     private val cardStore = CollectionCardStore(
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
@@ -2371,24 +2372,25 @@ class MainApp : Application() {
 
     private fun saveCurrent(showStatus: Boolean = true): Boolean {
         val path = imagesCurrentPath() ?: return true
-        // A file that disappeared from disk is no longer a save target. Most importantly,
-        // do not fall back to the new occupant of its old list index.
         if (!Files.isRegularFile(path) || !visibleImages.any { it.toAbsolutePath().normalize() == path.toAbsolutePath().normalize() }) return true
         val db = database ?: return false
+
         return try {
             updateFromEditor(renderPreview = false)
-            val previous = currentData.assetId.takeIf { it.isNotBlank() }?.let { db.dataSnapshot(it) } ?: db.dataSnapshotForPath(path)
-            val collectorNumber = currentData.collectorNumber.trim()
-            if (collectorNumber.isNotBlank() && usedCollectorNumbersForCollection(currentData.assetId).contains(collectorNumber)) {
+            val preparation = cardPersistence.prepare(db, path, currentData)
+
+            if (preparation.duplicateCollectorNumber != null) {
+                val collectorNumber = preparation.duplicateCollectorNumber
                 val result = Alert(Alert.AlertType.WARNING).apply {
                     title = "Duplicate collector number"
-                    headerText = "${collectorNumber} is already used in this collection"
+                    headerText = "$collectorNumber is already used in this collection"
                     contentText = "Another saved card already uses this collector number. Save this card with the duplicate number anyway?"
                     buttonTypes.setAll(ButtonType("Save duplicate"), ButtonType.CANCEL)
                 }.showAndWait().orElse(ButtonType.CANCEL)
                 if (result == ButtonType.CANCEL) return false
             }
-            if (previous != null && wouldClearCardAccidentally(previous, currentData)) {
+
+            if (preparation.wouldClearManyFields) {
                 val confirm = Alert(Alert.AlertType.CONFIRMATION).apply {
                     title = "Protect card data"
                     headerText = "This save would clear many card fields"
@@ -2397,41 +2399,37 @@ class MainApp : Application() {
                 }.showAndWait().orElse(ButtonType.CANCEL)
                 if (confirm == ButtonType.CANCEL) return false
             }
-            val previousSet = previous?.setName?.trim().orEmpty()
-            val nextSet = currentData.setName.trim()
-            val shouldNormalizeSetTotals = previous == null || previousSet != nextSet
-            val result = db.save(path, currentData)
 
-            if (shouldNormalizeSetTotals) {
-                val affectedSets = linkedSetOf<String>().apply {
-                    previousSet.takeIf { it.isNotBlank() }?.let(::add)
-                    nextSet.takeIf { it.isNotBlank() }?.let(::add)
+            val outcome = cardPersistence.save(db, path, currentData, allImages, preparation)
+            outcome.persistedCollectorNumber?.let { collectorNumber ->
+                currentData.collectorNumber = collectorNumber
+                suppressEditorUpdates = true
+                try {
+                    fields["collectorNumber"]?.text = collectorNumber
+                } finally {
+                    suppressEditorUpdates = false
                 }
-                if (affectedSets.isNotEmpty()) {
-                    CollectionBulkActions.normalizeCollectorTotals(allImages, db, affectedSets)
-                    db.dataSnapshotForPath(path)?.let { persisted ->
-                        currentData.collectorNumber = persisted.collectorNumber
-                        suppressEditorUpdates = true
-                        try { fields["collectorNumber"]?.text = persisted.collectorNumber }
-                        finally { suppressEditorUpdates = false }
-                    }
-                    cardStore.clear()
-                    browserPreviews.clearCards()
-                    browserSearchIndex.clear()
-                    browserSearchIndex.replaceAll(db.searchIndex())
-                }
+            }
+
+            if (outcome.normalizedSetTotals) {
+                cardStore.clear()
+                browserPreviews.clearCards()
+                browserSearchIndex.clear()
+                browserSearchIndex.replaceAll(db.searchIndex())
             } else {
-                if (result.changed) {
+                if (outcome.result.changed) {
                     browserPreviews.removeCard(path.toAbsolutePath().normalize())
                 }
                 browserSearchIndex.update(path, currentData)
                 cardStore.put(path, currentData)
             }
 
-            if (result.changed) db.recordActivity(result.assetId, "SAVE", "revision=${result.revisionNumber}")
+            if (outcome.result.changed) {
+                db.recordActivity(outcome.result.assetId, "SAVE", "revision=${outcome.result.revisionNumber}")
+            }
             if (showStatus) {
-                statusBarLabel.text = if (result.changed) {
-                    "Saved • ${relativePath(path)} • revision ${result.revisionNumber} • ${statusLabel(currentData.status)}"
+                statusBarLabel.text = if (outcome.result.changed) {
+                    "Saved • ${relativePath(path)} • revision ${outcome.result.revisionNumber} • ${statusLabel(currentData.status)}"
                 } else {
                     "No changes to save • ${relativePath(path)}"
                 }
@@ -2441,14 +2439,6 @@ class MainApp : Application() {
             if (showStatus) showError("Could not save card", e)
             false
         }
-    }
-
-    private fun wouldClearCardAccidentally(before: CardData, after: CardData): Boolean {
-        val beforeValues = listOf(before.title, before.cost, before.typeLine, before.rarity, before.stats, before.artist, before.setName, before.collectorNumber, before.description, before.flavorText)
-        val afterValues = listOf(after.title, after.cost, after.typeLine, after.rarity, after.stats, after.artist, after.setName, after.collectorNumber, after.description, after.flavorText)
-        val meaningfulBefore = beforeValues.count { it.isNotBlank() }
-        val blanked = beforeValues.zip(afterValues).count { (old, new) -> old.isNotBlank() && new.isBlank() }
-        return meaningfulBefore >= 5 && blanked >= 5 && blanked >= meaningfulBefore * 0.5
     }
 
     private fun backupCatalog(stage: Stage) {
