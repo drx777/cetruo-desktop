@@ -288,7 +288,7 @@ class MainApp : Application() {
     private val browserTiles by lazy {
         BrowserTileFactory(
             requestPreview = { path, callback -> requestBrowserPreview(path, browserPreviewMode, callback) },
-            cardTitle = { path -> cardDataForSorting(path).title },
+            cardTitle = { path -> browserCardData.forSorting(path).title },
             relativeFolder = { path -> relativePath(path) },
             currentPath = { imagesCurrentPath() },
             contextMenuFor = { path -> imageContextMenu(path) },
