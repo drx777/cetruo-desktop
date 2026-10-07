@@ -1,52 +1,57 @@
-# Card Forge Backlog
+# Cetruo Desktop backlog
 
-Card Forge 0.14.x is closed and frozen. Keep this file focused on unresolved work rather than completed implementation history.
+Updated 2026-10-07. Keep this file focused on unresolved work rather than completed implementation history.
 
 ## 0.14.x — closed
 
-No proactive 0.14 work remains.
+0.14.4 is the stable baseline. No proactive 0.14 work remains.
 
-The previous manual smoke checks are deferred and should be used only when a concrete regression is observed, especially for:
+Use the previous smoke-test areas only when a concrete regression is observed, especially:
 
-- data safety or persistence,
-- autosave,
-- live/PNG/SVG/PDF rendering parity,
-- transparent card corners,
-- thumbnails/contact sheets,
-- browser navigation/virtualization,
+- persistence/data safety;
+- autosave and card switching;
+- live/PNG/SVG/PDF rendering parity;
+- transparent card corners;
+- thumbnails/contact sheets;
+- browser navigation/virtualization;
 - packaged macOS behavior.
 
 Do not reopen 0.14 for general hardening, cleanup, or speculative verification.
 
-## 0.15 — visual/template phase
+## Current priority — 0.15 visual/template phase
 
-Primary direction for the next feature line:
+- [ ] Strengthen template/background structure.
+- [ ] Add rarity-dependent outer frames.
+- [ ] Improve material/depth/embossing treatment without overusing shadows.
+- [ ] Refine title/type rails toward flatter geometry with restrained depth.
+- [ ] Improve P/T treatment and placement.
+- [ ] Refine the jewel/gem treatment.
+- [ ] Tighten typography and text fitting.
+- [ ] Improve description-box depth/layering where appropriate.
+- [ ] Establish disciplined palette rules: five main colors plus gold and gray.
+- [ ] Make template/theme architecture more systematic where visual requirements expose a real need.
+- [ ] Continue adding sports and other template families without coupling them to existing templates.
 
-- stronger template/background structure,
-- more convincing material/depth/embossing,
-- rarity-dependent outer frames,
-- flatter title/type rails with subtle depth,
-- improved P/T treatment,
-- restrained jewel/gem treatment,
-- tighter typography and text fitting,
-- stronger description-box depth and layering,
-- final palette discipline: five main colors plus gold and gray,
-- more systematic template/theme architecture,
-- continue adding sports and other template families without coupling them to existing templates.
+## Validation
+
+- [ ] Run local `./gradlew test` during active development.
+- [ ] Trigger the GitHub Verify workflow manually once a branch is otherwise merge-ready when CI evidence is useful.
+- [ ] Re-run CI only after meaningful fixes rather than on every iteration.
+- [ ] For visual changes, validate live preview plus affected PNG/SVG/PDF paths rather than assuming one renderer proves the others.
 
 ## Later / structural
 
 Only pursue these when they solve a concrete product need:
 
-- Continue reducing responsibilities in `Main.kt`.
-- Keep browser responsibilities split across:
-  - `BrowserSelectionCoordinator`,
-  - `BrowserTileFactory`,
-  - `BrowserPreviewCoordinator`.
-- Keep export execution in `ExportCoordinator`.
-- Continue routing persistence/undo/collection behavior through:
-  - `CollectionCardStore`,
-  - `CardUndoManager`,
-  - `AppPlatform`,
-  - collection action/settings helpers.
-- Keep startup profiling opt-in and zero-cost during normal launch.
+- [ ] Continue reducing responsibilities in `Main.kt` when a feature or bug exposes a useful boundary.
+- [ ] Preserve browser separation across `BrowserSelectionCoordinator`, `BrowserTileFactory`, and `BrowserPreviewCoordinator`.
+- [ ] Keep export execution in `ExportCoordinator`.
+- [ ] Continue routing persistence/undo/collection behavior through focused helpers such as `CollectionCardStore`, `CardUndoManager`, `AppPlatform`, and collection action/settings classes.
+- [ ] Keep startup profiling opt-in and effectively zero-cost during normal launch.
+
+## Naming / compatibility follow-up
+
+- [x] Rename the Kotlin package and Gradle group to `de.cetruo.desktop`.
+- [x] Rename resources and macOS packaging identifiers to Cetruo names.
+- [x] Use `.cetruo.sqlite` for catalogs and migrate legacy `.cardforge.sqlite` files on first open.
+- [x] Preserve legacy missing-asset tombstones and startup-profiler keys as compatibility fallbacks.

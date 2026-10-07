@@ -1,0 +1,137 @@
+.image-browser-list,
+.image-browser-grid {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+    -fx-selection-bar: transparent;
+    -fx-selection-bar-non-focused: transparent;
+}
+
+.image-browser-list .list-cell,
+.image-browser-list .list-cell:filled,
+.image-browser-list .list-cell:filled:selected,
+.image-browser-list .list-cell:filled:selected:focused,
+.image-browser-grid .list-cell,
+.image-browser-grid .list-cell:filled,
+.image-browser-grid .list-cell:filled:selected,
+.image-browser-grid .list-cell:filled:selected:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 2 0 2 0;
+}
+
+.image-browser-list .list-cell:filled:hover,
+.image-browser-grid .list-cell:filled:hover {
+    -fx-background-color: transparent;
+}
+
+.image-browser-list .scroll-bar:horizontal,
+.image-browser-list .scroll-bar:vertical,
+.image-browser-grid .scroll-bar:horizontal,
+.image-browser-grid .scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
+.image-browser-list .virtual-flow,
+.image-browser-grid .virtual-flow {
+    -fx-background-color: transparent;
+}
+
+
+.cetruo-root {}
+
+.theme-dark {
+    -fx-base: #20242A;
+    -fx-background: #1B1F24;
+    -fx-control-inner-background: #252A31;
+    -fx-text-fill: #E6EDF3;
+}
+.theme-dark .ui-label,
+.theme-dark .text-field,
+.theme-dark .text-area,
+.theme-dark .combo-box,
+.theme-dark .check-box,
+.theme-dark .titled-pane,
+.theme-dark .tree-cell,
+.theme-dark .list-cell {
+    -fx-text-fill: #E6EDF3;
+}
+.theme-dark .text-field,
+.theme-dark .text-area,
+.theme-dark .combo-box,
+.theme-dark .tree-view,
+.theme-dark .list-view,
+.theme-dark .scroll-pane {
+    -fx-background-color: #252A31;
+}
+.theme-dark .browser-filename { -fx-text-fill: #F0F3F6; }
+.theme-dark .browser-folder,
+.theme-dark .browser-meta { -fx-text-fill: #AEB7C2; }
+
+.theme-light {
+    -fx-base: #ECEFF3;
+    -fx-background: #F6F7F9;
+    -fx-control-inner-background: #FFFFFF;
+    -fx-text-fill: #1F2933;
+}
+.theme-light .ui-label,
+.theme-light .text-field,
+.theme-light .text-area,
+.theme-light .combo-box,
+.theme-light .check-box,
+.theme-light .titled-pane,
+.theme-light .tree-cell,
+.theme-light .list-cell {
+    -fx-text-fill: #1F2933;
+}
+.theme-light .text-field,
+.theme-light .text-area,
+.theme-light .combo-box,
+.theme-light .tree-view,
+.theme-light .list-view,
+.theme-light .scroll-pane {
+    -fx-background-color: #FFFFFF;
+}
+.theme-light .browser-filename { -fx-text-fill: #17202A; }
+.theme-light .browser-folder,
+.theme-light .browser-meta { -fx-text-fill: #5E6873; }
+.theme-light .separator .line { -fx-border-color: #D2D8DE; }
+
+.card-rendered .label { -fx-font-family: "Georgia"; }
+
+
+/* Explicit browser text colors: avoid JavaFX unfocused-selection defaults. */
+.theme-dark .tree-cell,
+.theme-dark .tree-cell:filled {
+    -fx-text-fill: #E6EDF3;
+    -fx-background-color: transparent;
+}
+.theme-dark .tree-cell:filled:selected,
+.theme-dark .tree-cell:filled:selected:focused {
+    -fx-text-fill: #FFFFFF;
+    -fx-background-color: #394250;
+}
+.theme-dark .tree-cell:filled:selected:disabled {
+    -fx-text-fill: #B8C0C8;
+}
+.theme-dark .browser-filter {
+    -fx-text-fill: #F0F3F6;
+    -fx-prompt-text-fill: #98A2AE;
+}
+.theme-dark .browser-card-name { -fx-text-fill: #F0F3F6; }
+.theme-dark .browser-filename { -fx-text-fill: #C6CED7; }
+.theme-light .tree-cell,
+.theme-light .tree-cell:filled {
+    -fx-text-fill: #1F2933;
+    -fx-background-color: transparent;
+}
+.theme-light .tree-cell:filled:selected,
+.theme-light .tree-cell:filled:selected:focused {
+    -fx-text-fill: #16202A;
+    -fx-background-color: #DDE7F2;
+}
+.theme-light .browser-filter {
+    -fx-text-fill: #17202A;
+    -fx-prompt-text-fill: #697580;
+}
+.theme-light .browser-card-name { -fx-text-fill: #17202A; }
+.theme-light .browser-filename { -fx-text-fill: #4E5965; }

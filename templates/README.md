@@ -17,7 +17,7 @@ Included examples:
 - Split Prism
 - Duel Landscape
 
-To add a template, add a matching JSON/SVG pair to this directory and use **Reload templates** in Card Forge.
+To add a template, add a matching JSON/SVG pair to this directory and use **Reload templates** in Cetruo Desktop.
 
 
 ## Rarity variants

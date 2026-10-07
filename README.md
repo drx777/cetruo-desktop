@@ -1,94 +1,136 @@
-# Card Forge
+# Cetruo Desktop
 
-Kotlin + JavaFX desktop app for creating collectible-card layouts from a directory of source images.
+Kotlin + JavaFX desktop application for creating collectible-style cards from source images and managing them as local collections.
+
+## Product decisions
+
+- Desktop-first local application; no account or server required.
+- Collections are directory-based and use a local SQLite catalog.
+- Templates, schemes, and overlays are editable project resources.
+- Live editing and PNG output use JavaFX rendering; SVG/PDF use the vector export path.
+- Data safety and stable image/card identity take priority over aggressive automatic migration.
+
+## Requirements
+
+- JDK 21
+- macOS, Linux, or Windows environment capable of running JavaFX
+- The checked-in Gradle Wrapper
+
+## Run
+
+From the repository root:
+
+```bash
+./gradlew run
+```
+
+In IntelliJ IDEA, use **Gradle Wrapper** and JDK 21. Main class: `de.cetruo.desktop.MainKt`.
+
+## Test
+
+```bash
+./gradlew test
+```
+
+GitHub Actions is intentionally not run on every pull request. The Verify workflow runs on pushes to `main` and can be started manually when a branch is otherwise merge-ready.
+
+## Collections and persistence
+
+Each collection uses a `.cetruo.sqlite` catalog. On first open, a legacy `.cardforge.sqlite` catalog is migrated to the new filename, including SQLite WAL/SHM sidecars when present.
+
+- Stable asset IDs are independent of filenames.
+- Moves/renames can preserve identity through content reconciliation.
+- An unrelated replacement file at an old path must not inherit the previous card metadata.
+- Sidecars are not written automatically; **Share sidecar** creates one explicitly when portability is needed.
+- Saves record revision/activity data.
+- Catalog backups are available from the application.
+- Suspicious destructive saves are guarded.
+
+See [docs/COLLECTION_LAYOUT.md](docs/COLLECTION_LAYOUT.md) for collection/template semantics.
 
 ## Browser
 
-- Folder tree with nested collections and stable path/asset identity; the Collection editor shows the current collection's card/image count.
-- List and thumbnail-grid modes with natural keyboard navigation.
-- Original-image or rendered-card previews.
-- Original and card previews are generated lazily and retained in bounded in-memory caches.
-- Thumbnail decoding uses ImageIO off the JavaFX thread, with the result converted once to JavaFX images.
-- Sorting: title/name, last word of title, collector/card number, folder, status, or file name, ascending/descending; the choice is remembered.
-- Adding/removing images does not reassign the currently edited card because the active card is tracked by its actual path and asset ID rather than a list index.
-- Generated `*.card.png`, `*.card.svg`, and files below `.cardforge/` are excluded from source-image discovery by default.
-- New exports are placed in `Card Forge Exports/` by default. Generated card files are excluded from source-image discovery.
-- Right click an image for Reveal in Finder / Copy Path.
+- Hierarchical folder tree with nested collection discovery.
+- List and thumbnail-grid modes.
+- Original-image and rendered-card previews.
+- Lazy background thumbnail decoding with bounded in-memory caches.
+- Sorting by title/name, last word, collector number, folder, status, or filename.
+- Keyboard navigation and Finder/path actions.
+- Generated exports are excluded from source-image discovery.
 
-## Persistence and safety
+## Templates, schemes, and overlays
 
-- Each selected collection gets its own `.cardforge.sqlite`.
-- Stable UUID-style asset IDs are independent of filenames.
-- Sidecars are never written automatically; **Share sidecar** explicitly creates a portable `image.ext.card.json` file when needed.
-- Saves record revisions and activity history.
-- Switching cards, collections, and closing the app save the active card first.
-- Catalog/sidecar conflicts are resolved interactively.
-- A catalog backup command is available from the toolbar.
-- Undo/redo is available per card.
-- Destructive saves that would blank many populated fields require confirmation.
-- Deleting or inserting files cannot cause the edited card's data to be written into its neighbour. Removed assets are detached from their old path; if the same file is moved/renamed while Card Forge is running, content-hash reconciliation preserves its asset ID, while an unrelated replacement at the old filename starts as a new asset.
+- Template geometry and matching SVG resources live under `templates/`.
+- Editable color schemes live under `schemes/`.
+- Decorative SVG overlays live under `overlays/`.
+- Templates can be selected per collection with per-card overrides.
+- Collection-wide template actions preserve the explicit persistence semantics documented in [docs/COLLECTION_LAYOUT.md](docs/COLLECTION_LAYOUT.md).
 
-## Schemes
+See [docs/TEMPLATE_LAYOUT.md](docs/TEMPLATE_LAYOUT.md) for the coordinate/layout model and [docs/SCHEME_CONTRAST.md](docs/SCHEME_CONTRAST.md) for the current contrast audit.
 
-Editable JSON files live under `schemes/` and include:
+## Rendering and export
 
-- `tone`: `LIGHT`, `DARK`, or legacy `AUTO`.
-- `backgroundColor`: card stock/background color.
-- `panelColor`, `frameColor`, `accentColor`.
-- `overlayColor`: tint used for SVG overlays.
-- `textColor`, `darkTextColor`.
-- `imagePadColor`.
+### JavaFX path
 
-Light schemes are listed before dark schemes and show a palette preview. `SCHEME_CONTRAST.md` documents the actual text/surface contrast checks.
+Used for live editor preview, PNG export, rendered browser thumbnails, and in-app contact-sheet previews.
 
-## Templates and overlays
+### Vector path
 
-- JSON geometry + paired SVG base files live under `templates/`.
-- SVG decorative overlays live under `overlays/`.
-- Overlay placement can be Frames Only or Over Content.
-- Templates are selectable per collection, with optional per-card overrides. **Apply selected template to all cards** makes the currently selected card template the collection default and clears all saved per-card overrides.
+`VectorCardSvgRenderer` drives standalone SVG and PDF card rendering. Artwork remains raster while template/overlay geometry and generated text remain vector where supported.
 
-## Export and contact sheets
+Available exports include:
 
-- PNG export uses the canonical complete-card renderer.
-- SVG export is a self-contained rendered-card SVG.
-- A4 contact-sheet PDF keeps cards at physical card size by default, with optional per-export scale, margin, and gap controls; compatible dimensions are grouped and A4 orientation is chosen for better packing.
-- The application also has a paged in-app contact-sheet viewer using the same canonical card previews. Browser view/previews use icon toggles instead of mode dropdowns.
+- PNG
+- SVG
+- A4 contact-sheet PDF
+- borderless one-card-per-page PDF
 
-## Collection presentation
+New exports default to `Cetruo Desktop Exports/` inside the active collection. The browser also continues to ignore the legacy `Card Forge Exports/` directory so existing collections do not start ingesting old exports.
 
-- Collection-scoped bleed opacity controls only artwork outside the normal image aperture.
-- Collection foreground opacity controls title/type/description/P-T surface fills while borders and text remain crisp.
-- Description background opacity remains a per-card control and composes with collection foreground opacity.
-- Set name can be applied collection-wide, including images that had not been initialized yet; collector-number totals are kept synchronized with set membership and bulk assignment avoids duplicate numeric prefixes.
-- Startup offers up to the five most recently opened catalogs.
-
-## Editor UX
+## Editor
 
 - Cmd/Ctrl+S saves.
-- Cmd/Ctrl+Z / Shift+Cmd/Ctrl+Z provide card-level undo/redo.
-- Double-clicking artwork resets image zoom and position.
-- Double-clicking sensible numeric/slider controls resets their value.
-- Editor guides can be toggled off for a print/export-style preview.
-- Dice controls randomize appropriate fields, including collector numbers with duplicate avoidance.
-- Artist has decorative Unicode-pattern generation.
-- Randomization uses time with microsecond precision plus additional entropy; layout is not randomized.
+- Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z provide card-level undo/redo outside native text-edit undo.
+- Double-click artwork to reset zoom/position.
+- Sensible numeric and slider controls support reset.
+- Editor guides can be hidden for a cleaner output-style preview.
+- Dice controls randomize appropriate fields with duplicate avoidance where applicable.
 
-## macOS application icon
+## macOS packaging
 
-The runtime sets the JavaFX window icon and attempts to set the Dock icon through the JDK `Taskbar` API. A native `CardForge.icns` is included under `packaging/macos/`. For a dedicated Dock item and reliable native icon, build and launch the packaged `.app` with `scripts/package-macos.sh` followed by `scripts/run-macos-app.sh`.
+Use:
 
-`scripts/package-macos.sh` documents the intended `jpackage` flow on a machine with the Gradle dependencies installed.
+```bash
+scripts/package-macos.sh
+scripts/run-macos-app.sh
+```
 
-## Running
+The packaging script uses the checked-in Gradle Wrapper and creates `build/macos/Cetruo Desktop.app`.
 
-Use IntelliJ IDEA with Gradle JVM / project SDK set to JDK 21.
-
-Main class: `com.example.cardforge.MainKt`
-
+The native macOS icon asset is `packaging/macos/Cetruo.icns`.
 
 ## Startup diagnostics
 
-Startup profiling is normally silent. To diagnose a regression, launch with
-`-Dcardforge.profileStartup=true` or set `CARDFORGE_PROFILE_STARTUP=1`.
-The profiler reports timed startup phases and JavaFX event-thread stalls to stderr.
+Startup profiling is opt-in:
+
+```text
+-Dcetruo.profileStartup=true
+```
+
+or:
+
+```text
+CETRUO_PROFILE_STARTUP=1
+```
+
+The legacy `cardforge.profileStartup` / `CARDFORGE_PROFILE_STARTUP` names remain accepted as compatibility fallbacks.
+
+## Project status
+
+The stable baseline is 0.14.4. The 0.14.x line is closed/frozen; current planned work is the 0.15 visual/template phase.
+
+See:
+
+- [BACKLOG.md](BACKLOG.md) — unresolved work and priorities;
+- [CHANGELOG.md](CHANGELOG.md) — release-oriented change history;
+- [docs/HANDOFF.md](docs/HANDOFF.md) — current development checkpoint and invariants.
