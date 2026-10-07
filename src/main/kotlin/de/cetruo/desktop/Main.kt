@@ -151,6 +151,7 @@ class MainApp : Application() {
             usedCollectorNumbers = { database?.usedCollectorNumbers(null).orEmpty() }
         )
     }
+    private val collectionDiagnostics by lazy { CollectionDiagnosticsFormatter(::statusLabel) }
     private val cardPersistence = CardPersistenceService()
     private val cardSaveController by lazy {
         CardSaveController(
@@ -2252,39 +2253,33 @@ class MainApp : Application() {
     private fun showHistory() {
         val db = database ?: return
         if (currentData.assetId.isBlank()) return
-        val history = db.history(currentData.assetId)
-        val text = if (history.isEmpty()) "No saved revisions yet." else buildString {
-            history.forEach {
-                appendLine("Revision ${it.revisionNumber} • ${it.savedAt} • ${statusLabel(it.status)}")
-                appendLine(prettyJson(it.changesJson))
-                appendLine()
-            }
-        }
-        showTextDialog("Card history", text)
+        showTextDialog("Card history", collectionDiagnostics.history(db.history(currentData.assetId)))
     }
 
     private fun showDatabaseInfo() {
         val db = database ?: return
         val revisions = if (currentData.assetId.isBlank()) 0 else db.countRevisions(currentData.assetId)
-        val message = buildString {
-            appendLine("Collection: $collectionRoot")
-            appendLine("Database: ${db.path}")
-            appendLine("Images tracked: ${db.countAssets()}")
-            appendLine("Images visible: ${visibleImages.size}/${allImages.size}")
-            appendLine()
-            appendLine("Current image ID: ${currentData.assetId.ifBlank { "not assigned" }}")
-            appendLine("Relative path: ${visibleImages.getOrNull(currentIndex)?.let(::relativePath) ?: "-"}")
-            appendLine("Status: ${statusLabel(currentData.status)}")
-            appendLine("Saved revisions: $revisions")
-            appendLine("Template: ${currentTemplate()?.name ?: "-"} ${if (currentData.templateName.isBlank()) "(collection default)" else "(card override)"}")
-            appendLine("Description label: ${collectionPresentation.descriptionHeading}")
-            appendLine("Show artist ©: ${collectionPresentation.showArtistCopyright}")
-            appendLine("Background color: ${currentData.backgroundColor}")
-            appendLine("Background overlay: ${currentData.backgroundOverlay.ifBlank { "None" }} (${currentData.backgroundOverlayPlacement})")
-            appendLine()
-            appendLine("Nested collection directories skipped: $nestedCollectionsSkipped")
-            appendLine("Nested directories containing their own .cetruo.sqlite (or legacy .cardforge.sqlite) are treated as separate collections.")
-        }
+        val message = collectionDiagnostics.databaseInfo(
+            CollectionDiagnosticsInfo(
+                collectionRoot = collectionRoot,
+                databasePath = db.path,
+                trackedImages = db.countAssets(),
+                visibleImages = visibleImages.size,
+                totalImages = allImages.size,
+                assetId = currentData.assetId,
+                relativePath = visibleImages.getOrNull(currentIndex)?.let(::relativePath),
+                statusLabel = statusLabel(currentData.status),
+                revisionCount = revisions,
+                templateName = currentTemplate()?.name,
+                usesCollectionDefaultTemplate = currentData.templateName.isBlank(),
+                descriptionHeading = collectionPresentation.descriptionHeading,
+                showArtistCopyright = collectionPresentation.showArtistCopyright,
+                backgroundColor = currentData.backgroundColor,
+                backgroundOverlay = currentData.backgroundOverlay,
+                backgroundOverlayPlacement = currentData.backgroundOverlayPlacement.toString(),
+                nestedCollectionsSkipped = nestedCollectionsSkipped
+            )
+        )
         showTextDialog("Collection database", message)
     }
 
@@ -2477,10 +2472,6 @@ class MainApp : Application() {
             showError("Could not open Finder", e)
         }
     }
-
-    private fun prettyJson(value: String): String = runCatching {
-        JsonSupport.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(JsonSupport.mapper.readTree(value))
-    }.getOrDefault(value)
 
     private fun showError(title: String, e: Throwable) {
         Alert(Alert.AlertType.ERROR).apply {
