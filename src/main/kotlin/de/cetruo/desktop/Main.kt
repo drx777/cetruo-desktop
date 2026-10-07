@@ -2859,12 +2859,12 @@ class MainApp : Application() {
             Platform.runLater {
                 watchScanScheduled.set(false)
                 if (generation.get() != token || collectionRoot != root || result == null) return@runLater
-                applyFilesystemCollectionScanResult(result)
+                applyFilesystemScanResult(result)
             }
         }
     }
 
-    private fun applyFilesystemCollectionScanResult(result: CollectionScanResult) {
+    private fun applyFilesystemScanResult(result: CollectionScanResult) {
         val root = collectionRoot ?: return
         val previousPath = currentLoadedPath?.toAbsolutePath()?.normalize()
         val previousIndex = currentVisibleIndex()
