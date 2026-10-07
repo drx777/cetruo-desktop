@@ -11,7 +11,8 @@ out/
 .DS_Store
 
 # Local Cetruo Desktop collection data
-.cardforge.sqlite
+.cetruo.sqlite*
+.cardforge.sqlite*
 *.card.json
 
 # Generated exports
