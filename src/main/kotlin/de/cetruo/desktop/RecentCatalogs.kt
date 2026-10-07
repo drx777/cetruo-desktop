@@ -3,15 +3,12 @@ package de.cetruo.desktop
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.prefs.Preferences
 
 /** Stores the five most recently opened collection roots for the startup chooser. */
 object RecentCatalogs {
     private const val KEY = "recentCatalogs"
     private const val LIMIT = 5
-    private val prefs: Preferences = Preferences.userNodeForPackage(RecentCatalogs::class.java)
-
-    fun list(): List<Path> = prefs.get(KEY, "")
+    fun list(): List<Path> = AppPreferences.get(KEY, "")
         .lineSequence()
         .map(String::trim)
         .filter(String::isNotBlank)
@@ -28,11 +25,11 @@ object RecentCatalogs {
             add(normalized)
             addAll(list().filterNot { it == normalized })
         }.take(LIMIT)
-        prefs.put(KEY, paths.joinToString("\n") { it.toString() })
+        AppPreferences.put(KEY, paths.joinToString("\n") { it.toString() })
     }
 
     fun forget(root: Path) {
         val normalized = root.toAbsolutePath().normalize()
-        prefs.put(KEY, list().filterNot { it == normalized }.joinToString("\n") { it.toString() })
+        AppPreferences.put(KEY, list().filterNot { it == normalized }.joinToString("\n") { it.toString() })
     }
 }
