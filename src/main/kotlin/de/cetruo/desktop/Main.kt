@@ -137,6 +137,14 @@ class MainApp : Application() {
     }
     private val browserImageFilter by lazy { BrowserImageFilter(browserSearchIndex) }
     private val browserFolderTreeBuilder = BrowserFolderTreeBuilder()
+    private val cardDefaultsGenerator by lazy {
+        CardDefaultsGenerator(
+            randomProvider = ::randomGenerator,
+            templatesProvider = { templates },
+            schemesProvider = { schemes },
+            usedCollectorNumbers = { database?.usedCollectorNumbers(null).orEmpty() }
+        )
+    }
     private val cardStore = CollectionCardStore(
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
@@ -1396,7 +1404,7 @@ class MainApp : Application() {
         captureUndoSnapshot()
         suppressEditorUpdates = true
         try {
-            val pattern = artistPatterns.random()
+            val pattern = cardDefaultsGenerator.randomArtistPattern()
             currentData.artist = pattern
             fields["artist"]?.text = pattern
         } finally { suppressEditorUpdates = false }
@@ -1454,24 +1462,6 @@ class MainApp : Application() {
         updateFromEditor(renderPreview = false)
         render()
     }
-
-    private val artistPatterns = listOf(
-        "˚₊‧꒰ა ☆ ໒꒱ ‧₊˚",
-        "⋆｡°✩༺☆༻✩°｡⋆",
-        "｡₊˚༺❦༻˚₊｡",
-        "༄︵‿︵༄",
-        "✧･ﾟ: *✧･ﾟ:*",
-        "⋆｡ﾟ✶°✧⋆",
-        "༶•┈┈୨♡୧┈┈•༶",
-        "╰┈➤ ✦ ╰┈➤",
-        "˚ ༘♡ ⋆｡˚",
-        "⟡ ─── ✦ ─── ⟡",
-        "୨୧ ‧₊˚ ⋅",
-        "☾⋆⁺₊✧",
-        "༺═────────═༻",
-        "✦₊˚.⋆ ☽ ⋆⁺₊✧",
-        "꧁༺ ✧ ༻꧂"
-    )
 
     private fun applySelectedScheme() {
         captureUndoSnapshot()
@@ -1960,42 +1950,7 @@ class MainApp : Application() {
         path: Path? = null,
         derivedColorOverride: Color? = null,
         analyzeImageIfNeeded: Boolean = true
-    ): CardData {
-        val random = randomGenerator()
-        val data = CardData(
-            assetId = UUID.randomUUID().toString(),
-            status = CardStatus.NEW,
-            title = path?.fileName?.toString()?.substringBeforeLast('.', path.fileName.toString()) ?: "CARD NAME",
-            cost = random.nextInt(0, 10).toString(),
-            typeLine = listOf("CREATURE — MYSTIC", "LEGENDARY CHARACTER", "ARTIFACT — RELIC", "SORCERY — RITUAL", "SPELL — ARCANE", "ALLY — KNIGHT").random(random),
-            rarity = weightedRarity(random),
-            artist = artistPatterns.random(random),
-            collectorNumber = nextUnusedCollectorNumber(random),
-            stats = "${random.nextInt(0, 13)} / ${random.nextInt(0, 13)}",
-            templateName = templates.randomOrNull(random)?.name.orEmpty(),
-            backgroundOverlay = "",
-            imageMode = ImageMode.COVER,
-            imageBleedOverFrame = false
-        )
-        val derived = derivedColorOverride ?: if (analyzeImageIfNeeded) path?.let(ImageColorAnalyzer::dominantColor) else null
-        val scheme = derived?.let { ImageColorAnalyzer.bestMatchingScheme(it, schemes) } ?: schemes.randomOrNull(random)
-        scheme?.applyTo(data)
-        return data
-    }
-
-    private fun weightedRarity(random: kotlin.random.Random): String = when (random.nextInt(100)) {
-        in 0..49 -> "COMMON"
-        in 50..74 -> "UNCOMMON"
-        in 75..91 -> "RARE"
-        in 92..97 -> "MYTHIC"
-        else -> "LEGENDARY"
-    }
-
-    private fun nextUnusedCollectorNumber(random: kotlin.random.Random = randomGenerator(), total: Int = 100): String {
-        val used = database?.usedCollectorNumbers(null).orEmpty()
-        val available = (1..total).map { "%03d/%d".format(it, total) }.filterNot(used::contains)
-        return available.randomOrNull(random) ?: "%03d/%d".format(random.nextInt(1, total + 1), total)
-    }
+    ): CardData = cardDefaultsGenerator.create(path, derivedColorOverride, analyzeImageIfNeeded)
 
     private fun select(newIndex: Int, scrollIntoView: Boolean = false) {
         if (newIndex !in visibleImages.indices) return
