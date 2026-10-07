@@ -1673,6 +1673,7 @@ class MainApp : Application() {
 
     private fun openCollectionPath(directory: Path) {
         if (!autosaveGuard.ensureSaved()) return
+        generation.incrementAndGet()
         filterTask?.cancel()
         collectionOpenController.open(directory)
     }
