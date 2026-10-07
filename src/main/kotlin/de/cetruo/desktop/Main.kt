@@ -1853,7 +1853,7 @@ class MainApp : Application() {
         val previousPath = imagesCurrentPath()
         if (query.isBlank()) {
             visibleImages.clear()
-            visibleImages.addAll(allImages.filter { it.startsWith(scope) })
+            visibleImages.addAll(browserImageFilter.filter(allImages, scope, query))
             sortVisibleImagesInPlace()
             setCurrentPathAfterRebuild(previousPath)
             browserCountLabel.text = if (scope == rootPath) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
@@ -2842,8 +2842,7 @@ class MainApp : Application() {
             val scope = selectedFolder?.takeIf { it.startsWith(root) } ?: root
             val query = filterField.text.trim().lowercase()
             visibleImages.clear()
-            visibleImages.addAll(allImages.filter { it.startsWith(scope) }
-                .filter { query.isBlank() || browserSearchIndex.textFor(it).contains(query) })
+            visibleImages.addAll(browserImageFilter.filter(allImages, scope, query))
             sortVisibleImagesInPlace()
             browserCountLabel.text = if (query.isBlank() && scope == root) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
             rebuildImageList()
