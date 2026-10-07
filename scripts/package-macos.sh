@@ -4,11 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-if ! command -v gradle >/dev/null 2>&1; then
-  echo "gradle is required (configure IntelliJ to use the local Gradle installation)." >&2
-  exit 1
-fi
-
 rm -rf build/macos
 mkdir -p build/macos/input
 
