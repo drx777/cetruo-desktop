@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "card-forge"
+rootProject.name = "cetruo-desktop"
