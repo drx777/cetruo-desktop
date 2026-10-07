@@ -12,19 +12,19 @@ fi
 rm -rf build/macos
 mkdir -p build/macos/input
 
-gradle clean jar installDist
+./gradlew clean jar installDist
 cp build/libs/*.jar build/macos/input/
 
 # Copy runtime dependencies produced by installDist so the app image keeps the same classpath.
-cp -R build/install/card-forge/lib build/macos/input/
+cp -R build/install/cetruo-desktop/lib build/macos/input/
 
 jpackage \
   --type app-image \
-  --name "Card Forge" \
+  --name "Cetruo Desktop" \
   --input build/macos/input \
   --main-jar "$(basename build/libs/*.jar)" \
   --main-class com.example.cardforge.MainKt \
   --icon packaging/macos/CardForge.icns \
   --dest build/macos
 
-echo "Created: $ROOT/build/macos/Card Forge.app"
+echo "Created: $ROOT/build/macos/Cetruo Desktop.app"
