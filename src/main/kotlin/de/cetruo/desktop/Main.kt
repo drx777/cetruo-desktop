@@ -91,6 +91,14 @@ private data class CollectionOption(val root: Path, val label: String)
 
 class MainApp : Application() {
     private val imageScanner = CollectionImageScanner()
+    private val collectionOpenController by lazy {
+        CollectionOpenController(
+            scanner = imageScanner,
+            onScanning = { root -> statusBarLabel.text = "Scanning ${root.fileName}…" },
+            onOpened = ::applyOpenedCollection,
+            onError = ::showError
+        )
+    }
     private val browserImageSorter by lazy {
         BrowserImageSorter(
             cardDataFor = ::cardDataForSorting,
@@ -456,7 +464,6 @@ class MainApp : Application() {
     }
     private val filterApplyPause = PauseTransition(Duration.millis(180.0))
     private val generation = AtomicInteger()
-    private var scanTask: Task<CollectionScanResult>? = null
     private var filterTask: Task<List<Path>>? = null
 
     override fun start(stage: Stage) {
@@ -554,7 +561,7 @@ class MainApp : Application() {
                 event.consume()
                 return@setOnCloseRequest
             }
-            scanTask?.cancel()
+            collectionOpenController.cancel()
             filterTask?.cancel()
             filterApplyPause.stop()
             thumbnailRefreshPause.stop()
@@ -1666,77 +1673,78 @@ class MainApp : Application() {
 
     private fun openCollectionPath(directory: Path) {
         if (!autosaveGuard.ensureSaved()) return
-        val normalized = directory.toAbsolutePath().normalize()
-        scanTask?.cancel()
         filterTask?.cancel()
-        val token = generation.incrementAndGet()
-        statusBarLabel.text = "Scanning ${normalized.fileName}…"
-        val task = object : Task<CollectionScanResult>() {
-            override fun call(): CollectionScanResult = imageScanner.scan(normalized)
-        }
-        scanTask = task
-        task.setOnSucceeded {
-            if (generation.get() != token) return@setOnSucceeded
-            try {
-                val newDatabase = CollectionDatabase.open(normalized)
-                database?.close()
-                database = newDatabase
-                collectionRoot = normalized
-                collectionPresentation = newDatabase.getCollectionPresentation()
-                collectionDefaultTemplateName = newDatabase.getDefaultTemplateName().ifBlank { templates.firstOrNull()?.name.orEmpty() }
-                if (collectionDefaultTemplateName.isNotBlank()) newDatabase.setDefaultTemplateName(collectionDefaultTemplateName)
-                nestedCollectionRoots = task.value.nestedCollections
-                suppressEditorUpdates = true
-                try {
-                    collectionTemplateChoice.items.setAll(templates)
-                    collectionTemplateChoice.value = templates.firstOrNull { it.name == collectionDefaultTemplateName } ?: templates.firstOrNull()
-                    if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setPresentation(collectionPresentation)
-                    refreshCollectionChoices()
-                } finally { suppressEditorUpdates = false }
-                RecentCatalogs.record(normalized)
-                collectionWatcher.start(normalized)
-                allImages.clear()
-                allImages.addAll(task.value.images)
-                if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
-                migrateLegacySidecars(newDatabase, allImages)
-                visibleImages.clear()
-                currentIndex = -1
-                currentLoadedPath = null
-                currentData = newCardDefaults()
-                selectedFolder = normalized
-                browserPreviews.clearOriginals()
-                browserPreviews.clearCards()
-                fullImageCache.clear()
-                TemplateRepository.clearCache()
-                OverlayRepository.clearCache()
-                browserSearchIndex.clear()
-                browserSearchIndex.replaceAll(newDatabase.searchIndex())
-                cardStore.clear()
-                cropImage = null
-                backgroundOverlayImage = null
-                templateImage = null
-                renderedCard = null
-                previewHost.children.clear()
-                StartupProfiler.measure("folder tree build") {
-                    buildFolderTree(normalized, normalized)
-                }
-                StartupProfiler.measure("browser rebuild/sort", detail = { "${visibleImages.size} visible" }) {
-                    rebuildBrowserImmediately()
-                    visibleImages.size
-                }
-                StartupProfiler.measure("first card select/render") {
-                    if (visibleImages.isNotEmpty()) select(0) else clearEditorForNoSelection()
-                }
-                val nestedNote = if (nestedCollectionRoots.isNotEmpty()) "; ${nestedCollectionRoots.size} nested collection(s) available" else ""
-                statusBarLabel.text = "Collection: ${normalized.fileName} • ${allImages.size} images • DB ${newDatabase.path.fileName}$nestedNote"
-            } catch (e: Exception) {
-                showError("Could not open collection", e)
+        collectionOpenController.open(directory)
+    }
+
+    private fun applyOpenedCollection(opened: OpenedCollection) {
+        val normalized = opened.root
+        val newDatabase = opened.database
+        try {
+            database?.close()
+            database = newDatabase
+            collectionRoot = normalized
+            collectionPresentation = newDatabase.getCollectionPresentation()
+            collectionDefaultTemplateName =
+                newDatabase.getDefaultTemplateName().ifBlank { templates.firstOrNull()?.name.orEmpty() }
+            if (collectionDefaultTemplateName.isNotBlank()) {
+                newDatabase.setDefaultTemplateName(collectionDefaultTemplateName)
             }
+            nestedCollectionRoots = opened.scan.nestedCollections
+            suppressEditorUpdates = true
+            try {
+                collectionTemplateChoice.items.setAll(templates)
+                collectionTemplateChoice.value =
+                    templates.firstOrNull { it.name == collectionDefaultTemplateName } ?: templates.firstOrNull()
+                if (::collectionSettingsPane.isInitialized) {
+                    collectionSettingsPane.setPresentation(collectionPresentation)
+                }
+                refreshCollectionChoices()
+            } finally {
+                suppressEditorUpdates = false
+            }
+            RecentCatalogs.record(normalized)
+            collectionWatcher.start(normalized)
+            allImages.clear()
+            allImages.addAll(opened.scan.images)
+            if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
+            migrateLegacySidecars(newDatabase, allImages)
+            visibleImages.clear()
+            currentIndex = -1
+            currentLoadedPath = null
+            currentData = newCardDefaults()
+            selectedFolder = normalized
+            browserPreviews.clearOriginals()
+            browserPreviews.clearCards()
+            fullImageCache.clear()
+            TemplateRepository.clearCache()
+            OverlayRepository.clearCache()
+            browserSearchIndex.clear()
+            browserSearchIndex.replaceAll(newDatabase.searchIndex())
+            cardStore.clear()
+            cropImage = null
+            backgroundOverlayImage = null
+            templateImage = null
+            renderedCard = null
+            previewHost.children.clear()
+            StartupProfiler.measure("folder tree build") {
+                buildFolderTree(normalized, normalized)
+            }
+            StartupProfiler.measure("browser rebuild/sort", detail = { "${visibleImages.size} visible" }) {
+                rebuildBrowserImmediately()
+                visibleImages.size
+            }
+            StartupProfiler.measure("first card select/render") {
+                if (visibleImages.isNotEmpty()) select(0) else clearEditorForNoSelection()
+            }
+            val nestedNote =
+                if (nestedCollectionRoots.isNotEmpty()) "; ${nestedCollectionRoots.size} nested collection(s) available" else ""
+            statusBarLabel.text =
+                "Collection: ${normalized.fileName} • ${allImages.size} images • DB ${newDatabase.path.fileName}$nestedNote"
+        } catch (e: Exception) {
+            if (database !== newDatabase) runCatching { newDatabase.close() }
+            showError("Could not open collection", e)
         }
-        task.setOnFailed {
-            if (generation.get() == token) showError("Could not scan collection", task.exception ?: RuntimeException("Unknown scanning error"))
-        }
-        Thread(task, "cetruo-scan").apply { isDaemon = true }.start()
     }
 
     private fun refreshCollectionChoices() {
@@ -2469,7 +2477,7 @@ class MainApp : Application() {
         // and closed the collection. Keep a final best-effort save for non-window shutdown
         // paths (for example programmatic Platform.exit()) while the database is still open.
         if (database != null) saveCurrent(showStatus = false)
-        scanTask?.cancel()
+        collectionOpenController.cancel()
         filterTask?.cancel()
         filterApplyPause.stop()
         browserPreviews.shutdown()
