@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
