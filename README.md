@@ -24,7 +24,7 @@ From the repository root:
 ./gradlew run
 ```
 
-In IntelliJ IDEA, use **Gradle Wrapper** and JDK 21. The main class remains `com.example.cardforge.MainKt`; that package name is currently retained as an internal compatibility/implementation identifier.
+In IntelliJ IDEA, use **Gradle Wrapper** and JDK 21. Main class: `de.cetruo.desktop.MainKt`.
 
 ## Test
 
@@ -36,7 +36,7 @@ GitHub Actions is intentionally not run on every pull request. The Verify workfl
 
 ## Collections and persistence
 
-Each collection uses a `.cardforge.sqlite` catalog. The filename is retained for compatibility even though the product name is now Cetruo Desktop.
+Each collection uses a `.cetruo.sqlite` catalog. On first open, a legacy `.cardforge.sqlite` catalog is migrated to the new filename, including SQLite WAL/SHM sidecars when present.
 
 - Stable asset IDs are independent of filenames.
 - Moves/renames can preserve identity through content reconciliation.
@@ -107,23 +107,23 @@ scripts/run-macos-app.sh
 
 The packaging script uses the checked-in Gradle Wrapper and creates `build/macos/Cetruo Desktop.app`.
 
-The current native icon asset filename, `packaging/macos/CardForge.icns`, is a legacy implementation detail and can be renamed separately when the branding asset itself is intentionally revisited.
+The native macOS icon asset is `packaging/macos/Cetruo.icns`.
 
 ## Startup diagnostics
 
 Startup profiling is opt-in:
 
 ```text
--Dcardforge.profileStartup=true
+-Dcetruo.profileStartup=true
 ```
 
 or:
 
 ```text
-CARDFORGE_PROFILE_STARTUP=1
+CETRUO_PROFILE_STARTUP=1
 ```
 
-These names are retained as internal compatibility identifiers.
+The legacy `cardforge.profileStartup` / `CARDFORGE_PROFILE_STARTUP` names remain accepted as compatibility fallbacks.
 
 ## Project status
 
