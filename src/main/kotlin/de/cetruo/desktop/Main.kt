@@ -314,6 +314,40 @@ class MainApp : Application() {
             }
         )
     }
+    private val cardRandomizationController by lazy {
+        CardRandomizationController(
+            fields = fields,
+            schemeChoice = schemeChoice,
+            backgroundOverlayChoice = backgroundOverlayChoice,
+            currentData = { currentData },
+            hasSelection = { currentIndex in visibleImages.indices },
+            hasDatabase = { database != null },
+            schemes = { schemes },
+            overlays = { overlays },
+            randomGenerator = ::randomGenerator,
+            usedCollectorNumbers = ::usedCollectorNumbersForCollection,
+            randomArtistPattern = { cardDefaultsGenerator.randomArtistPattern() },
+            captureUndo = ::captureUndoSnapshot,
+            withSuppressedUpdates = { action ->
+                val previous = suppressEditorUpdates
+                suppressEditorUpdates = true
+                try {
+                    action()
+                } finally {
+                    suppressEditorUpdates = previous
+                }
+            },
+            populateColors = ::populateColorPickersFromData,
+            recalculatePanControls = { syncFromData ->
+                recalculatePanControls(resetPan = false, syncFromData = syncFromData)
+            },
+            updateFromEditor = { renderPreview -> updateFromEditor(renderPreview) },
+            render = ::render,
+            loadBackgroundOverlayImage = { loadBackgroundOverlayImage(allowRender = false) },
+            setStatus = { statusBarLabel.text = it },
+            currentPathLabel = { visibleImages.getOrNull(currentIndex)?.let(::relativePath).orEmpty() }
+        )
+    }
     private val filterApplyPause = PauseTransition(Duration.millis(180.0))
     private val generation = AtomicInteger()
     private var scanTask: Task<CollectionScanResult>? = null
@@ -441,7 +475,7 @@ class MainApp : Application() {
         val save = Button("Save ⌘S").apply { setOnAction { saveCurrentExplicitly() } }
         val randomize = Button("Randomize").apply {
             tooltip = Tooltip("Randomize the color scheme, cost, and attack/defense values. Layout is unchanged.")
-            setOnAction { randomizeCardStyleAndNumbers() }
+            setOnAction { cardRandomizationController.randomizeStyleAndNumbers() }
         }
         uiThemeButton = Button(if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI").apply {
             tooltip = Tooltip("Switch the Cetruo Desktop application UI theme. This does not change card colors.")
@@ -952,14 +986,14 @@ class MainApp : Application() {
         form.children.add(helperLabel("These presentation options belong to the collection and apply to every card."))
 
         form.children.add(section("Card Metadata"))
-        form.children.add(rowWithDice("Title", textField("title")) { randomizeTitle() })
-        form.children.add(rowWithDice("Cost", textField("cost")) { randomizeCost() })
-        form.children.add(rowWithDice("Type line", textField("typeLine")) { randomizeTypeLine() })
-        form.children.add(rowWithDice("Rarity", textField("rarity")) { randomizeRarity() })
-        form.children.add(rowWithDice("Stats", textField("stats")) { randomizeStats() })
-        form.children.add(rowWithDice("Artist", textField("artist")) { randomizeArtistPattern() })
-        form.children.add(rowWithDice("Set", textField("setName")) { randomizeSetName() })
-        form.children.add(rowWithDice("Number", textField("collectorNumber")) { randomizeCollectorNumber() })
+        form.children.add(rowWithDice("Title", textField("title")) { cardRandomizationController.randomizeTitle() })
+        form.children.add(rowWithDice("Cost", textField("cost")) { cardRandomizationController.randomizeCost() })
+        form.children.add(rowWithDice("Type line", textField("typeLine")) { cardRandomizationController.randomizeTypeLine() })
+        form.children.add(rowWithDice("Rarity", textField("rarity")) { cardRandomizationController.randomizeRarity() })
+        form.children.add(rowWithDice("Stats", textField("stats")) { cardRandomizationController.randomizeStats() })
+        form.children.add(rowWithDice("Artist", textField("artist")) { cardRandomizationController.randomizeArtistPattern() })
+        form.children.add(rowWithDice("Set", textField("setName")) { cardRandomizationController.randomizeSetName() })
+        form.children.add(rowWithDice("Number", textField("collectorNumber")) { cardRandomizationController.randomizeCollectorNumber() })
 
         statusChoice.items.setAll(CardStatus.entries)
         statusChoice.setCellFactory { statusCell() }
@@ -980,7 +1014,7 @@ class MainApp : Application() {
         form.children.add(section("Scheme"))
         schemeChoice.setCellFactory { schemeCell() }
         schemeChoice.buttonCell = schemeCell()
-        form.children.add(rowWithDice("Color scheme", schemeChoice) { randomizeScheme() })
+        form.children.add(rowWithDice("Color scheme", schemeChoice) { cardRandomizationController.randomizeScheme() })
         form.children.add(HBox(8.0).apply {
             children.add(Button("Apply scheme").apply {
                 setOnAction { if (currentIndex in visibleImages.indices) applySelectedScheme() }
@@ -1135,7 +1169,7 @@ class MainApp : Application() {
         form.children.add(row("Card background", backgroundColor))
         backgroundOverlayChoice.setCellFactory { overlayCell() }
         backgroundOverlayChoice.buttonCell = overlayCell()
-        form.children.add(rowWithDice("SVG overlay", backgroundOverlayChoice) { randomizeOverlay() })
+        form.children.add(rowWithDice("SVG overlay", backgroundOverlayChoice) { cardRandomizationController.randomizeOverlay() })
         form.children.add(row("Overlay tint", overlayColor))
         overlayPlacementChoice.items.setAll(OverlayPlacement.entries)
         overlayPlacementChoice.setCellFactory { overlayPlacementCell() }
@@ -1360,177 +1394,6 @@ class MainApp : Application() {
         val micros = now.epochSecond * 1_000_000L + now.nano / 1_000L
         val seed = micros xor System.nanoTime() xor randomSequence.incrementAndGet() xor UUID.randomUUID().mostSignificantBits
         return kotlin.random.Random(seed)
-    }
-
-    private fun randomizeCardStyleAndNumbers() {
-        captureUndoSnapshot()
-        if (currentIndex !in visibleImages.indices) return
-        val values = CardRandomizer.styleAndNumbers(schemes, randomGenerator())
-        suppressEditorUpdates = true
-        try {
-            values.scheme?.let {
-                it.applyTo(currentData)
-                schemeChoice.value = it
-            }
-            currentData.cost = values.cost
-            currentData.stats = values.stats
-            fields["cost"]?.text = values.cost
-            fields["stats"]?.text = values.stats
-            populateColorPickersFromData()
-        } finally {
-            suppressEditorUpdates = false
-        }
-        recalculatePanControls(resetPan = false, syncFromData = true)
-        updateFromEditor(renderPreview = false)
-        render()
-        statusBarLabel.text = "Randomized scheme and numeric values • ${relativePath(visibleImages[currentIndex])}"
-    }
-
-    private fun applyRandomScheme(random: kotlin.random.Random = randomGenerator()) {
-        val scheme = CardRandomizer.scheme(schemes, random) ?: return
-        scheme.applyTo(currentData)
-        schemeChoice.value = scheme
-        populateColorPickersFromData()
-    }
-
-    private fun randomizeScheme() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try { applyRandomScheme() } finally { suppressEditorUpdates = false }
-        updateFromEditor(renderPreview = false)
-        render()
-    }
-
-    private fun randomizeCost() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            val value = CardRandomizer.cost(randomGenerator())
-            currentData.cost = value
-            fields["cost"]?.text = value
-        } finally { suppressEditorUpdates = false }
-        updateFromEditor()
-    }
-
-    private fun randomizeStats() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            val value = CardRandomizer.stats(randomGenerator())
-            currentData.stats = value
-            fields["stats"]?.text = value
-        } finally { suppressEditorUpdates = false }
-        updateFromEditor()
-    }
-
-    private fun randomizeCollectorNumber() {
-        if (currentIndex !in visibleImages.indices) return
-        database ?: return
-        val value = CardRandomizer.collectorNumber(
-            current = currentData.collectorNumber,
-            used = usedCollectorNumbersForCollection(currentData.assetId),
-            random = randomGenerator()
-        )
-        if (value == null) {
-            statusBarLabel.text = "No unused collector numbers remain in this collection."
-            return
-        }
-        captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            currentData.collectorNumber = value
-            fields["collectorNumber"]?.text = value
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateFromEditor()
-    }
-
-    private fun randomizeArtistPattern() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            val pattern = cardDefaultsGenerator.randomArtistPattern()
-            currentData.artist = pattern
-            fields["artist"]?.text = pattern
-        } finally { suppressEditorUpdates = false }
-        updateFromEditor()
-    }
-
-    private fun randomizeTitle() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        val value = CardRandomizer.title(randomGenerator())
-        suppressEditorUpdates = true
-        try {
-            currentData.title = value
-            fields["title"]?.text = value
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateFromEditor()
-    }
-
-    private fun randomizeTypeLine() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        val value = CardRandomizer.typeLine(randomGenerator())
-        suppressEditorUpdates = true
-        try {
-            currentData.typeLine = value
-            fields["typeLine"]?.text = value
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateFromEditor()
-    }
-
-    private fun randomizeRarity() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        val value = CardRandomizer.rarity(randomGenerator())
-        suppressEditorUpdates = true
-        try {
-            currentData.rarity = value
-            fields["rarity"]?.text = value
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateFromEditor()
-    }
-
-    private fun randomizeSetName() {
-        if (currentIndex !in visibleImages.indices) return
-        captureUndoSnapshot()
-        val value = CardRandomizer.setName(randomGenerator())
-        suppressEditorUpdates = true
-        try {
-            currentData.setName = value
-            fields["setName"]?.text = value
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateFromEditor()
-    }
-
-    private fun randomizeOverlay() {
-        if (currentIndex !in visibleImages.indices) return
-        val option = CardRandomizer.overlay(overlays, randomGenerator()) ?: return
-        captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            backgroundOverlayChoice.value = option
-            currentData.backgroundOverlay = option.path?.fileName?.toString().orEmpty()
-            loadBackgroundOverlayImage(allowRender = false)
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateFromEditor(renderPreview = false)
-        render()
     }
 
     private fun applySelectedScheme() {
