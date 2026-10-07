@@ -96,9 +96,12 @@ class MainApp : Application() {
             onError = ::showError
         )
     }
+    private val browserCardData by lazy {
+        BrowserCardDataProvider { path -> cardStore.snapshot(path) }
+    }
     private val browserImageSorter by lazy {
         BrowserImageSorter(
-            cardDataFor = ::cardDataForSorting,
+            cardDataFor = browserCardData::forSorting,
             relativePathFor = ::relativePath
         )
     }
@@ -137,7 +140,7 @@ class MainApp : Application() {
     private val browserSearchIndex by lazy {
         BrowserSearchIndex(
             relativePathFor = ::relativePath,
-            cardDataFor = { path -> database?.dataSnapshotForPath(path) ?: lightweightCardData(path) }
+            cardDataFor = { path -> database?.dataSnapshotForPath(path) ?: browserCardData.lightweight(path) }
         )
     }
     private val browserImageFilter by lazy { BrowserImageFilter(browserSearchIndex) }
@@ -1782,32 +1785,6 @@ class MainApp : Application() {
         rebuildImageList(previousPath)
         if (previousPath != null && currentIndex >= 0) syncBrowserSelection(previousPath, false)
     }
-
-    private fun cardDataForSorting(path: Path): CardData {
-        val normalized = path.toAbsolutePath().normalize()
-        val saved = runCatching { cardStore.snapshot(normalized) }.getOrNull()
-        if (saved != null) return saved
-        // Browser sorting must stay metadata-only. newCardDefaults() intentionally performs
-        // image-derived scheme analysis, which is far too expensive to run for every unsaved
-        // image while sorting on the JavaFX application thread.
-        return lightweightCardData(normalized)
-    }
-
-    private fun lightweightCardData(path: Path): CardData = CardData(
-        assetId = "",
-        status = CardStatus.NEW,
-        title = path.fileName?.toString()?.substringBeforeLast('.', path.fileName.toString()) ?: "",
-        cost = "",
-        typeLine = "",
-        rarity = "",
-        description = "",
-        flavorText = "",
-        artist = "",
-        setName = "",
-        collectorNumber = "",
-        stats = "",
-        templateName = ""
-    )
 
     private fun rebuildBrowserImmediately() {
         val rootPath = collectionRoot ?: return
