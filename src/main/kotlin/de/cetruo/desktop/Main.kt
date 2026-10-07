@@ -335,14 +335,14 @@ class MainApp : Application() {
         )
     }
     private val statusBarLabel = Label("Open an image directory.")
-    private val fields get() = cardMetadataPane.fields
-    private val description get() = cardMetadataPane.description
-    private val flavor get() = cardMetadataPane.flavor
+    private val fields: MutableMap<String, TextField> get() = cardMetadataPane.fields
+    private val description: TextArea get() = cardMetadataPane.description
+    private val flavor: TextArea get() = cardMetadataPane.flavor
     private val imageMode = ComboBox<ImageMode>()
     private val imageBleedOverFrame = CheckBox("Artwork bleeds over frame")
     private val imageBleedOpacity = Slider(0.0, 1.0, 1.0)
     private val imageBleedOpacityValue = Label("100%")
-    private val statusChoice get() = cardMetadataPane.statusChoice
+    private val statusChoice: ComboBox<CardStatus> get() = cardMetadataPane.statusChoice
     private lateinit var collectionSettingsPane: CollectionSettingsPane
     private val schemeChoice = ComboBox<ColorScheme>()
     private val templateChoice = ComboBox<CardTemplate>()
