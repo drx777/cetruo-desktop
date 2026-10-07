@@ -27,14 +27,14 @@ object AppPlatform {
     }
 
     fun installWindowIcon(stage: Stage, resourceOwner: Class<*>) {
-        resourceOwner.getResourceAsStream("/icons/card-forge-icon.png")?.use {
+        resourceOwner.getResourceAsStream("/icons/cetruo-icon.png")?.use {
             stage.icons.add(Image(it))
         }
     }
 
     fun setApplicationDockIcon(resourceOwner: Class<*>) {
         if (!System.getProperty("os.name").contains("Mac", ignoreCase = true)) return
-        val icon = resourceOwner.getResourceAsStream("/icons/card-forge-icon.png")?.use(ImageIO::read) ?: return
+        val icon = resourceOwner.getResourceAsStream("/icons/cetruo-icon.png")?.use(ImageIO::read) ?: return
         runCatching {
             if (Taskbar.isTaskbarSupported() && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
                 Taskbar.getTaskbar().setIconImage(icon)
@@ -48,6 +48,6 @@ object AppPlatform {
     }
 
     fun attachStylesheet(scene: Scene, resourceOwner: Class<*>) {
-        resourceOwner.getResource("/cardforge.css")?.toExternalForm()?.let { scene.stylesheets.add(it) }
+        resourceOwner.getResource("/cetruo.css")?.toExternalForm()?.let { scene.stylesheets.add(it) }
     }
 }
