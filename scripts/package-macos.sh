@@ -18,8 +18,8 @@ jpackage \
   --name "Cetruo Desktop" \
   --input build/macos/input \
   --main-jar "$(basename build/libs/*.jar)" \
-  --main-class com.example.cardforge.MainKt \
-  --icon packaging/macos/CardForge.icns \
+  --main-class de.cetruo.desktop.MainKt \
+  --icon packaging/macos/Cetruo.icns \
   --dest build/macos
 
 echo "Created: $ROOT/build/macos/Cetruo Desktop.app"
