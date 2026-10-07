@@ -1,6 +1,7 @@
 package de.cetruo.desktop.editor
 
 import de.cetruo.desktop.*
+import de.cetruo.desktop.visual.CardVisualDefaults
 import javafx.scene.control.CheckBox
 import javafx.scene.control.ColorPicker
 import javafx.scene.control.ComboBox
@@ -148,12 +149,12 @@ class CardEditorBinding(
     }
 
     fun populateColors(data: CardData) {
-        imagePadColor.value = safeColor(data.imagePadColor, "#0A0D10")
-        backgroundColor.value = safeColor(data.backgroundColor, "#161B22")
-        panelColor.value = safeColor(data.panelColor, "#EFE8D7")
-        frameColor.value = safeColor(data.frameColor, "#D9C28E")
-        accentColor.value = safeColor(data.accentColor, "#8C8068")
-        overlayColor.value = safeColor(data.overlayColor, "#C9B37A")
+        imagePadColor.value = safeColor(data.imagePadColor, CardVisualDefaults.IMAGE_PAD_COLOR)
+        backgroundColor.value = safeColor(data.backgroundColor, CardVisualDefaults.BACKGROUND_COLOR)
+        panelColor.value = safeColor(data.panelColor, CardVisualDefaults.PANEL_COLOR)
+        frameColor.value = safeColor(data.frameColor, CardVisualDefaults.FRAME_COLOR)
+        accentColor.value = safeColor(data.accentColor, CardVisualDefaults.ACCENT_COLOR)
+        overlayColor.value = safeColor(data.overlayColor, CardVisualDefaults.OVERLAY_COLOR)
     }
 
     private fun safeColor(hex: String, fallback: String) =
