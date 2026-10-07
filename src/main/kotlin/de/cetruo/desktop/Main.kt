@@ -3,6 +3,7 @@ package de.cetruo.desktop
 import de.cetruo.desktop.browser.*
 import de.cetruo.desktop.editor.*
 import de.cetruo.desktop.visual.CardVisualDefaults
+import de.cetruo.desktop.ui.AppToolbar
 import javafx.animation.PauseTransition
 import javafx.application.Application
 import javafx.application.Platform
@@ -202,7 +203,7 @@ class MainApp : Application() {
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
     )
-    private lateinit var uiThemeButton: Button
+    private lateinit var appToolbar: AppToolbar
     private var uiTheme: UiTheme = runCatching {
         UiTheme.valueOf(AppPreferences.get("uiTheme", UiTheme.DARK.name))
     }.getOrDefault(UiTheme.DARK)
@@ -488,9 +489,34 @@ class MainApp : Application() {
         val mainSplit = SplitPane(browser(), previewPane()).apply {
             setDividerPosition(0, 0.34)
         }
+        appToolbar = AppToolbar(
+            initialDarkTheme = uiTheme == UiTheme.DARK,
+            onOpen = { openDirectory(stage) },
+            onPrevious = { navigate(-1) },
+            onNext = { navigate(1) },
+            onSave = ::saveCurrentExplicitly,
+            onUndo = ::undoCardChange,
+            onRedo = ::redoCardChange,
+            onRandomize = { cardRandomizationController.randomizeStyleAndNumbers() },
+            onToggleTheme = {
+                uiTheme = if (uiTheme == UiTheme.DARK) UiTheme.LIGHT else UiTheme.DARK
+                AppPreferences.put("uiTheme", uiTheme.name)
+                applyUiTheme()
+                uiTheme == UiTheme.DARK
+            },
+            onHistory = ::showHistory,
+            onDatabaseInfo = ::showDatabaseInfo,
+            onBackupCatalog = { backupCatalog(stage) },
+            onShareSidecar = ::createSharingSidecar,
+            onExportSvg = { exportController.exportSvg(stage) },
+            onExportPng = { exportController.exportPng(stage) },
+            onExportContactSheetPdf = { exportController.exportContactSheetPdf(stage) },
+            onExportCardsPdf = { exportController.exportCardsPdf(stage) },
+            onContactSheet = { exportController.showContactSheet(stage) }
+        )
         appRoot = BorderPane().apply {
             styleClass.add("cetruo-root")
-            top = toolbar(stage)
+            top = appToolbar
             center = mainSplit
             right = editor()
             bottom = statusBar()
@@ -590,56 +616,6 @@ class MainApp : Application() {
             AppPlatform.setApplicationDockIcon(javaClass)
             resizePreview()
         }
-    }
-
-    private fun toolbar(stage: Stage): ToolBar {
-        val open = Button("Open Directory").apply { setOnAction { openDirectory(stage) } }
-        val previous = Button("← Previous").apply { setOnAction { navigate(-1) } }
-        val next = Button("Next →").apply { setOnAction { navigate(1) } }
-        val save = Button("Save ⌘S").apply { setOnAction { saveCurrentExplicitly() } }
-        val randomize = Button("Randomize").apply {
-            tooltip = Tooltip("Randomize the color scheme, cost, and attack/defense values. Layout is unchanged.")
-            setOnAction { cardRandomizationController.randomizeStyleAndNumbers() }
-        }
-        uiThemeButton = Button(if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI").apply {
-            tooltip = Tooltip("Switch the Cetruo Desktop application UI theme. This does not change card colors.")
-            setOnAction {
-                uiTheme = if (uiTheme == UiTheme.DARK) UiTheme.LIGHT else UiTheme.DARK
-                AppPreferences.put("uiTheme", uiTheme.name)
-                text = if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI"
-                applyUiTheme()
-            }
-        }
-        val undo = Button("Undo").apply {
-            tooltip = Tooltip("Undo the most recent change on the current card (⌘Z / Ctrl+Z).")
-            setOnAction { undoCardChange() }
-        }
-        val redo = Button("Redo").apply {
-            tooltip = Tooltip("Redo the most recent undone card change (⇧⌘Z / Ctrl+Shift+Z).")
-            setOnAction { redoCardChange() }
-        }
-        val history = Button("History").apply { setOnAction { showHistory() } }
-        val databaseInfo = Button("Database").apply { setOnAction { showDatabaseInfo() } }
-        val backup = Button("Backup catalog").apply { setOnAction { backupCatalog(stage) } }
-        val shareSidecar = Button("Share sidecar").apply {
-            tooltip = Tooltip("Explicitly create a portable .card.json sidecar for the selected card. Normal saves use SQLite only.")
-            setOnAction { createSharingSidecar() }
-        }
-        val exportSvg = Button("Export SVG").apply { setOnAction { exportController.exportSvg(stage) } }
-        val exportPng = Button("Export PNG").apply { setOnAction { exportController.exportPng(stage) } }
-        val exportPdf = Button("A4 Contact Sheet PDF").apply {
-            tooltip = Tooltip("Export all currently visible cards (current folder/filter scope) onto A4 pages at the card's physical size.")
-            setOnAction { exportController.exportContactSheetPdf(stage) }
-        }
-        val exportCardsPdf = Button("Cards PDF").apply {
-            tooltip = Tooltip("Export all currently visible cards as a PDF with one borderless card-sized page per card.")
-            setOnAction { exportController.exportCardsPdf(stage) }
-        }
-        val contactSheet = Button("Contact Sheet").apply {
-            tooltip = Tooltip("Open a paged visual contact sheet for the current image scope.")
-            setOnAction { exportController.showContactSheet(stage) }
-        }
-        return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, shareSidecar, Separator(), exportSvg, exportPng, exportPdf, exportCardsPdf, contactSheet)
     }
 
     private fun browser(): VBox {
@@ -2248,7 +2224,7 @@ class MainApp : Application() {
         scene.accelerators[KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)] = Runnable {
             uiTheme = if (uiTheme == UiTheme.DARK) UiTheme.LIGHT else UiTheme.DARK
             AppPreferences.put("uiTheme", uiTheme.name)
-            if (::uiThemeButton.isInitialized) uiThemeButton.text = if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI"
+            if (::appToolbar.isInitialized) appToolbar.setDarkTheme(uiTheme == UiTheme.DARK)
             applyUiTheme()
         }
     }
