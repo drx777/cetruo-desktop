@@ -60,9 +60,6 @@ import javafx.util.Duration
 import java.awt.Desktop
 import java.awt.Taskbar
 import java.nio.file.Files
-import java.nio.file.FileVisitResult
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -103,7 +100,7 @@ private enum class BrowserSort {
 
 
 class MainApp : Application() {
-    private val supportedExtensions = setOf("jpg", "jpeg", "png", "gif")
+    private val imageScanner = CollectionImageScanner()
     private val allImages = mutableListOf<Path>()
     private val visibleImages = mutableListOf<Path>()
     private var currentIndex = -1
@@ -254,7 +251,7 @@ class MainApp : Application() {
     private val zoomValueLabel = Label("1.00×")
     private val filterApplyPause = PauseTransition(Duration.millis(180.0))
     private val generation = AtomicInteger()
-    private var scanTask: Task<ScanResult>? = null
+    private var scanTask: Task<CollectionScanResult>? = null
     private var filterTask: Task<List<Path>>? = null
 
     override fun start(stage: Stage) {
@@ -1704,8 +1701,8 @@ class MainApp : Application() {
         filterTask?.cancel()
         val token = generation.incrementAndGet()
         statusBarLabel.text = "Scanning ${normalized.fileName}…"
-        val task = object : Task<ScanResult>() {
-            override fun call(): ScanResult = scanImages(normalized)
+        val task = object : Task<CollectionScanResult>() {
+            override fun call(): CollectionScanResult = imageScanner.scan(normalized)
         }
         scanTask = task
         task.setOnSucceeded {
@@ -1770,44 +1767,6 @@ class MainApp : Application() {
             if (generation.get() == token) showError("Could not scan collection", task.exception ?: RuntimeException("Unknown scanning error"))
         }
         Thread(task, "cetruo-scan").apply { isDaemon = true }.start()
-    }
-
-    private data class ScanResult(val images: List<Path>, val nestedCollections: List<Path>)
-
-    private fun scanImages(root: Path): ScanResult {
-        val found = mutableListOf<Path>()
-        val nested = mutableSetOf<Path>()
-        Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
-            override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
-                if (Thread.currentThread().isInterrupted) return FileVisitResult.TERMINATE
-                val name = dir.fileName?.toString()?.lowercase(Locale.ROOT).orEmpty()
-                if (dir != root && ((name == "cetruo desktop exports" || name == "card forge exports") || (name == ".cetruo" || name == ".cetruo-exports" || name == ".cardforge" || name == ".cardforge-exports") || (name == "exports" && (dir.parent?.fileName?.toString() == ".cetruo" || dir.parent?.fileName?.toString() == ".cardforge")))) return FileVisitResult.SKIP_SUBTREE
-                if (dir != root && CollectionDatabase.hasCatalog(dir)) {
-                    nested.add(dir.toAbsolutePath().normalize())
-                    return FileVisitResult.SKIP_SUBTREE
-                }
-                return FileVisitResult.CONTINUE
-            }
-
-            override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-                if (Thread.currentThread().isInterrupted) return FileVisitResult.TERMINATE
-                val extension = file.fileName.toString().substringAfterLast('.', "").lowercase(Locale.ROOT)
-                if (attrs.isRegularFile && extension in supportedExtensions && !isGeneratedExportFile(file)) found.add(file.toAbsolutePath().normalize())
-                return FileVisitResult.CONTINUE
-            }
-        })
-        found.sortBy { root.relativize(it).toString().lowercase() }
-        return ScanResult(found, nested.sortedBy { root.relativize(it).toString().lowercase() })
-    }
-
-    private fun isGeneratedExportFile(path: Path): Boolean {
-        val name = path.fileName.toString().lowercase(Locale.ROOT)
-        return name.endsWith(".card.png") ||
-            name.endsWith(".card.svg") ||
-            name.endsWith("-card.png") ||
-            name.endsWith("-card.svg") ||
-            name.contains("cetruo-export") ||
-            name.contains("card-forge-export")
     }
 
     private fun refreshCollectionChoices() {
@@ -2896,7 +2855,7 @@ class MainApp : Application() {
         val root = collectionRoot ?: run { watchScanScheduled.set(false); return }
         val token = generation.get()
         watchScanExecutor.submit {
-            val result = runCatching { scanImages(root) }.getOrNull()
+            val result = runCatching { imageScanner.scan(root) }.getOrNull()
             Platform.runLater {
                 watchScanScheduled.set(false)
                 if (generation.get() != token || collectionRoot != root || result == null) return@runLater
@@ -2905,7 +2864,7 @@ class MainApp : Application() {
         }
     }
 
-    private fun applyFilesystemScanResult(result: ScanResult) {
+    private fun applyFilesystemScanResult(result: CollectionScanResult) {
         val root = collectionRoot ?: return
         val previousPath = currentLoadedPath?.toAbsolutePath()?.normalize()
         val previousIndex = currentVisibleIndex()
@@ -2974,8 +2933,7 @@ class MainApp : Application() {
 
     private fun invalidateImageCaches(path: Path) {
         val normalized = path.toAbsolutePath().normalize()
-        val ext = normalized.fileName.toString().substringAfterLast('.', "").lowercase()
-        if (ext !in supportedExtensions) return
+        if (!imageScanner.supports(normalized)) return
         browserPreviews.removeOriginal(normalized)
         synchronized(fullImageCache) { fullImageCache.remove(normalized) }
         browserPreviews.removeCard(normalized)
