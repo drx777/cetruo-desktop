@@ -1365,16 +1365,17 @@ class MainApp : Application() {
     private fun randomizeCardStyleAndNumbers() {
         captureUndoSnapshot()
         if (currentIndex !in visibleImages.indices) return
-        val random = randomGenerator()
+        val values = CardRandomizer.styleAndNumbers(schemes, randomGenerator())
         suppressEditorUpdates = true
         try {
-            applyRandomScheme(random)
-            currentData.cost = random.nextInt(0, 10).toString()
-            val attack = random.nextInt(0, 13)
-            val defense = random.nextInt(0, 13)
-            currentData.stats = "$attack / $defense"
-            fields["cost"]?.text = currentData.cost
-            fields["stats"]?.text = currentData.stats
+            values.scheme?.let {
+                it.applyTo(currentData)
+                schemeChoice.value = it
+            }
+            currentData.cost = values.cost
+            currentData.stats = values.stats
+            fields["cost"]?.text = values.cost
+            fields["stats"]?.text = values.stats
             populateColorPickersFromData()
         } finally {
             suppressEditorUpdates = false
@@ -1386,7 +1387,7 @@ class MainApp : Application() {
     }
 
     private fun applyRandomScheme(random: kotlin.random.Random = randomGenerator()) {
-        val scheme = schemes.randomOrNull(random) ?: return
+        val scheme = CardRandomizer.scheme(schemes, random) ?: return
         scheme.applyTo(currentData)
         schemeChoice.value = scheme
         populateColorPickersFromData()
@@ -1406,7 +1407,7 @@ class MainApp : Application() {
         captureUndoSnapshot()
         suppressEditorUpdates = true
         try {
-            val value = randomGenerator().nextInt(0, 10).toString()
+            val value = CardRandomizer.cost(randomGenerator())
             currentData.cost = value
             fields["cost"]?.text = value
         } finally { suppressEditorUpdates = false }
@@ -1418,8 +1419,7 @@ class MainApp : Application() {
         captureUndoSnapshot()
         suppressEditorUpdates = true
         try {
-            val r = randomGenerator()
-            val value = "${r.nextInt(0, 13)} / ${r.nextInt(0, 13)}"
+            val value = CardRandomizer.stats(randomGenerator())
             currentData.stats = value
             fields["stats"]?.text = value
         } finally { suppressEditorUpdates = false }
@@ -1428,23 +1428,24 @@ class MainApp : Application() {
 
     private fun randomizeCollectorNumber() {
         if (currentIndex !in visibleImages.indices) return
-        val db = database ?: return
-        val current = currentData.collectorNumber
-        val total = current.substringAfter('/', "100").toIntOrNull()?.coerceAtLeast(1) ?: 100
-        val used = usedCollectorNumbersForCollection(currentData.assetId)
-        val available = (1..total).filter { "%03d/%d".format(it, total) !in used }
-        if (available.isEmpty()) {
+        database ?: return
+        val value = CardRandomizer.collectorNumber(
+            current = currentData.collectorNumber,
+            used = usedCollectorNumbersForCollection(currentData.assetId),
+            random = randomGenerator()
+        )
+        if (value == null) {
             statusBarLabel.text = "No unused collector numbers remain in this collection."
             return
         }
         captureUndoSnapshot()
-        val picked = available[randomGenerator().nextInt(available.size)]
         suppressEditorUpdates = true
         try {
-            val formatted = "%03d/%d".format(picked, total)
-            currentData.collectorNumber = formatted
-            fields["collectorNumber"]?.text = formatted
-        } finally { suppressEditorUpdates = false }
+            currentData.collectorNumber = value
+            fields["collectorNumber"]?.text = value
+        } finally {
+            suppressEditorUpdates = false
+        }
         updateFromEditor()
     }
 
@@ -1463,51 +1464,71 @@ class MainApp : Application() {
     private fun randomizeTitle() {
         if (currentIndex !in visibleImages.indices) return
         captureUndoSnapshot()
-        val first = listOf("Aether", "Silent", "Astral", "Gilded", "Crimson", "Verdant", "Moonlit", "Arcane", "Runed", "Fallen").random()
-        val second = listOf("Warden", "Oracle", "Pilgrim", "Herald", "Guardian", "Voyager", "Seer", "Sovereign", "Relic", "Champion").random()
-        val value = "$first $second"
+        val value = CardRandomizer.title(randomGenerator())
         suppressEditorUpdates = true
-        try { currentData.title = value; fields["title"]?.text = value } finally { suppressEditorUpdates = false }
+        try {
+            currentData.title = value
+            fields["title"]?.text = value
+        } finally {
+            suppressEditorUpdates = false
+        }
         updateFromEditor()
     }
 
     private fun randomizeTypeLine() {
         if (currentIndex !in visibleImages.indices) return
         captureUndoSnapshot()
-        val value = listOf("CREATURE — MYSTIC", "LEGENDARY CHARACTER", "ARTIFACT — RELIC", "SORCERY — RITUAL", "SPELL — ARCANE", "ALLY — KNIGHT").random()
+        val value = CardRandomizer.typeLine(randomGenerator())
         suppressEditorUpdates = true
-        try { currentData.typeLine = value; fields["typeLine"]?.text = value } finally { suppressEditorUpdates = false }
+        try {
+            currentData.typeLine = value
+            fields["typeLine"]?.text = value
+        } finally {
+            suppressEditorUpdates = false
+        }
         updateFromEditor()
     }
 
     private fun randomizeRarity() {
         if (currentIndex !in visibleImages.indices) return
         captureUndoSnapshot()
-        val value = listOf("COMMON", "UNCOMMON", "RARE", "MYTHIC", "LEGENDARY").random()
+        val value = CardRandomizer.rarity(randomGenerator())
         suppressEditorUpdates = true
-        try { currentData.rarity = value; fields["rarity"]?.text = value } finally { suppressEditorUpdates = false }
+        try {
+            currentData.rarity = value
+            fields["rarity"]?.text = value
+        } finally {
+            suppressEditorUpdates = false
+        }
         updateFromEditor()
     }
 
     private fun randomizeSetName() {
         if (currentIndex !in visibleImages.indices) return
         captureUndoSnapshot()
-        val value = listOf("ECLIPSE", "VERDANT ARCHIVES", "CROWN OF STARS", "FORGOTTEN REALMS", "IRON HORIZON", "MOONFALL", "ASHEN OATH").random()
+        val value = CardRandomizer.setName(randomGenerator())
         suppressEditorUpdates = true
-        try { currentData.setName = value; fields["setName"]?.text = value } finally { suppressEditorUpdates = false }
+        try {
+            currentData.setName = value
+            fields["setName"]?.text = value
+        } finally {
+            suppressEditorUpdates = false
+        }
         updateFromEditor()
     }
 
     private fun randomizeOverlay() {
-        if (currentIndex !in visibleImages.indices || overlays.isEmpty()) return
+        if (currentIndex !in visibleImages.indices) return
+        val option = CardRandomizer.overlay(overlays, randomGenerator()) ?: return
         captureUndoSnapshot()
-        val option = overlays.random()
         suppressEditorUpdates = true
         try {
             backgroundOverlayChoice.value = option
             currentData.backgroundOverlay = option.path?.fileName?.toString().orEmpty()
             loadBackgroundOverlayImage(allowRender = false)
-        } finally { suppressEditorUpdates = false }
+        } finally {
+            suppressEditorUpdates = false
+        }
         updateFromEditor(renderPreview = false)
         render()
     }
