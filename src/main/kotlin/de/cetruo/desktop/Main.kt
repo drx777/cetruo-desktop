@@ -1923,7 +1923,7 @@ class MainApp : Application() {
         val dbData = db.dataSnapshotForPath(normalized)
         if (dbData != null && hasMeaningfulCardData(dbData)) {
             if (dbData.collectorNumber.isBlank()) {
-                dbData.collectorNumber = nextUnusedCollectorNumber()
+                dbData.collectorNumber = cardDefaultsGenerator.nextUnusedCollectorNumber(randomGenerator())
                 db.save(normalized, dbData)
             }
             return dbData
