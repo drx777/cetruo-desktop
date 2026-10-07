@@ -61,10 +61,10 @@ class CardRandomizationController(
     }
 
     fun randomizeCost() =
-        randomizeTextField("cost", CardRandomizer.cost(randomGenerator()))
+        randomizeTextField("cost") { CardRandomizer.cost(randomGenerator()) }
 
     fun randomizeStats() =
-        randomizeTextField("stats", CardRandomizer.stats(randomGenerator()))
+        randomizeTextField("stats") { CardRandomizer.stats(randomGenerator()) }
 
     fun randomizeCollectorNumber() {
         if (!hasSelection() || !hasDatabase()) return
@@ -78,23 +78,23 @@ class CardRandomizationController(
             setStatus("No unused collector numbers remain in this collection.")
             return
         }
-        randomizeTextField("collectorNumber", value)
+        randomizeTextField("collectorNumber") { value }
     }
 
     fun randomizeArtistPattern() =
-        randomizeTextField("artist", randomArtistPattern())
+        randomizeTextField("artist") { randomArtistPattern() }
 
     fun randomizeTitle() =
-        randomizeTextField("title", CardRandomizer.title(randomGenerator()))
+        randomizeTextField("title") { CardRandomizer.title(randomGenerator()) }
 
     fun randomizeTypeLine() =
-        randomizeTextField("typeLine", CardRandomizer.typeLine(randomGenerator()))
+        randomizeTextField("typeLine") { CardRandomizer.typeLine(randomGenerator()) }
 
     fun randomizeRarity() =
-        randomizeTextField("rarity", CardRandomizer.rarity(randomGenerator()))
+        randomizeTextField("rarity") { CardRandomizer.rarity(randomGenerator()) }
 
     fun randomizeSetName() =
-        randomizeTextField("setName", CardRandomizer.setName(randomGenerator()))
+        randomizeTextField("setName") { CardRandomizer.setName(randomGenerator()) }
 
     fun randomizeOverlay() {
         if (!hasSelection()) return
@@ -109,8 +109,9 @@ class CardRandomizationController(
         render()
     }
 
-    private fun randomizeTextField(key: String, value: String) {
+    private fun randomizeTextField(key: String, valueProvider: () -> String) {
         if (!hasSelection()) return
+        val value = valueProvider()
         captureUndo()
         withSuppressedUpdates {
             val data = currentData()
