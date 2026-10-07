@@ -156,6 +156,24 @@ class MainApp : Application() {
     }
     private val collectionDiagnostics by lazy { CollectionDiagnosticsFormatter(::statusLabel) }
     private val editorUi by lazy { EditorUiFactory(::statusLabel) }
+    private val cardMetadataPane by lazy {
+        CardMetadataPane(
+            ui = editorUi,
+            onChanged = { updateFromEditor() },
+            onRandomize = { field ->
+                when (field) {
+                    MetadataField.TITLE -> cardRandomizationController.randomizeTitle()
+                    MetadataField.COST -> cardRandomizationController.randomizeCost()
+                    MetadataField.TYPE_LINE -> cardRandomizationController.randomizeTypeLine()
+                    MetadataField.RARITY -> cardRandomizationController.randomizeRarity()
+                    MetadataField.STATS -> cardRandomizationController.randomizeStats()
+                    MetadataField.ARTIST -> cardRandomizationController.randomizeArtistPattern()
+                    MetadataField.SET_NAME -> cardRandomizationController.randomizeSetName()
+                    MetadataField.COLLECTOR_NUMBER -> cardRandomizationController.randomizeCollectorNumber()
+                }
+            }
+        )
+    }
     private val cardPersistence = CardPersistenceService()
     private val cardSaveController by lazy {
         CardSaveController(
@@ -317,14 +335,14 @@ class MainApp : Application() {
         )
     }
     private val statusBarLabel = Label("Open an image directory.")
-    private val fields = linkedMapOf<String, TextField>()
-    private val description = TextArea()
-    private val flavor = TextArea()
+    private val fields get() = cardMetadataPane.fields
+    private val description get() = cardMetadataPane.description
+    private val flavor get() = cardMetadataPane.flavor
     private val imageMode = ComboBox<ImageMode>()
     private val imageBleedOverFrame = CheckBox("Artwork bleeds over frame")
     private val imageBleedOpacity = Slider(0.0, 1.0, 1.0)
     private val imageBleedOpacityValue = Label("100%")
-    private val statusChoice = ComboBox<CardStatus>()
+    private val statusChoice get() = cardMetadataPane.statusChoice
     private lateinit var collectionSettingsPane: CollectionSettingsPane
     private val schemeChoice = ComboBox<ColorScheme>()
     private val templateChoice = ComboBox<CardTemplate>()
@@ -898,11 +916,6 @@ class MainApp : Application() {
     private fun editor(): ScrollPane {
         val form = VBox(10.0).apply { padding = Insets(12.0); prefWidth = 430.0 }
 
-        fun textField(key: String): TextField = TextField().also { field ->
-            fields[key] = field
-            field.textProperty().addListener { _, _, _ -> updateFromEditor() }
-        }
-
         form.children.add(editorUi.section("Collection"))
         collectionSettingsPane = CollectionSettingsPane(
             initial = collectionPresentation,
@@ -918,31 +931,7 @@ class MainApp : Application() {
         form.children.add(collectionSettingsPane)
         form.children.add(editorUi.helperLabel("These presentation options belong to the collection and apply to every card."))
 
-        form.children.add(editorUi.section("Card Metadata"))
-        form.children.add(editorUi.rowWithDice("Title", textField("title")) { cardRandomizationController.randomizeTitle() })
-        form.children.add(editorUi.rowWithDice("Cost", textField("cost")) { cardRandomizationController.randomizeCost() })
-        form.children.add(editorUi.rowWithDice("Type line", textField("typeLine")) { cardRandomizationController.randomizeTypeLine() })
-        form.children.add(editorUi.rowWithDice("Rarity", textField("rarity")) { cardRandomizationController.randomizeRarity() })
-        form.children.add(editorUi.rowWithDice("Stats", textField("stats")) { cardRandomizationController.randomizeStats() })
-        form.children.add(editorUi.rowWithDice("Artist", textField("artist")) { cardRandomizationController.randomizeArtistPattern() })
-        form.children.add(editorUi.rowWithDice("Set", textField("setName")) { cardRandomizationController.randomizeSetName() })
-        form.children.add(editorUi.rowWithDice("Number", textField("collectorNumber")) { cardRandomizationController.randomizeCollectorNumber() })
-
-        statusChoice.items.setAll(CardStatus.entries)
-        statusChoice.setCellFactory { editorUi.statusCell() }
-        statusChoice.buttonCell = editorUi.statusCell()
-        statusChoice.tooltip = Tooltip("Workflow state saved with the card.")
-        statusChoice.valueProperty().addListener { _, _, value -> if (!suppressEditorUpdates && value != null) updateFromEditor() }
-        form.children.add(editorUi.row("Status", statusChoice))
-
-        description.isWrapText = true
-        description.prefRowCount = 4
-        description.textProperty().addListener { _, _, _ -> updateFromEditor() }
-        flavor.isWrapText = true
-        flavor.prefRowCount = 3
-        flavor.textProperty().addListener { _, _, _ -> updateFromEditor() }
-        form.children.add(editorUi.row("Description", description))
-        form.children.add(editorUi.row("Flavor", flavor))
+        form.children.add(cardMetadataPane)
 
         form.children.add(editorUi.section("Scheme"))
         schemeChoice.setCellFactory { editorUi.schemeCell() }
