@@ -1,5 +1,6 @@
 package de.cetruo.desktop.ui
 
+import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.control.Button
 import javafx.scene.control.CheckBox
@@ -43,6 +44,7 @@ class CardPreviewPane(
         minWidth = 500.0
         prefWidth = 800.0
         alignment = Pos.TOP_CENTER
+        padding = Insets(12.0)
         styleClass.add("card-preview-pane")
         children.addAll(header, host)
         VBox.setVgrow(host, Priority.ALWAYS)
