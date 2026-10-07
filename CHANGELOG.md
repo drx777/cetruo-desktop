@@ -2,6 +2,13 @@
 
 This changelog records net user-visible and significant system changes between Cetruo Desktop versions. Intermediate implementation attempts, superseded fixes, and planning-only work are intentionally omitted.
 
+## Unreleased
+
+- Renamed the desktop Kotlin/Gradle namespace to `de.cetruo.desktop` and aligned resource/macOS packaging identifiers with Cetruo Desktop.
+- Changed the canonical collection catalog filename to `.cetruo.sqlite`, with automatic migration from legacy `.cardforge.sqlite` catalogs and compatibility for existing missing-asset tombstones.
+- Migrated application preferences lazily from the old `com.example.cardforge` Java Preferences node.
+- Kept legacy startup-profiler keys and old export-directory detection as compatibility fallbacks.
+
 ## 0.14.4
 
 - Closed the 0.14.x stabilization line and froze it against further proactive refactoring.
