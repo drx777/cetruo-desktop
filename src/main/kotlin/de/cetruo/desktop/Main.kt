@@ -1782,7 +1782,7 @@ class MainApp : Application() {
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
                 if (Thread.currentThread().isInterrupted) return FileVisitResult.TERMINATE
                 val name = dir.fileName?.toString()?.lowercase(Locale.ROOT).orEmpty()
-                if (dir != root && ((name == "cetruo desktop exports" || name == "card forge exports") || (name == ".cetruo" || name == ".cetruo-exports" || name == ".cardforge" || name == ".cardforge-exports") || name == "exports" && dir.parent?.fileName?.toString() == ".cardforge")) return FileVisitResult.SKIP_SUBTREE
+                if (dir != root && ((name == "cetruo desktop exports" || name == "card forge exports") || (name == ".cetruo" || name == ".cetruo-exports" || name == ".cardforge" || name == ".cardforge-exports") || (name == "exports" && (dir.parent?.fileName?.toString() == ".cetruo" || dir.parent?.fileName?.toString() == ".cardforge")))) return FileVisitResult.SKIP_SUBTREE
                 if (dir != root && CollectionDatabase.hasCatalog(dir)) {
                     nested.add(dir.toAbsolutePath().normalize())
                     return FileVisitResult.SKIP_SUBTREE
