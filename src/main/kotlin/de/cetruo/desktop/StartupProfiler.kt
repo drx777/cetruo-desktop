@@ -11,7 +11,9 @@ import java.util.concurrent.atomic.AtomicReference
 /** Lightweight elapsed-time logging and JavaFX stall diagnostics for collection startup/open. */
 object StartupProfiler {
     private val enabled: Boolean =
-        java.lang.Boolean.getBoolean("cardforge.profileStartup") ||
+        java.lang.Boolean.getBoolean("cetruo.profileStartup") ||
+            System.getenv("CETRUO_PROFILE_STARTUP") == "1" ||
+            java.lang.Boolean.getBoolean("cardforge.profileStartup") ||
             System.getenv("CARDFORGE_PROFILE_STARTUP") == "1"
 
     private val starts = ConcurrentHashMap<String, Long>()
@@ -62,7 +64,7 @@ object StartupProfiler {
         log("FX stall monitor installed · warning=${warningAfterMs}ms")
 
         val executor = Executors.newSingleThreadScheduledExecutor { task ->
-            Thread(task, "card-forge-startup-profiler").apply { isDaemon = true }
+            Thread(task, "cetruo-startup-profiler").apply { isDaemon = true }
         }
         executor.scheduleAtFixedRate({
             try {
