@@ -2,6 +2,7 @@ package de.cetruo.desktop
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.sql.Connection
 import java.sql.DriverManager
@@ -10,9 +11,50 @@ import java.util.UUID
 
 class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
     companion object {
-        const val FILE_NAME = ".cardforge.sqlite"
+        const val FILE_NAME = ".cetruo.sqlite"
+        const val LEGACY_FILE_NAME = ".cardforge.sqlite"
+        private const val MISSING_PREFIX = ".cetruo-missing/"
+        private const val LEGACY_MISSING_PREFIX = ".cardforge-missing/"
+
+        fun hasCatalog(root: Path): Boolean =
+            Files.isRegularFile(root.resolve(FILE_NAME)) || Files.isRegularFile(root.resolve(LEGACY_FILE_NAME))
+
+        fun isCatalogFileName(name: String): Boolean = name == FILE_NAME || name == LEGACY_FILE_NAME
+
+        private fun migrateLegacyCatalog(root: Path) {
+            val current = root.resolve(FILE_NAME)
+            val legacy = root.resolve(LEGACY_FILE_NAME)
+            if (Files.exists(current) || !Files.isRegularFile(legacy)) return
+
+            val pairs = listOf(
+                legacy to current,
+                Path.of(legacy.toString() + "-wal") to Path.of(current.toString() + "-wal"),
+                Path.of(legacy.toString() + "-shm") to Path.of(current.toString() + "-shm")
+            ).filter { (source, _) -> Files.exists(source) }
+
+            val copied = mutableListOf<Path>()
+            try {
+                for ((source, target) in pairs) {
+                    Files.copy(
+                        source,
+                        target,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.COPY_ATTRIBUTES
+                    )
+                    copied.add(target)
+                }
+                for ((source, _) in pairs.asReversed()) {
+                    Files.deleteIfExists(source)
+                }
+            } catch (error: Exception) {
+                copied.asReversed().forEach { runCatching { Files.deleteIfExists(it) } }
+                throw IllegalStateException("Could not migrate legacy collection catalog to $FILE_NAME", error)
+            }
+        }
+
         fun open(root: Path): CollectionDatabase {
             val normalized = root.toAbsolutePath().normalize()
+            migrateLegacyCatalog(normalized)
             Class.forName("org.sqlite.JDBC")
             val database = StartupProfiler.measure(
                 "sqlite connect",
@@ -111,7 +153,7 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
     fun markMissing(image: Path): String? {
         val relative = relative(image)
         val record = findAssetByPath(relative) ?: return null
-        val tombstone = ".cardforge-missing/${record.assetId}/${relative.replace('\\', '/')}"
+        val tombstone = "$MISSING_PREFIX${record.assetId}/${relative.replace('\\', '/')}"
         connection.prepareStatement("UPDATE assets SET relative_path=?,last_seen_at=? WHERE asset_id=?").use {
             it.setString(1, tombstone)
             it.setString(2, Instant.now().toString())
@@ -134,7 +176,7 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
 
         val hash = sha256(absolute)
         val missing = connection.prepareStatement(
-            "SELECT asset_id FROM assets WHERE sha256=? AND relative_path LIKE '.cardforge-missing/%' ORDER BY last_seen_at DESC LIMIT 1"
+            "SELECT asset_id FROM assets WHERE sha256=? AND (relative_path LIKE '${MISSING_PREFIX}%' OR relative_path LIKE '${LEGACY_MISSING_PREFIX}%') ORDER BY last_seen_at DESC LIMIT 1"
         ).use { statement ->
             statement.setString(1, hash)
             statement.executeQuery().use { result -> if (result.next()) result.getString(1) else null }
@@ -162,7 +204,7 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
         detail = { "${it.size} entries" }
     ) {
         connection.createStatement().use { s ->
-            s.executeQuery("SELECT relative_path,asset_id,status,current_json FROM assets WHERE relative_path NOT LIKE '.cardforge-missing/%'").use { r ->
+            s.executeQuery("SELECT relative_path,asset_id,status,current_json FROM assets WHERE relative_path NOT LIKE '${MISSING_PREFIX}%' AND relative_path NOT LIKE '${LEGACY_MISSING_PREFIX}%'").use { r ->
                 buildMap {
                     while (r.next()) {
                         val p = r.getString(1)
