@@ -89,18 +89,14 @@ private enum class BrowserPreviewMode {
 
 private data class CollectionOption(val root: Path, val label: String)
 
-private enum class BrowserSort {
-    NAME,
-    LAST_WORD,
-    COLLECTOR_NUMBER,
-    FOLDER,
-    STATUS,
-    FILE_NAME
-}
-
-
 class MainApp : Application() {
     private val imageScanner = CollectionImageScanner()
+    private val browserImageSorter by lazy {
+        BrowserImageSorter(
+            cardDataFor = ::cardDataForSorting,
+            relativePathFor = ::relativePath
+        )
+    }
     private val allImages = mutableListOf<Path>()
     private val visibleImages = mutableListOf<Path>()
     private var currentIndex = -1
@@ -1785,21 +1781,11 @@ class MainApp : Application() {
     }
 
     private fun sortVisibleImagesInPlace() {
-        if (visibleImages.size <= 1) return
-        val comparator = Comparator<Path> { left, right ->
-            val leftData = cardDataForSorting(left)
-            val rightData = cardDataForSorting(right)
-            val result = when (browserSortChoice.value ?: BrowserSort.NAME) {
-                BrowserSort.NAME -> compareNatural(leftData.title, rightData.title)
-                BrowserSort.LAST_WORD -> compareNatural(lastWord(leftData.title), lastWord(rightData.title))
-                BrowserSort.COLLECTOR_NUMBER -> compareCollectorNumber(leftData.collectorNumber, rightData.collectorNumber)
-                BrowserSort.FOLDER -> compareNatural(relativeFolder(left), relativeFolder(right))
-                BrowserSort.STATUS -> compareNatural(leftData.status.name, rightData.status.name)
-                BrowserSort.FILE_NAME -> compareNatural(left.fileName.toString(), right.fileName.toString())
-            }
-            if (result != 0) result else compareNatural(relativePath(left), relativePath(right))
-        }
-        visibleImages.sortWith(if (browserSortDescending.isSelected) comparator.reversed() else comparator)
+        browserImageSorter.sort(
+            paths = visibleImages,
+            sort = browserSortChoice.value ?: BrowserSort.NAME,
+            descending = browserSortDescending.isSelected
+        )
     }
 
     private fun rebuildVisibleSorted() {
@@ -1835,44 +1821,6 @@ class MainApp : Application() {
         stats = "",
         templateName = ""
     )
-
-    private fun lastWord(value: String): String = value.trim().split(Regex("\\s+")).lastOrNull().orEmpty()
-
-    private fun relativeFolder(path: Path): String = path.parent?.let { relativePath(it) }.orEmpty()
-
-    private fun compareNatural(a: String, b: String): Int {
-        // Human-style comparison: digits sort numerically while text remains case-insensitive.
-        val aa = a.trim()
-        val bb = b.trim()
-        val re = Regex("(\\d+|\\D+)")
-        val at = re.findAll(aa).toList()
-        val bt = re.findAll(bb).toList()
-        val count = min(at.size, bt.size)
-        for (i in 0 until count) {
-            val ax = at[i].value
-            val bx = bt[i].value
-            val cmp = if (ax.all(Char::isDigit) && bx.all(Char::isDigit)) {
-                (ax.trimStart('0').ifBlank { "0" }.toBigIntegerOrNull() ?: java.math.BigInteger.ZERO)
-                    .compareTo(bx.trimStart('0').ifBlank { "0" }.toBigIntegerOrNull() ?: java.math.BigInteger.ZERO)
-            } else ax.compareTo(bx, ignoreCase = true)
-            if (cmp != 0) return cmp
-        }
-        return at.size.compareTo(bt.size).takeIf { it != 0 } ?: aa.compareTo(bb, ignoreCase = true)
-    }
-
-    private fun compareCollectorNumber(a: String, b: String): Int {
-        fun parsed(value: String): Pair<Int, Int> {
-            val match = Regex("^(\\d+)\\s*/\\s*(\\d+)").find(value.trim())
-            return if (match != null) (match.groupValues[1].toIntOrNull() ?: Int.MAX_VALUE) to (match.groupValues[2].toIntOrNull() ?: Int.MAX_VALUE)
-            else (Int.MAX_VALUE) to (Int.MAX_VALUE)
-        }
-        val pa = parsed(a); val pb = parsed(b)
-        val first = pa.first.compareTo(pb.first)
-        return if (first != 0) first else {
-            val second = pa.second.compareTo(pb.second)
-            if (second != 0) second else compareNatural(a, b)
-        }
-    }
 
     private fun rebuildBrowserImmediately() {
         val rootPath = collectionRoot ?: return
