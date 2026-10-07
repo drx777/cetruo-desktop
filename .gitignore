@@ -10,12 +10,12 @@ out/
 # macOS
 .DS_Store
 
-# Local Card Forge collection data
+# Local Cetruo Desktop collection data
 .cardforge.sqlite
 *.card.json
 
 # Generated exports
-Card Forge Exports/
+Card Forge Exports/\nCetruo Desktop Exports/
 *.card.png
 *.card.svg
 *.pdf
