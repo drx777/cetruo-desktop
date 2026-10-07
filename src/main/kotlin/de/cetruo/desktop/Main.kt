@@ -1943,7 +1943,7 @@ class MainApp : Application() {
             return
         }
         if (currentIndex in visibleImages.indices && !autosaveGuard.ensureSaved()) return
-        val resolvedData = resolveCardDataForSelection(imagePath) ?: return
+        val resolvedData = resolveCardDataForSelection(imagePath)
         currentIndex = newIndex
         currentLoadedPath = imagePath
         currentData = resolvedData
