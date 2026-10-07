@@ -2936,7 +2936,7 @@ class MainApp : Application() {
         if (!Files.isDirectory(root)) return
         Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
-                if (dir != root && Files.isRegularFile(dir.resolve(CollectionDatabase.FILE_NAME))) return FileVisitResult.SKIP_SUBTREE
+                if (dir != root && CollectionDatabase.hasCatalog(dir)) return FileVisitResult.SKIP_SUBTREE
                 dir.register(service, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY)
                 return FileVisitResult.CONTINUE
             }
