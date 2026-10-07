@@ -141,6 +141,7 @@ class MainApp : Application() {
         )
     }
     private val browserImageFilter by lazy { BrowserImageFilter(browserSearchIndex) }
+    private val browserImageView by lazy { BrowserImageView(browserImageFilter, browserImageSorter) }
     private val browserFolderTreeBuilder = BrowserFolderTreeBuilder()
     private val cardDefaultsGenerator by lazy {
         CardDefaultsGenerator(
@@ -1813,8 +1814,15 @@ class MainApp : Application() {
         val query = filterField.text.trim().lowercase()
         val previousPath = imagesCurrentPath()
         visibleImages.clear()
-        visibleImages.addAll(browserImageFilter.filter(allImages, scope, query))
-        sortVisibleImagesInPlace()
+        visibleImages.addAll(
+            browserImageView.build(
+                paths = allImages,
+                scope = scope,
+                query = query,
+                sort = browserSortChoice.value ?: BrowserSort.NAME,
+                descending = browserSortDescending.isSelected
+            )
+        )
         val targetIndex = previousPath?.let { visibleImages.indexOf(it) } ?: -1
         browserCountLabel.text = if (query.isBlank() && scope == rootPath) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
         rebuildImageList()
@@ -1832,8 +1840,15 @@ class MainApp : Application() {
         val previousPath = imagesCurrentPath()
         if (query.isBlank()) {
             visibleImages.clear()
-            visibleImages.addAll(browserImageFilter.filter(allImages, scope, query))
-            sortVisibleImagesInPlace()
+            visibleImages.addAll(
+                browserImageView.build(
+                    paths = allImages,
+                    scope = scope,
+                    query = query,
+                    sort = browserSortChoice.value ?: BrowserSort.NAME,
+                    descending = browserSortDescending.isSelected
+                )
+            )
             setCurrentPathAfterRebuild(previousPath)
             browserCountLabel.text = if (scope == rootPath) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
             rebuildImageList()
@@ -1845,10 +1860,12 @@ class MainApp : Application() {
         statusBarLabel.text = "Filtering ${allImages.size} images…"
         val task = object : Task<List<Path>>() {
             override fun call(): List<Path> =
-                browserImageFilter.filter(
+                browserImageView.build(
                     paths = allImages,
                     scope = scope,
                     query = query,
+                    sort = browserSortChoice.value ?: BrowserSort.NAME,
+                    descending = browserSortDescending.isSelected,
                     snapshot = snapshot,
                     isCancelled = { isCancelled }
                 )
@@ -1858,7 +1875,6 @@ class MainApp : Application() {
             if (generation.get() != token) return@setOnSucceeded
             visibleImages.clear()
             visibleImages.addAll(task.value)
-            sortVisibleImagesInPlace()
             setCurrentPathAfterRebuild(previousPath)
             browserCountLabel.text = "${visibleImages.size}/${allImages.size} images"
             rebuildImageList()
@@ -2328,8 +2344,15 @@ class MainApp : Application() {
             val scope = selectedFolder?.takeIf { it.startsWith(root) } ?: root
             val query = filterField.text.trim().lowercase()
             visibleImages.clear()
-            visibleImages.addAll(browserImageFilter.filter(allImages, scope, query))
-            sortVisibleImagesInPlace()
+            visibleImages.addAll(
+                browserImageView.build(
+                    paths = allImages,
+                    scope = scope,
+                    query = query,
+                    sort = browserSortChoice.value ?: BrowserSort.NAME,
+                    descending = browserSortDescending.isSelected
+                )
+            )
             browserCountLabel.text = if (query.isBlank() && scope == root) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
             rebuildImageList()
         }
