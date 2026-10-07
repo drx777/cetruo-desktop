@@ -158,7 +158,7 @@ class MainApp : Application() {
     private var watchService: WatchService? = null
     private var watchThread: Thread? = null
     private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "card-forge-watch-scan").apply { isDaemon = true }
+        Thread(runnable, "cetruo-watch-scan").apply { isDaemon = true }
     }
     private val watchScanScheduled = AtomicBoolean(false)
     private val randomSequence = AtomicLong()
@@ -1771,7 +1771,7 @@ class MainApp : Application() {
         task.setOnFailed {
             if (generation.get() == token) showError("Could not scan collection", task.exception ?: RuntimeException("Unknown scanning error"))
         }
-        Thread(task, "card-forge-scan").apply { isDaemon = true }.start()
+        Thread(task, "cetruo-scan").apply { isDaemon = true }.start()
     }
 
     private data class ScanResult(val images: List<Path>, val nestedCollections: List<Path>)
@@ -1979,7 +1979,7 @@ class MainApp : Application() {
         task.setOnFailed {
             if (generation.get() == token) showError("Could not filter images", task.exception ?: RuntimeException("Unknown filtering error"))
         }
-        Thread(task, "card-forge-filter").apply { isDaemon = true }.start()
+        Thread(task, "cetruo-filter").apply { isDaemon = true }.start()
     }
 
     private fun setCurrentPathAfterRebuild(previousPath: Path?) {
@@ -2927,7 +2927,7 @@ class MainApp : Application() {
                 key.reset()
                 if (relevant) scheduleWatcherRefresh()
             }
-        }, "card-forge-filesystem-watcher")
+        }, "cetruo-filesystem-watcher")
         thread.isDaemon = true
         watchThread = thread
         thread.start()
