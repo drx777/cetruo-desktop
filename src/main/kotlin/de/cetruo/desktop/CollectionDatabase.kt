@@ -117,7 +117,7 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
         val modified = runCatching { Files.getLastModifiedTime(absolute).toMillis() }.getOrDefault(0L)
 
         // Critical startup optimization: do not read/hash an unchanged image just to register it.
-        val record = existingByPath ?: if (hintUsable) existingByHint!! else insertAsset(
+        val record = existingByPath ?: if (hintUsable) existingByHint else insertAsset(
             assetIdHint.ifBlank { UUID.randomUUID().toString() }, relative, statusHint, size, modified, sha256(absolute)
         )
         val metadata = assetMetadata(record.assetId)
