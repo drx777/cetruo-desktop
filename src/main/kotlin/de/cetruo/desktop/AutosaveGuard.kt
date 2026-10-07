@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 /**
  * Centralizes the rule that navigation/destructive UI transitions must not proceed unless

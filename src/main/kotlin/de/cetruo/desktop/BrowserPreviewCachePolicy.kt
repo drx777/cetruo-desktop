@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 object BrowserPreviewCachePolicy {
     fun originalIsCurrent(
