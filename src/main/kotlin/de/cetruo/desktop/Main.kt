@@ -146,6 +146,43 @@ class MainApp : Application() {
         )
     }
     private val cardPersistence = CardPersistenceService()
+    private val cardSaveController by lazy {
+        CardSaveController(
+            persistence = cardPersistence,
+            database = { database },
+            currentPath = { imagesCurrentPath() },
+            isVisiblePath = { path ->
+                val normalized = path.toAbsolutePath().normalize()
+                visibleImages.any { it.toAbsolutePath().normalize() == normalized }
+            },
+            currentData = { currentData },
+            allImages = { allImages.toList() },
+            updateFromEditor = { updateFromEditor(renderPreview = false) },
+            fields = fields,
+            withSuppressedUpdates = { action ->
+                val previous = suppressEditorUpdates
+                suppressEditorUpdates = true
+                try {
+                    action()
+                } finally {
+                    suppressEditorUpdates = previous
+                }
+            },
+            clearCardStore = { cardStore.clear() },
+            clearCardPreviews = { browserPreviews.clearCards() },
+            rebuildSearchIndex = { db ->
+                browserSearchIndex.clear()
+                browserSearchIndex.replaceAll(db.searchIndex())
+            },
+            removeCardPreview = { path -> browserPreviews.removeCard(path) },
+            updateSearchIndex = { path, data -> browserSearchIndex.update(path, data) },
+            cacheCard = { path, data -> cardStore.put(path, data) },
+            relativePath = ::relativePath,
+            statusLabel = ::statusLabel,
+            setStatus = { statusBarLabel.text = it },
+            showError = ::showError
+        )
+    }
     private val cardStore = CollectionCardStore(
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
@@ -2163,76 +2200,8 @@ class MainApp : Application() {
         }
     }
 
-    private fun saveCurrent(showStatus: Boolean = true): Boolean {
-        val path = imagesCurrentPath() ?: return true
-        if (!Files.isRegularFile(path) || !visibleImages.any { it.toAbsolutePath().normalize() == path.toAbsolutePath().normalize() }) return true
-        val db = database ?: return false
-
-        return try {
-            updateFromEditor(renderPreview = false)
-            val preparation = cardPersistence.prepare(db, path, currentData)
-
-            if (preparation.duplicateCollectorNumber != null) {
-                val collectorNumber = preparation.duplicateCollectorNumber
-                val result = Alert(Alert.AlertType.WARNING).apply {
-                    title = "Duplicate collector number"
-                    headerText = "$collectorNumber is already used in this collection"
-                    contentText = "Another saved card already uses this collector number. Save this card with the duplicate number anyway?"
-                    buttonTypes.setAll(ButtonType("Save duplicate"), ButtonType.CANCEL)
-                }.showAndWait().orElse(ButtonType.CANCEL)
-                if (result == ButtonType.CANCEL) return false
-            }
-
-            if (preparation.wouldClearManyFields) {
-                val confirm = Alert(Alert.AlertType.CONFIRMATION).apply {
-                    title = "Protect card data"
-                    headerText = "This save would clear many card fields"
-                    contentText = "The current editor state would remove several previously populated card values. This can happen if an editor was reset or partially initialized. Save these cleared values anyway?"
-                    buttonTypes.setAll(ButtonType("Save anyway"), ButtonType.CANCEL)
-                }.showAndWait().orElse(ButtonType.CANCEL)
-                if (confirm == ButtonType.CANCEL) return false
-            }
-
-            val outcome = cardPersistence.save(db, path, currentData, allImages, preparation)
-            outcome.persistedCollectorNumber?.let { collectorNumber ->
-                currentData.collectorNumber = collectorNumber
-                suppressEditorUpdates = true
-                try {
-                    fields["collectorNumber"]?.text = collectorNumber
-                } finally {
-                    suppressEditorUpdates = false
-                }
-            }
-
-            if (outcome.normalizedSetTotals) {
-                cardStore.clear()
-                browserPreviews.clearCards()
-                browserSearchIndex.clear()
-                browserSearchIndex.replaceAll(db.searchIndex())
-            } else {
-                if (outcome.result.changed) {
-                    browserPreviews.removeCard(path.toAbsolutePath().normalize())
-                }
-                browserSearchIndex.update(path, currentData)
-                cardStore.put(path, currentData)
-            }
-
-            if (outcome.result.changed) {
-                db.recordActivity(outcome.result.assetId, "SAVE", "revision=${outcome.result.revisionNumber}")
-            }
-            if (showStatus) {
-                statusBarLabel.text = if (outcome.result.changed) {
-                    "Saved • ${relativePath(path)} • revision ${outcome.result.revisionNumber} • ${statusLabel(currentData.status)}"
-                } else {
-                    "No changes to save • ${relativePath(path)}"
-                }
-            }
-            true
-        } catch (e: Exception) {
-            if (showStatus) showError("Could not save card", e)
-            false
-        }
-    }
+    private fun saveCurrent(showStatus: Boolean = true): Boolean =
+        cardSaveController.save(showStatus)
 
     private fun backupCatalog(stage: Stage) {
         val db = database ?: return
