@@ -72,7 +72,7 @@ object StartupCatalogChooser {
         val browse = ButtonType("Choose another…", ButtonBar.ButtonData.OTHER)
         val cancel = ButtonType.CANCEL
         val dialog = Dialog<Choice>().apply {
-            title = "Open Card Forge collection"
+            title = "Open Cetruo Desktop collection"
             headerText = "Recently opened catalogs"
             if (owner != null) initOwner(owner)
             dialogPane.buttonTypes.setAll(open, browse, cancel)
