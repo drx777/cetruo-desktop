@@ -4,7 +4,7 @@ plugins {
     id("org.openjfx.javafxplugin") version "0.1.0"
 }
 
-group = "com.example.cardforge"
+group = "de.cetruo.desktop"
 version = "0.14.4"
 
 kotlin {
@@ -30,5 +30,5 @@ tasks.test {
 }
 
 application {
-    mainClass.set("com.example.cardforge.MainKt")
+    mainClass.set("de.cetruo.desktop.MainKt")
 }
