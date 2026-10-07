@@ -258,6 +258,34 @@ class MainApp : Application() {
     private val overlayOpacity = Slider(0.0, 1.0, 1.0)
     private val titleSize = doubleSpinner(14.0, 42.0, 27.0, 1.0)
     private val bodySize = doubleSpinner(10.0, 24.0, 16.0, 1.0)
+    private val cardEditorBinding by lazy {
+        CardEditorBinding(
+            fields = fields,
+            description = description,
+            flavor = flavor,
+            statusChoice = statusChoice,
+            templateChoice = templateChoice,
+            templateOverride = templateOverride,
+            imageMode = imageMode,
+            imageBleedOverFrame = imageBleedOverFrame,
+            imageBleedOpacity = imageBleedOpacity,
+            zoom = zoom,
+            imagePadColor = imagePadColor,
+            backgroundColor = backgroundColor,
+            panelColor = panelColor,
+            frameColor = frameColor,
+            accentColor = accentColor,
+            overlayColor = overlayColor,
+            backgroundOverlayChoice = backgroundOverlayChoice,
+            overlayPlacementChoice = overlayPlacementChoice,
+            overlayOpacity = overlayOpacity,
+            border = border,
+            radius = radius,
+            panelOpacity = panelOpacity,
+            titleSize = titleSize,
+            bodySize = bodySize
+        )
+    }
     private val xValueLabel = Label("0 px")
     private val yValueLabel = Label("0 px")
     private val zoomValueLabel = Label("1.00×")
@@ -2162,38 +2190,11 @@ class MainApp : Application() {
         val activeIndex = currentVisibleIndex()
         if (activeIndex < 0) return
         val beforeSignature = cardSnapshotSignature(currentData)
-        currentData.title = fields["title"]?.text ?: currentData.title
-        currentData.cost = fields["cost"]?.text ?: currentData.cost
-        currentData.typeLine = fields["typeLine"]?.text ?: currentData.typeLine
-        currentData.rarity = fields["rarity"]?.text ?: currentData.rarity
-        currentData.stats = fields["stats"]?.text ?: currentData.stats
-        currentData.artist = fields["artist"]?.text ?: currentData.artist
-        currentData.setName = fields["setName"]?.text ?: currentData.setName
-        currentData.collectorNumber = fields["collectorNumber"]?.text ?: currentData.collectorNumber
-        currentData.description = description.text
-        currentData.flavorText = flavor.text
-        currentData.status = statusChoice.value ?: currentData.status
-        currentData.templateName = if (templateOverride.isSelected) (templateChoice.value?.name ?: currentData.templateName) else ""
-        currentData.imageMode = imageMode.value ?: currentData.imageMode
-        currentData.imageBleedOverFrame = imageBleedOverFrame.isSelected
-        currentData.imageBleedOpacity = imageBleedOpacity.value.coerceIn(0.0, 1.0)
-        currentData.imageZoom = zoom.value
-        currentData.imageOffsetX = currentActualPanX()
-        currentData.imageOffsetY = currentActualPanY()
-        currentData.imagePadColor = imagePadColor.value.toHex()
-        currentData.backgroundColor = backgroundColor.value.toHex()
-        currentData.panelColor = panelColor.value.toHex()
-        currentData.frameColor = frameColor.value.toHex()
-        currentData.accentColor = accentColor.value.toHex()
-        currentData.overlayColor = overlayColor.value.toHex()
-        currentData.backgroundOverlay = backgroundOverlayChoice.value?.path?.fileName?.toString() ?: ""
-        currentData.backgroundOverlayPlacement = overlayPlacementChoice.value ?: currentData.backgroundOverlayPlacement
-        currentData.backgroundOverlayOpacity = overlayOpacity.value
-        currentData.borderWidth = border.value
-        currentData.cornerRadius = radius.value
-        currentData.panelOpacity = panelOpacity.value
-        currentData.titleFontSize = titleSize.value
-        currentData.bodyFontSize = bodySize.value
+        cardEditorBinding.applyTo(
+            current = currentData,
+            imageOffsetX = currentActualPanX(),
+            imageOffsetY = currentActualPanY()
+        )
         val currentPath = visibleImages[activeIndex]
         val afterSignature = cardSnapshotSignature(currentData)
         if (beforeSignature != afterSignature) {
