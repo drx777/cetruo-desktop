@@ -16,7 +16,7 @@ class BrowserSearchIndexTest {
         )
         val data = CardData(
             assetId = "ABC123",
-            status = CardStatus.DONE,
+            status = CardStatus.READY,
             title = "Moon Warden"
         )
 
@@ -25,7 +25,7 @@ class BrowserSearchIndexTest {
 
         assertTrue(text.contains("sub/card10.png"))
         assertTrue(text.contains("abc123"))
-        assertTrue(text.contains("done"))
+        assertTrue(text.contains("ready"))
         assertTrue(text.contains("moon warden"))
     }
 
