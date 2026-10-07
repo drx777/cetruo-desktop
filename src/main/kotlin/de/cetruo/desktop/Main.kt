@@ -88,6 +88,7 @@ private data class CollectionOption(val root: Path, val label: String)
 
 class MainApp : Application() {
     private val imageScanner = CollectionImageScanner()
+    private val cardSelectionResolver = CardSelectionResolver()
     private val collectionOpenController by lazy {
         CollectionOpenController(
             scanner = imageScanner,
@@ -1868,14 +1869,12 @@ class MainApp : Application() {
     }
 
     private fun setCurrentPathAfterRebuild(previousPath: Path?) {
-        val found = previousPath?.let { visibleImages.indexOf(it) } ?: -1
-        when {
-            found >= 0 -> select(found, scrollIntoView = false)
-            visibleImages.isNotEmpty() -> select(0, scrollIntoView = false)
-            else -> {
-                currentIndex = -1
-                clearEditorForNoSelection()
-            }
+        val index = cardSelectionResolver.indexAfterRebuild(visibleImages, previousPath)
+        if (index != null) {
+            select(index, scrollIntoView = false)
+        } else {
+            currentIndex = -1
+            clearEditorForNoSelection()
         }
     }
 
@@ -1947,20 +1946,11 @@ class MainApp : Application() {
         statusBarLabel.text = "${newIndex + 1}/${visibleImages.size} • ${relativePath(imagePath)} • ${statusLabel(currentData.status)} • ID ${currentData.assetId.take(8)}"
     }
 
-    private fun currentVisibleIndex(): Int {
-        val loaded = currentLoadedPath?.toAbsolutePath()?.normalize()
-        if (loaded != null) {
-            return visibleImages.indexOfFirst { it.toAbsolutePath().normalize() == loaded }
-        }
-        return currentIndex.takeIf { it in visibleImages.indices } ?: -1
-    }
+    private fun currentVisibleIndex(): Int =
+        cardSelectionResolver.currentVisibleIndex(visibleImages, currentLoadedPath, currentIndex)
 
-    private fun imagesCurrentPath(): Path? {
-        // Once a card has an identity, never infer another path from currentIndex.
-        // This prevents insertion/deletion/reordering from saving one card into its neighbour.
-        currentLoadedPath?.let { return it.toAbsolutePath().normalize() }
-        return visibleImages.getOrNull(currentIndex)
-    }
+    private fun imagesCurrentPath(): Path? =
+        cardSelectionResolver.currentPath(visibleImages, currentLoadedPath, currentIndex)
 
     private fun populateEditor() {
         suppressEditorUpdates = true
