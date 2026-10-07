@@ -260,7 +260,7 @@ class MainApp : Application() {
     private var filterTask: Task<List<Path>>? = null
 
     override fun start(stage: Stage) {
-        stage.title = "Card Forge"
+        stage.title = "Cetruo Desktop"
         AppPlatform.setApplicationDockIcon(javaClass)
         AppPlatform.installWindowIcon(stage, javaClass)
         loadSchemes()
@@ -384,7 +384,7 @@ class MainApp : Application() {
             setOnAction { randomizeCardStyleAndNumbers() }
         }
         uiThemeButton = Button(if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI").apply {
-            tooltip = Tooltip("Switch the Card Forge application UI theme. This does not change card colors.")
+            tooltip = Tooltip("Switch the Cetruo Desktop application UI theme. This does not change card colors.")
             setOnAction {
                 uiTheme = if (uiTheme == UiTheme.DARK) UiTheme.LIGHT else UiTheme.DARK
                 Preferences.userNodeForPackage(MainApp::class.java).put("uiTheme", uiTheme.name)
@@ -823,7 +823,7 @@ class MainApp : Application() {
                 scale = (360.0 / max(template.width, template.height)).coerceIn(0.35, 0.65)
             )
         }.onFailure { error ->
-            System.err.println("Card Forge: card preview failed for ${data.assetId.ifBlank { "<no-id>" }}: ${error.message}")
+            System.err.println("Cetruo Desktop: card preview failed for ${data.assetId.ifBlank { "<no-id>" }}: ${error.message}")
             error.printStackTrace()
         }.getOrNull()
     }
@@ -1783,7 +1783,7 @@ class MainApp : Application() {
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
                 if (Thread.currentThread().isInterrupted) return FileVisitResult.TERMINATE
                 val name = dir.fileName?.toString()?.lowercase(Locale.ROOT).orEmpty()
-                if (dir != root && (name == "card forge exports" || name == ".cardforge" || name == ".cardforge-exports" || name == "exports" && dir.parent?.fileName?.toString() == ".cardforge")) return FileVisitResult.SKIP_SUBTREE
+                if (dir != root && ((name == "cetruo desktop exports" || name == "card forge exports") || name == ".cardforge" || name == ".cardforge-exports" || name == "exports" && dir.parent?.fileName?.toString() == ".cardforge")) return FileVisitResult.SKIP_SUBTREE
                 if (dir != root && Files.isRegularFile(dir.resolve(CollectionDatabase.FILE_NAME))) {
                     nested.add(dir.toAbsolutePath().normalize())
                     return FileVisitResult.SKIP_SUBTREE
@@ -1808,7 +1808,7 @@ class MainApp : Application() {
             name.endsWith(".card.svg") ||
             name.endsWith("-card.png") ||
             name.endsWith("-card.svg") ||
-            name.contains("card-forge-export")
+            name.contains("cetruo-export") ||\n            name.contains("card-forge-export")
     }
 
     private fun refreshCollectionChoices() {
@@ -2650,9 +2650,9 @@ class MainApp : Application() {
         val db = database ?: return
         val formatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
         val chooser = FileChooser().apply {
-            title = "Backup Card Forge catalog"
+            title = "Backup Cetruo Desktop catalog"
             extensionFilters.add(FileChooser.ExtensionFilter("SQLite database", "*.sqlite"))
-            initialFileName = "cardforge-backup-${LocalDateTime.now().format(formatter)}.sqlite"
+            initialFileName = "cetruo-backup-${LocalDateTime.now().format(formatter)}.sqlite"
         }
         val target = chooser.showSaveDialog(stage)?.toPath() ?: return
         try {
@@ -2667,7 +2667,7 @@ class MainApp : Application() {
         val root = collectionRoot ?: return null
         // Keep generated files in a visible, purpose-named folder. The browser excludes
         // this folder from source-image discovery, so exported cards do not become assets.
-        val dir = root.resolve("Card Forge Exports")
+        val dir = root.resolve("Cetruo Desktop Exports")
         return runCatching { Files.createDirectories(dir); dir }.getOrNull()
     }
 
@@ -2752,7 +2752,7 @@ class MainApp : Application() {
             filterLabel = "PDF",
             extensionPattern = "*.pdf",
             initialDirectory = defaultExportDirectory(),
-            initialFileName = "card-forge-contact-sheet.pdf"
+            initialFileName = "cetruo-contact-sheet.pdf"
         ) ?: return
         val paths = visibleImages.toList()
         val options = ExportUi.promptPdfOptions(stage) { slider, resetValue ->
@@ -2781,7 +2781,7 @@ class MainApp : Application() {
             filterLabel = "PDF",
             extensionPattern = "*.pdf",
             initialDirectory = defaultExportDirectory(),
-            initialFileName = "card-forge-cards.pdf"
+            initialFileName = "cetruo-cards.pdf"
         ) ?: return
 
         val paths = visibleImages.toList()
