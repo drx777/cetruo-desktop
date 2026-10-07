@@ -129,7 +129,12 @@ class MainApp : Application() {
     private var nestedCollectionRoots: List<Path> = emptyList()
     private var suppressCollectionChoice = false
     private var browserColumns = 1
-    private val searchIndex = mutableMapOf<String, String>()
+    private val browserSearchIndex by lazy {
+        BrowserSearchIndex(
+            relativePathFor = ::relativePath,
+            cardDataFor = { path -> database?.dataSnapshotForPath(path) ?: lightweightCardData(path) }
+        )
+    }
     private val cardStore = CollectionCardStore(
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
@@ -1670,8 +1675,8 @@ class MainApp : Application() {
     private fun refreshAfterCollectionMutation() {
         val selectedPath = currentLoadedPath?.toAbsolutePath()?.normalize()
         cardStore.clear()
-        searchIndex.clear()
-        database?.searchIndex()?.let { searchIndex.putAll(it) }
+        browserSearchIndex.clear()
+        database?.searchIndex()?.let(browserSearchIndex::replaceAll)
         browserPreviews.clearCards()
         if (selectedPath != null) {
             val index = visibleImages.indexOfFirst { it.toAbsolutePath().normalize() == selectedPath }
@@ -1735,8 +1740,8 @@ class MainApp : Application() {
                 fullImageCache.clear()
                 TemplateRepository.clearCache()
                 OverlayRepository.clearCache()
-                searchIndex.clear()
-                searchIndex.putAll(newDatabase.searchIndex())
+                browserSearchIndex.clear()
+                browserSearchIndex.replaceAll(newDatabase.searchIndex())
                 cardStore.clear()
                 cropImage = null
                 backgroundOverlayImage = null
@@ -1828,7 +1833,7 @@ class MainApp : Application() {
         val query = filterField.text.trim().lowercase()
         val previousPath = imagesCurrentPath()
         visibleImages.clear()
-        visibleImages.addAll(allImages.filter { it.startsWith(scope) }.filter { query.isBlank() || searchableText(it).contains(query) })
+        visibleImages.addAll(allImages.filter { it.startsWith(scope) }.filter { query.isBlank() || browserSearchIndex.textFor(it).contains(query) })
         sortVisibleImagesInPlace()
         val targetIndex = previousPath?.let { visibleImages.indexOf(it) } ?: -1
         browserCountLabel.text = if (query.isBlank() && scope == rootPath) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
@@ -1856,7 +1861,7 @@ class MainApp : Application() {
         }
         filterTask?.cancel()
         val token = generation.get()
-        val snapshot = HashMap(searchIndex)
+        val snapshot = browserSearchIndex.snapshot()
         statusBarLabel.text = "Filtering ${allImages.size} images…"
         val task = object : Task<List<Path>>() {
             override fun call(): List<Path> {
@@ -1864,7 +1869,7 @@ class MainApp : Application() {
                 for (path in allImages) {
                     if (isCancelled) return emptyList()
                     if (!path.startsWith(scope)) continue
-                    if (searchableText(path, snapshot).contains(query)) result.add(path)
+                    if (browserSearchIndex.textFor(path, snapshot).contains(query)) result.add(path)
                 }
                 return result
             }
@@ -1953,17 +1958,6 @@ class MainApp : Application() {
     private fun applyBrowserFilter() {
         if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
         requestVisibleImagesRebuild()
-    }
-
-    private fun searchableText(path: Path, snapshot: Map<String, String> = searchIndex): String {
-        val relative = relativePath(path)
-        val cached = snapshot[relative]
-        if (cached != null) return cached
-        val data = database?.dataSnapshotForPath(path) ?: lightweightCardData(path)
-        val json = runCatching { JsonSupport.mapper.writeValueAsString(data) }.getOrDefault("")
-        val searchable = ("$relative ${path.fileName} ${data.assetId} ${data.status.name} $json").lowercase()
-        if (snapshot === searchIndex) searchIndex[relative] = searchable
-        return searchable
     }
 
     private fun resolveCardDataForSelection(path: Path): CardData? {
@@ -2318,7 +2312,7 @@ class MainApp : Application() {
         val normalizedCurrentPath = currentPath.toAbsolutePath().normalize()
         val editorChanged = beforeSignature != afterSignature
         cardStore.put(normalizedCurrentPath, currentData)
-        searchIndex[relativePath(currentPath)] = searchableTextFromData(currentPath, currentData)
+        browserSearchIndex.update(currentPath, currentData)
 
         if (editorChanged) {
             // Debounce rendered browser thumbnails while editing. Keep the existing tile/image
@@ -2334,11 +2328,6 @@ class MainApp : Application() {
         }
 
         if (renderPreview) render()
-    }
-
-    private fun searchableTextFromData(path: Path, data: CardData): String {
-        val json = runCatching { JsonSupport.mapper.writeValueAsString(data) }.getOrDefault("")
-        return ("${relativePath(path)} ${path.fileName} ${data.assetId} ${data.status.name} $json").lowercase()
     }
 
     private fun render() {
@@ -2518,14 +2507,14 @@ class MainApp : Application() {
                     }
                     cardStore.clear()
                     browserPreviews.clearCards()
-                    searchIndex.clear()
-                    searchIndex.putAll(db.searchIndex())
+                    browserSearchIndex.clear()
+                    browserSearchIndex.replaceAll(db.searchIndex())
                 }
             } else {
                 if (result.changed) {
                     browserPreviews.removeCard(path.toAbsolutePath().normalize())
                 }
-                searchIndex[relativePath(path)] = searchableTextFromData(path, currentData)
+                browserSearchIndex.update(path, currentData)
                 cardStore.put(path, currentData)
             }
 
@@ -2837,13 +2826,13 @@ class MainApp : Application() {
         nestedCollectionsSkipped = nestedCollectionRoots.size
         if (changed) {
             val livePaths = nextSet
-            searchIndex.keys.retainAll(result.images.map(::relativePath).toSet())
+            browserSearchIndex.retainOnly(result.images)
             cardStore.retainOnly(livePaths)
             previousSet.asSequence().filter { it !in nextSet }.forEach { removed ->
                 browserPreviews.removeOriginal(removed)
                 synchronized(fullImageCache) { fullImageCache.remove(removed) }
                 browserPreviews.removeCard(removed)
-                searchIndex.remove(relativePath(removed))
+                browserSearchIndex.remove(removed)
             }
         }
 
@@ -2854,7 +2843,7 @@ class MainApp : Application() {
             val query = filterField.text.trim().lowercase()
             visibleImages.clear()
             visibleImages.addAll(allImages.filter { it.startsWith(scope) }
-                .filter { query.isBlank() || searchableText(it).contains(query) })
+                .filter { query.isBlank() || browserSearchIndex.textFor(it).contains(query) })
             sortVisibleImagesInPlace()
             browserCountLabel.text = if (query.isBlank() && scope == root) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
             rebuildImageList()
@@ -3022,7 +3011,7 @@ class MainApp : Application() {
         selectedFolder = null
         nestedCollectionRoots = emptyList()
         collectionPresentation = CollectionPresentation()
-        searchIndex.clear()
+        browserSearchIndex.clear()
         cardStore.clear()
         suppressCollectionChoice = true
         try { collectionChoice.items.clear() } finally { suppressCollectionChoice = false }
