@@ -174,6 +174,25 @@ class MainApp : Application() {
             }
         )
     }
+    private val schemeEditorPane by lazy {
+        SchemeEditorPane(
+            ui = editorUi,
+            onRandomize = { cardRandomizationController.randomizeScheme() },
+            onApply = { if (currentIndex in visibleImages.indices) applySelectedScheme() },
+            onFromImage = ::applySchemeFromCurrentImage,
+            onReload = ::loadSchemes,
+            onSchemeChanged = { old, value ->
+                if (
+                    !suppressEditorUpdates &&
+                    value != null &&
+                    value != old &&
+                    currentIndex in visibleImages.indices
+                ) {
+                    applySelectedScheme()
+                }
+            }
+        )
+    }
     private val cardPersistence = CardPersistenceService()
     private val cardSaveController by lazy {
         CardSaveController(
@@ -344,7 +363,7 @@ class MainApp : Application() {
     private val imageBleedOpacityValue = Label("100%")
     private val statusChoice get() = cardMetadataPane.statusChoice
     private lateinit var collectionSettingsPane: CollectionSettingsPane
-    private val schemeChoice = ComboBox<ColorScheme>()
+    private val schemeChoice get() = schemeEditorPane.schemeChoice
     private val templateChoice = ComboBox<CardTemplate>()
     private val collectionTemplateChoice = ComboBox<CardTemplate>()
     private val templateOverride = CheckBox("Use a custom template for this card")
@@ -933,28 +952,7 @@ class MainApp : Application() {
 
         form.children.add(cardMetadataPane)
 
-        form.children.add(editorUi.section("Scheme"))
-        schemeChoice.setCellFactory { editorUi.schemeCell() }
-        schemeChoice.buttonCell = editorUi.schemeCell()
-        form.children.add(editorUi.rowWithDice("Color scheme", schemeChoice) { cardRandomizationController.randomizeScheme() })
-        form.children.add(HBox(8.0).apply {
-            children.add(Button("Apply scheme").apply {
-                setOnAction { if (currentIndex in visibleImages.indices) applySelectedScheme() }
-                maxWidth = Double.MAX_VALUE
-                HBox.setHgrow(this, Priority.ALWAYS)
-            })
-            children.add(Button("From image").apply {
-                tooltip = Tooltip("Choose the closest coordinated color scheme from the dominant artwork color.")
-                setOnAction { applySchemeFromCurrentImage() }
-            })
-            children.add(Button("Reload schemes").apply { setOnAction { loadSchemes() } })
-        })
-        schemeChoice.valueProperty().addListener { _, old, value ->
-            if (!suppressEditorUpdates && value != null && value != old && currentIndex in visibleImages.indices) {
-                applySelectedScheme()
-            }
-        }
-        form.children.add(editorUi.helperLabel("Schemes are editable JSON files under schemes/. Each scheme includes a distinct card backgroundColor."))
+        form.children.add(schemeEditorPane)
 
         form.children.add(editorUi.section("Layout"))
         templateChoice.setCellFactory { editorUi.templateCell() }
