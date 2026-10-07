@@ -1,6 +1,6 @@
 # Color schemes
 
-Each JSON file is an editable Card Forge color scheme.
+Each JSON file is an editable Cetruo Desktop color scheme.
 
 - `tone`: `LIGHT` or `DARK` controls grouping in the scheme picker. `AUTO` remains supported for older/custom files.
 - `backgroundColor`: the card stock/background color.
