@@ -76,7 +76,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
-import java.util.prefs.Preferences
 import java.util.UUID
 import java.util.Locale
 import kotlin.math.floor
@@ -133,7 +132,7 @@ class MainApp : Application() {
     private var imageBrowserMode = ImageBrowserMode.LIST
     private var browserPreviewMode = BrowserPreviewMode.ORIGINAL
     private val showEditorGuides = CheckBox("Editor guides").apply {
-        isSelected = Preferences.userNodeForPackage(MainApp::class.java).getBoolean("showEditorGuides", false)
+        isSelected = AppPreferences.getBoolean("showEditorGuides", false)
         tooltip = Tooltip("Show center alignment guides and drag/zoom help. Turn off to see the card exactly as it will print/export.")
     }
     private var selectedFolder: Path? = null
@@ -149,7 +148,7 @@ class MainApp : Application() {
     )
     private lateinit var uiThemeButton: Button
     private var uiTheme: UiTheme = runCatching {
-        UiTheme.valueOf(Preferences.userNodeForPackage(MainApp::class.java).get("uiTheme", UiTheme.DARK.name))
+        UiTheme.valueOf(AppPreferences.get("uiTheme", UiTheme.DARK.name))
     }.getOrDefault(UiTheme.DARK)
     private lateinit var scene: Scene
     private lateinit var appRoot: BorderPane
@@ -271,7 +270,7 @@ class MainApp : Application() {
             setDividerPosition(0, 0.34)
         }
         appRoot = BorderPane().apply {
-            styleClass.add("cardforge-root")
+            styleClass.add("cetruo-root")
             top = toolbar(stage)
             center = mainSplit
             right = editor()
@@ -288,7 +287,7 @@ class MainApp : Application() {
         scene.accelerators[KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN)] = Runnable { saveCurrentExplicitly() }
         installUiThemeKey(scene)
         showEditorGuides.selectedProperty().addListener { _, _, value ->
-            Preferences.userNodeForPackage(MainApp::class.java).putBoolean("showEditorGuides", value)
+            AppPreferences.putBoolean("showEditorGuides", value)
             if (currentIndex in visibleImages.indices) render()
         }
         scene.accelerators[KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN)] = Runnable {
@@ -387,7 +386,7 @@ class MainApp : Application() {
             tooltip = Tooltip("Switch the Cetruo Desktop application UI theme. This does not change card colors.")
             setOnAction {
                 uiTheme = if (uiTheme == UiTheme.DARK) UiTheme.LIGHT else UiTheme.DARK
-                Preferences.userNodeForPackage(MainApp::class.java).put("uiTheme", uiTheme.name)
+                AppPreferences.put("uiTheme", uiTheme.name)
                 text = if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI"
                 applyUiTheme()
             }
@@ -485,23 +484,23 @@ class MainApp : Application() {
         browserSortChoice.apply {
             items.setAll(BrowserSort.entries)
             value = runCatching {
-                BrowserSort.valueOf(Preferences.userNodeForPackage(MainApp::class.java).get("browserSort", BrowserSort.FILE_NAME.name))
+                BrowserSort.valueOf(AppPreferences.get("browserSort", BrowserSort.FILE_NAME.name))
             }.getOrDefault(BrowserSort.FILE_NAME)
             setCellFactory { browserSortCell() }
             buttonCell = browserSortCell()
             tooltip = Tooltip("Sort visible cards by title, last word, card number, folder, status, or filename.")
             valueProperty().addListener { _, old, value ->
                 if (value != null && value != old) {
-                    Preferences.userNodeForPackage(MainApp::class.java).put("browserSort", value.name)
+                    AppPreferences.put("browserSort", value.name)
                     rebuildVisibleSorted()
                 }
             }
         }
         browserSortDescending.apply {
-            isSelected = Preferences.userNodeForPackage(MainApp::class.java).getBoolean("browserSortDescending", false)
+            isSelected = AppPreferences.getBoolean("browserSortDescending", false)
             tooltip = Tooltip("Reverse the current card ordering.")
             selectedProperty().addListener { _, _, value ->
-                Preferences.userNodeForPackage(MainApp::class.java).putBoolean("browserSortDescending", value)
+                AppPreferences.putBoolean("browserSortDescending", value)
                 rebuildVisibleSorted()
             }
         }
@@ -1783,8 +1782,8 @@ class MainApp : Application() {
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
                 if (Thread.currentThread().isInterrupted) return FileVisitResult.TERMINATE
                 val name = dir.fileName?.toString()?.lowercase(Locale.ROOT).orEmpty()
-                if (dir != root && ((name == "cetruo desktop exports" || name == "card forge exports") || name == ".cardforge" || name == ".cardforge-exports" || name == "exports" && dir.parent?.fileName?.toString() == ".cardforge")) return FileVisitResult.SKIP_SUBTREE
-                if (dir != root && Files.isRegularFile(dir.resolve(CollectionDatabase.FILE_NAME))) {
+                if (dir != root && ((name == "cetruo desktop exports" || name == "card forge exports") || (name == ".cetruo" || name == ".cetruo-exports" || name == ".cardforge" || name == ".cardforge-exports") || name == "exports" && dir.parent?.fileName?.toString() == ".cardforge")) return FileVisitResult.SKIP_SUBTREE
+                if (dir != root && CollectionDatabase.hasCatalog(dir)) {
                     nested.add(dir.toAbsolutePath().normalize())
                     return FileVisitResult.SKIP_SUBTREE
                 }
@@ -2876,7 +2875,7 @@ class MainApp : Application() {
             appendLine("Background overlay: ${currentData.backgroundOverlay.ifBlank { "None" }} (${currentData.backgroundOverlayPlacement})")
             appendLine()
             appendLine("Nested collection directories skipped: $nestedCollectionsSkipped")
-            appendLine("Nested directories containing their own .cardforge.sqlite are treated as separate collections.")
+            appendLine("Nested directories containing their own .cetruo.sqlite (or legacy .cardforge.sqlite) are treated as separate collections.")
         }
         showTextDialog("Collection database", message)
     }
@@ -2912,7 +2911,7 @@ class MainApp : Application() {
                     val child = dir.resolve(rel).toAbsolutePath().normalize()
                     when (event.kind()) {
                         StandardWatchEventKinds.ENTRY_CREATE -> {
-                            if (Files.isDirectory(child) && !Files.isRegularFile(child.resolve(CollectionDatabase.FILE_NAME))) {
+                            if (Files.isDirectory(child) && !CollectionDatabase.hasCatalog(child)) {
                                 runCatching { registerWatchTree(service, child) }
                             }
                             relevant = true
@@ -2920,7 +2919,7 @@ class MainApp : Application() {
                         StandardWatchEventKinds.ENTRY_DELETE -> relevant = true
                         StandardWatchEventKinds.ENTRY_MODIFY -> {
                             invalidateImageCaches(child)
-                            if (child.fileName.toString() == CollectionDatabase.FILE_NAME || child.fileName.toString().endsWith(".card.json", ignoreCase = true)) relevant = true
+                            if (CollectionDatabase.isCatalogFileName(child.fileName.toString()) || child.fileName.toString().endsWith(".card.json", ignoreCase = true)) relevant = true
                         }
                     }
                 }
@@ -3058,7 +3057,7 @@ class MainApp : Application() {
     private fun installUiThemeKey(scene: Scene) {
         scene.accelerators[KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)] = Runnable {
             uiTheme = if (uiTheme == UiTheme.DARK) UiTheme.LIGHT else UiTheme.DARK
-            Preferences.userNodeForPackage(MainApp::class.java).put("uiTheme", uiTheme.name)
+            AppPreferences.put("uiTheme", uiTheme.name)
             if (::uiThemeButton.isInitialized) uiThemeButton.text = if (uiTheme == UiTheme.DARK) "☀ Light UI" else "◐ Dark UI"
             applyUiTheme()
         }
