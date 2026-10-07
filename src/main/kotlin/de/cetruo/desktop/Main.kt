@@ -59,16 +59,8 @@ import javafx.stage.Stage
 import javafx.util.Duration
 import java.awt.Desktop
 import java.awt.Taskbar
-import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.FileSystems
-import java.nio.file.StandardWatchEventKinds
-import java.nio.file.WatchEvent
-import java.nio.file.WatchKey
-import java.nio.file.WatchService
-import java.nio.file.attribute.BasicFileAttributes
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ExecutorService
@@ -154,8 +146,12 @@ class MainApp : Application() {
     private lateinit var appRoot: BorderPane
     private val sourceImageInspector = SourceImageInspector(MainApp::class.java) { uiTheme == UiTheme.DARK }
     private val exportCoordinator = ExportCoordinator()
-    private var watchService: WatchService? = null
-    private var watchThread: Thread? = null
+    private val collectionWatcher by lazy {
+        CollectionWatcher(
+            onImageModified = ::invalidateImageCaches,
+            onRefreshRequested = ::scheduleWatcherRefresh
+        )
+    }
     private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "cetruo-watch-scan").apply { isDaemon = true }
     }
@@ -357,7 +353,7 @@ class MainApp : Application() {
             filterTask?.cancel()
             filterApplyPause.stop()
             thumbnailRefreshPause.stop()
-            stopCollectionWatcher()
+            collectionWatcher.stop()
             sourceImageInspector.close()
             closeCollection()
             browserPreviews.shutdown()
@@ -1728,7 +1724,7 @@ class MainApp : Application() {
                     refreshCollectionChoices()
                 } finally { suppressEditorUpdates = false }
                 RecentCatalogs.record(normalized)
-                startCollectionWatcher(normalized)
+                collectionWatcher.start(normalized)
                 allImages.clear()
                 allImages.addAll(task.value.images)
                 if (::collectionSettingsPane.isInitialized) collectionSettingsPane.setCardCount(allImages.size)
@@ -2892,57 +2888,6 @@ class MainApp : Application() {
         }
     }
 
-    private fun startCollectionWatcher(root: Path) {
-        stopCollectionWatcher()
-        val service = FileSystems.getDefault().newWatchService()
-        watchService = service
-        val thread = Thread({
-            runCatching { registerWatchTree(service, root) }
-            while (!Thread.currentThread().isInterrupted) {
-                val key = runCatching { service.take() }.getOrNull() ?: break
-                var relevant = false
-                for (event in key.pollEvents()) {
-                    if (event.kind() == StandardWatchEventKinds.OVERFLOW) {
-                        relevant = true
-                        continue
-                    }
-                    val dir = key.watchable() as? Path ?: continue
-                    val rel = event.context() as? Path ?: continue
-                    val child = dir.resolve(rel).toAbsolutePath().normalize()
-                    when (event.kind()) {
-                        StandardWatchEventKinds.ENTRY_CREATE -> {
-                            if (Files.isDirectory(child) && !CollectionDatabase.hasCatalog(child)) {
-                                runCatching { registerWatchTree(service, child) }
-                            }
-                            relevant = true
-                        }
-                        StandardWatchEventKinds.ENTRY_DELETE -> relevant = true
-                        StandardWatchEventKinds.ENTRY_MODIFY -> {
-                            invalidateImageCaches(child)
-                            if (CollectionDatabase.isCatalogFileName(child.fileName.toString()) || child.fileName.toString().endsWith(".card.json", ignoreCase = true)) relevant = true
-                        }
-                    }
-                }
-                key.reset()
-                if (relevant) scheduleWatcherRefresh()
-            }
-        }, "cetruo-filesystem-watcher")
-        thread.isDaemon = true
-        watchThread = thread
-        thread.start()
-    }
-
-    private fun registerWatchTree(service: WatchService, root: Path) {
-        if (!Files.isDirectory(root)) return
-        Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
-            override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
-                if (dir != root && CollectionDatabase.hasCatalog(dir)) return FileVisitResult.SKIP_SUBTREE
-                dir.register(service, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY)
-                return FileVisitResult.CONTINUE
-            }
-        })
-    }
-
     private fun scheduleWatcherRefresh() {
         if (!watchScanScheduled.compareAndSet(false, true)) return
         val root = collectionRoot ?: run { watchScanScheduled.set(false); return }
@@ -3037,14 +2982,6 @@ class MainApp : Application() {
                 refreshArtworkOnly()
             }
         }
-    }
-
-    private fun stopCollectionWatcher() {
-        watchThread?.interrupt()
-        watchThread = null
-        runCatching { watchService?.close() }
-        watchService = null
-        watchScanScheduled.set(false)
     }
 
     private fun applyUiTheme() {
@@ -3160,7 +3097,7 @@ class MainApp : Application() {
     }
 
     private fun closeCollection() {
-        stopCollectionWatcher()
+        collectionWatcher.stop()
         database?.close()
         database = null
         collectionRoot = null
