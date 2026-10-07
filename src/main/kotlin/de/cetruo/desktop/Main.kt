@@ -63,9 +63,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.UUID
@@ -246,10 +243,14 @@ class MainApp : Application() {
             onRefreshRequested = ::scheduleWatcherRefresh
         )
     }
-    private val watchScanExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "cetruo-watch-scan").apply { isDaemon = true }
+    private val filesystemRefreshController by lazy {
+        FilesystemRefreshController(
+            scanner = imageScanner,
+            onResult = { root, result ->
+                if (collectionRoot == root) applyFilesystemScanResult(result)
+            }
+        )
     }
-    private val watchScanScheduled = AtomicBoolean(false)
     private val randomSequence = AtomicLong()
 
     private data class CachedImage(val size: Long, val modified: Long, val image: Image)
@@ -1674,6 +1675,7 @@ class MainApp : Application() {
     private fun openCollectionPath(directory: Path) {
         if (!autosaveGuard.ensureSaved()) return
         generation.incrementAndGet()
+        filesystemRefreshController.invalidate()
         filterTask?.cancel()
         collectionOpenController.open(directory)
     }
@@ -2281,17 +2283,8 @@ class MainApp : Application() {
     }
 
     private fun scheduleWatcherRefresh() {
-        if (!watchScanScheduled.compareAndSet(false, true)) return
-        val root = collectionRoot ?: run { watchScanScheduled.set(false); return }
-        val token = generation.get()
-        watchScanExecutor.submit {
-            val result = runCatching { imageScanner.scan(root) }.getOrNull()
-            Platform.runLater {
-                watchScanScheduled.set(false)
-                if (generation.get() != token || collectionRoot != root || result == null) return@runLater
-                applyFilesystemScanResult(result)
-            }
-        }
+        val root = collectionRoot ?: return
+        filesystemRefreshController.schedule(root)
     }
 
     private fun applyFilesystemScanResult(result: CollectionScanResult) {
@@ -2488,6 +2481,7 @@ class MainApp : Application() {
 
     private fun closeCollection() {
         collectionWatcher.stop()
+        filesystemRefreshController.invalidate()
         database?.close()
         database = null
         collectionRoot = null
