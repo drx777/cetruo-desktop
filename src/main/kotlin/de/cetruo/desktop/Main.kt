@@ -2146,8 +2146,8 @@ class MainApp : Application() {
                 offsetX.value = 0.0
                 offsetY.value = 0.0
             } else if (syncFromData) {
-                offsetX.value = actualToSlider(currentData.imageOffsetX, layout.minOffsetX, layout.maxOffsetX)
-                offsetY.value = actualToSlider(currentData.imageOffsetY, layout.minOffsetY, layout.maxOffsetY)
+                offsetX.value = ArtworkPanMath.actualToSlider(currentData.imageOffsetX, layout.minOffsetX, layout.maxOffsetX)
+                offsetY.value = ArtworkPanMath.actualToSlider(currentData.imageOffsetY, layout.minOffsetY, layout.maxOffsetY)
             } else {
                 offsetX.value = offsetX.value.coerceIn(-1.0, 1.0)
                 offsetY.value = offsetY.value.coerceIn(-1.0, 1.0)
@@ -2155,45 +2155,33 @@ class MainApp : Application() {
         } finally {
             suppressEditorUpdates = false
         }
-        val actualX = sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX)
-        val actualY = sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY)
+        val actualX = ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX)
+        val actualY = ArtworkPanMath.sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY)
         currentData.imageOffsetX = actualX
         currentData.imageOffsetY = actualY
         updateValueLabel(xValueLabel, actualX, "%+.0f px")
         updateValueLabel(yValueLabel, actualY, "%+.0f px")
     }
 
-    private fun sliderToActual(value: Double, min: Double, max: Double): Double {
-        if (max - min <= 1e-9) return 0.0
-        val t = ((value + 1.0) / 2.0).coerceIn(0.0, 1.0)
-        return min + (max - min) * t
-    }
-
-    private fun actualToSlider(value: Double, min: Double, max: Double): Double {
-        if (max - min <= 1e-9) return 0.0
-        val t = ((value.coerceIn(min, max) - min) / (max - min)).coerceIn(0.0, 1.0)
-        return t * 2.0 - 1.0
-    }
-
     private fun updateValueLabelFromActualPan() {
         val template = currentTemplate() ?: return
         val layout = CardRenderer.imageLayout(cropImage, currentData.copy(imageZoom = zoom.value, imageMode = imageMode.value ?: currentData.imageMode), template)
-        updateValueLabel(xValueLabel, sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX), "%+.0f px")
-        updateValueLabel(yValueLabel, sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY), "%+.0f px")
+        updateValueLabel(xValueLabel, ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX), "%+.0f px")
+        updateValueLabel(yValueLabel, ArtworkPanMath.sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY), "%+.0f px")
     }
 
     private fun currentActualPanX(): Double {
         val template = currentTemplate() ?: return 0.0
         val dataForLayout = currentData.copy(imageZoom = zoom.value, imageMode = imageMode.value ?: currentData.imageMode)
         val layout = CardRenderer.imageLayout(cropImage, dataForLayout, template)
-        return sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX)
+        return ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX)
     }
 
     private fun currentActualPanY(): Double {
         val template = currentTemplate() ?: return 0.0
         val dataForLayout = currentData.copy(imageZoom = zoom.value, imageMode = imageMode.value ?: currentData.imageMode)
         val layout = CardRenderer.imageLayout(cropImage, dataForLayout, template)
-        return sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY)
+        return ArtworkPanMath.sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY)
     }
 
     private fun cardSnapshotSignature(data: CardData): String = JsonSupport.mapper.writeValueAsString(data)
@@ -2317,8 +2305,8 @@ class MainApp : Application() {
                 val actualY = (currentData.imageOffsetY + dy).coerceIn(layout.minOffsetY, layout.maxOffsetY)
                 suppressEditorUpdates = true
                 try {
-                    offsetX.value = actualToSlider(actualX, layout.minOffsetX, layout.maxOffsetX)
-                    offsetY.value = actualToSlider(actualY, layout.minOffsetY, layout.maxOffsetY)
+                    offsetX.value = ArtworkPanMath.actualToSlider(actualX, layout.minOffsetX, layout.maxOffsetX)
+                    offsetY.value = ArtworkPanMath.actualToSlider(actualY, layout.minOffsetY, layout.maxOffsetY)
                 } finally {
                     suppressEditorUpdates = false
                 }
