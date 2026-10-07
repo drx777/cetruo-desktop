@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 /** Resolves collection/card opacity rules in one place for editor, preview and export renderers. */
 object CollectionVisualSettings {

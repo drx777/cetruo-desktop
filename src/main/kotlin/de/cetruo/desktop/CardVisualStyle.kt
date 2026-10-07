@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import kotlin.math.ceil
 import kotlin.math.max

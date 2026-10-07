@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import javafx.geometry.Pos
 import javafx.scene.control.Button
