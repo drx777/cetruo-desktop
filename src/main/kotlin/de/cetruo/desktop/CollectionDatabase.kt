@@ -43,12 +43,15 @@ class CollectionDatabase private constructor(val root: Path) : AutoCloseable {
                     )
                     copied.add(target)
                 }
-                for ((source, _) in pairs.asReversed()) {
-                    Files.deleteIfExists(source)
-                }
             } catch (error: Exception) {
                 copied.asReversed().forEach { runCatching { Files.deleteIfExists(it) } }
                 throw IllegalStateException("Could not migrate legacy collection catalog to $FILE_NAME", error)
+            }
+
+            // The new catalog is complete at this point. Failure to remove a legacy file is
+            // harmless: future opens prefer FILE_NAME, so never delete the successful copy.
+            for ((source, _) in pairs.asReversed()) {
+                runCatching { Files.deleteIfExists(source) }
             }
         }
 
