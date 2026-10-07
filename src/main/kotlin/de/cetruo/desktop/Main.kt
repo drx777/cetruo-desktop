@@ -156,6 +156,7 @@ class MainApp : Application() {
         )
     }
     private val collectionDiagnostics by lazy { CollectionDiagnosticsFormatter(::statusLabel) }
+    private val editorUi by lazy { EditorUiFactory(::statusLabel) }
     private val cardPersistence = CardPersistenceService()
     private val cardSaveController by lazy {
         CardSaveController(
@@ -1090,7 +1091,7 @@ class MainApp : Application() {
             field.textProperty().addListener { _, _, _ -> updateFromEditor() }
         }
 
-        form.children.add(section("Collection"))
+        form.children.add(editorUi.section("Collection"))
         collectionSettingsPane = CollectionSettingsPane(
             initial = collectionPresentation,
             onPresentationChanged = { value ->
@@ -1103,24 +1104,24 @@ class MainApp : Application() {
         )
         collectionSettingsPane.setCardCount(allImages.size)
         form.children.add(collectionSettingsPane)
-        form.children.add(helperLabel("These presentation options belong to the collection and apply to every card."))
+        form.children.add(editorUi.helperLabel("These presentation options belong to the collection and apply to every card."))
 
-        form.children.add(section("Card Metadata"))
-        form.children.add(rowWithDice("Title", textField("title")) { cardRandomizationController.randomizeTitle() })
-        form.children.add(rowWithDice("Cost", textField("cost")) { cardRandomizationController.randomizeCost() })
-        form.children.add(rowWithDice("Type line", textField("typeLine")) { cardRandomizationController.randomizeTypeLine() })
-        form.children.add(rowWithDice("Rarity", textField("rarity")) { cardRandomizationController.randomizeRarity() })
-        form.children.add(rowWithDice("Stats", textField("stats")) { cardRandomizationController.randomizeStats() })
-        form.children.add(rowWithDice("Artist", textField("artist")) { cardRandomizationController.randomizeArtistPattern() })
-        form.children.add(rowWithDice("Set", textField("setName")) { cardRandomizationController.randomizeSetName() })
-        form.children.add(rowWithDice("Number", textField("collectorNumber")) { cardRandomizationController.randomizeCollectorNumber() })
+        form.children.add(editorUi.section("Card Metadata"))
+        form.children.add(editorUi.rowWithDice("Title", textField("title")) { cardRandomizationController.randomizeTitle() })
+        form.children.add(editorUi.rowWithDice("Cost", textField("cost")) { cardRandomizationController.randomizeCost() })
+        form.children.add(editorUi.rowWithDice("Type line", textField("typeLine")) { cardRandomizationController.randomizeTypeLine() })
+        form.children.add(editorUi.rowWithDice("Rarity", textField("rarity")) { cardRandomizationController.randomizeRarity() })
+        form.children.add(editorUi.rowWithDice("Stats", textField("stats")) { cardRandomizationController.randomizeStats() })
+        form.children.add(editorUi.rowWithDice("Artist", textField("artist")) { cardRandomizationController.randomizeArtistPattern() })
+        form.children.add(editorUi.rowWithDice("Set", textField("setName")) { cardRandomizationController.randomizeSetName() })
+        form.children.add(editorUi.rowWithDice("Number", textField("collectorNumber")) { cardRandomizationController.randomizeCollectorNumber() })
 
         statusChoice.items.setAll(CardStatus.entries)
-        statusChoice.setCellFactory { statusCell() }
-        statusChoice.buttonCell = statusCell()
+        statusChoice.setCellFactory { editorUi.statusCell() }
+        statusChoice.buttonCell = editorUi.statusCell()
         statusChoice.tooltip = Tooltip("Workflow state saved with the card.")
         statusChoice.valueProperty().addListener { _, _, value -> if (!suppressEditorUpdates && value != null) updateFromEditor() }
-        form.children.add(row("Status", statusChoice))
+        form.children.add(editorUi.row("Status", statusChoice))
 
         description.isWrapText = true
         description.prefRowCount = 4
@@ -1128,13 +1129,13 @@ class MainApp : Application() {
         flavor.isWrapText = true
         flavor.prefRowCount = 3
         flavor.textProperty().addListener { _, _, _ -> updateFromEditor() }
-        form.children.add(row("Description", description))
-        form.children.add(row("Flavor", flavor))
+        form.children.add(editorUi.row("Description", description))
+        form.children.add(editorUi.row("Flavor", flavor))
 
-        form.children.add(section("Scheme"))
-        schemeChoice.setCellFactory { schemeCell() }
-        schemeChoice.buttonCell = schemeCell()
-        form.children.add(rowWithDice("Color scheme", schemeChoice) { cardRandomizationController.randomizeScheme() })
+        form.children.add(editorUi.section("Scheme"))
+        schemeChoice.setCellFactory { editorUi.schemeCell() }
+        schemeChoice.buttonCell = editorUi.schemeCell()
+        form.children.add(editorUi.rowWithDice("Color scheme", schemeChoice) { cardRandomizationController.randomizeScheme() })
         form.children.add(HBox(8.0).apply {
             children.add(Button("Apply scheme").apply {
                 setOnAction { if (currentIndex in visibleImages.indices) applySelectedScheme() }
@@ -1152,11 +1153,11 @@ class MainApp : Application() {
                 applySelectedScheme()
             }
         }
-        form.children.add(helperLabel("Schemes are editable JSON files under schemes/. Each scheme includes a distinct card backgroundColor."))
+        form.children.add(editorUi.helperLabel("Schemes are editable JSON files under schemes/. Each scheme includes a distinct card backgroundColor."))
 
-        form.children.add(section("Layout"))
-        templateChoice.setCellFactory { templateCell() }
-        templateChoice.buttonCell = templateCell()
+        form.children.add(editorUi.section("Layout"))
+        templateChoice.setCellFactory { editorUi.templateCell() }
+        templateChoice.buttonCell = editorUi.templateCell()
         templateChoice.valueProperty().addListener { _, _, value ->
             if (!suppressEditorUpdates && value != null && currentIndex in visibleImages.indices) {
                 captureUndoSnapshot()
@@ -1179,18 +1180,18 @@ class MainApp : Application() {
             updateFromEditor(renderPreview = false)
         }
         collectionTemplateChoice.items.setAll(templates)
-        collectionTemplateChoice.setCellFactory { templateCell() }
-        collectionTemplateChoice.buttonCell = templateCell()
+        collectionTemplateChoice.setCellFactory { editorUi.templateCell() }
+        collectionTemplateChoice.buttonCell = editorUi.templateCell()
         collectionTemplateChoice.valueProperty().addListener { _, old, value ->
             if (!suppressEditorUpdates && value != null && value != old) {
                 collectionMutationController.setCollectionDefaultTemplate(value)
             }
         }
-        form.children.add(row("This card template", templateChoice))
+        form.children.add(editorUi.row("This card template", templateChoice))
         form.children.add(templateOverride.apply {
             tooltip = Tooltip("On: this card stores its own template. Off: this card follows the collection default template.")
         })
-        form.children.add(row("Collection default template", collectionTemplateChoice))
+        form.children.add(editorUi.row("Collection default template", collectionTemplateChoice))
         form.children.add(HBox(8.0).apply {
             children.add(Button("Use collection default for this card").apply {
                 maxWidth = Double.MAX_VALUE
@@ -1206,12 +1207,12 @@ class MainApp : Application() {
         })
         val reloadTemplates = Button("Reload templates").apply { setOnAction { loadTemplates() } }
         form.children.add(reloadTemplates)
-        form.children.add(helperLabel("Collection default is the fallback for cards without a custom template. Applying this template to all cards writes it explicitly to every card and also updates the collection default."))
+        form.children.add(editorUi.helperLabel("Collection default is the fallback for cards without a custom template. Applying this template to all cards writes it explicitly to every card and also updates the collection default."))
 
-        form.children.add(section("Artwork"))
+        form.children.add(editorUi.section("Artwork"))
         imageMode.items.setAll(ImageMode.entries)
-        imageMode.setCellFactory { imageModeCell() }
-        imageMode.buttonCell = imageModeCell()
+        imageMode.setCellFactory { editorUi.imageModeCell() }
+        imageMode.buttonCell = editorUi.imageModeCell()
         imageMode.tooltip = Tooltip("Crop to Fill, Fit + Pad, and Stretch can all zoom below 1×; the image frame then shows the pad color.")
         imageMode.valueProperty().addListener { _, _, value ->
             if (!suppressEditorUpdates && value != null) {
@@ -1220,7 +1221,7 @@ class MainApp : Application() {
                 refreshArtworkOnly()
             }
         }
-        form.children.add(row("Fit", imageMode))
+        form.children.add(editorUi.row("Fit", imageMode))
         imageBleedOverFrame.apply {
             tooltip = Tooltip("Extend artwork behind the surrounding card frame. The description panel remains above it; description background opacity controls how much artwork can show through there.")
             selectedProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
@@ -1232,8 +1233,8 @@ class MainApp : Application() {
             if (!suppressEditorUpdates) updateFromEditor()
         }
         installSliderReset(imageBleedOpacity, 1.0)
-        form.children.add(sliderRow("Bleed opacity", imageBleedOpacity, imageBleedOpacityValue, "%.0f%%"))
-        form.children.add(helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×."))
+        form.children.add(editorUi.sliderRow("Bleed opacity", imageBleedOpacity, imageBleedOpacityValue, "%.0f%%"))
+        form.children.add(editorUi.helperLabel("Drag the artwork to pan. Scroll to zoom. Double-click the artwork or use Reset to return to centered 1×."))
 
         val cropActions = HBox(8.0).apply {
             val fill = Button("Crop to Fill").apply { setOnAction { setArtwork(ImageMode.COVER, 1.0, 0.0, 0.0) } }
@@ -1247,16 +1248,16 @@ class MainApp : Application() {
             children.addAll(fill, contain, center, reset)
         }
         form.children.add(cropActions)
-        form.children.add(sliderRow("Zoom", zoom, zoomValueLabel, "%.2f×"))
+        form.children.add(editorUi.sliderRow("Zoom", zoom, zoomValueLabel, "%.2f×"))
         offsetX.isShowTickMarks = true
         offsetX.isShowTickLabels = true
         offsetX.majorTickUnit = 1.0
         offsetY.isShowTickMarks = true
         offsetY.isShowTickLabels = true
         offsetY.majorTickUnit = 1.0
-        form.children.add(sliderRow("Position X", offsetX, xValueLabel, "%+.0f px"))
-        form.children.add(sliderRow("Position Y", offsetY, yValueLabel, "%+.0f px"))
-        form.children.add(row("Pad color", imagePadColor))
+        form.children.add(editorUi.sliderRow("Position X", offsetX, xValueLabel, "%+.0f px"))
+        form.children.add(editorUi.sliderRow("Position Y", offsetY, yValueLabel, "%+.0f px"))
+        form.children.add(editorUi.row("Pad color", imagePadColor))
         installSliderReset(zoom, 1.0)
         installSliderReset(offsetX, 0.0)
         installSliderReset(offsetY, 0.0)
@@ -1266,7 +1267,7 @@ class MainApp : Application() {
                 recalculatePanControls(resetPan = false)
                 updateFromEditor(renderPreview = false)
                 refreshArtworkOnly()
-                updateValueLabel(zoomValueLabel, value.toDouble(), "%.2f×")
+                editorUi.updateValueLabel(zoomValueLabel, value.toDouble(), "%.2f×")
             }
         }
         offsetX.valueProperty().addListener { _, _, _ ->
@@ -1285,17 +1286,17 @@ class MainApp : Application() {
         }
         imagePadColor.valueProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
 
-        form.children.add(section("Background"))
-        form.children.add(row("Card background", backgroundColor))
-        backgroundOverlayChoice.setCellFactory { overlayCell() }
-        backgroundOverlayChoice.buttonCell = overlayCell()
-        form.children.add(rowWithDice("SVG overlay", backgroundOverlayChoice) { cardRandomizationController.randomizeOverlay() })
-        form.children.add(row("Overlay tint", overlayColor))
+        form.children.add(editorUi.section("Background"))
+        form.children.add(editorUi.row("Card background", backgroundColor))
+        backgroundOverlayChoice.setCellFactory { editorUi.overlayCell() }
+        backgroundOverlayChoice.buttonCell = editorUi.overlayCell()
+        form.children.add(editorUi.rowWithDice("SVG overlay", backgroundOverlayChoice) { cardRandomizationController.randomizeOverlay() })
+        form.children.add(editorUi.row("Overlay tint", overlayColor))
         overlayPlacementChoice.items.setAll(OverlayPlacement.entries)
-        overlayPlacementChoice.setCellFactory { overlayPlacementCell() }
-        overlayPlacementChoice.buttonCell = overlayPlacementCell()
-        form.children.add(row("Overlay layer", overlayPlacementChoice))
-        form.children.add(sliderRow("Overlay opacity", overlayOpacity, Label(), "%.2f"))
+        overlayPlacementChoice.setCellFactory { editorUi.overlayPlacementCell() }
+        overlayPlacementChoice.buttonCell = editorUi.overlayPlacementCell()
+        form.children.add(editorUi.row("Overlay layer", overlayPlacementChoice))
+        form.children.add(editorUi.sliderRow("Overlay opacity", overlayOpacity, Label(), "%.2f"))
         installSliderReset(panelOpacity, 0.96)
         installSliderReset(overlayOpacity, 1.0)
         installSchemeColorReset(imagePadColor, { it.imagePadColor }, "#0A0D10")
@@ -1305,7 +1306,7 @@ class MainApp : Application() {
         installSchemeColorReset(accentColor, { it.accentColor }, "#8C8068")
         installSchemeColorReset(overlayColor, { it.overlayColor }, "#C9B37A")
         form.children.add(Button("Reload overlays").apply { setOnAction { loadOverlays() } })
-        form.children.add(helperLabel("Frames only puts the overlay behind the image and text boxes; Over content places it on top of the complete card."))
+        form.children.add(editorUi.helperLabel("Frames only puts the overlay behind the image and text boxes; Over content places it on top of the complete card."))
 
         backgroundColor.valueProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
         overlayOpacity.valueProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
@@ -1327,97 +1328,20 @@ class MainApp : Application() {
             }
         }
 
-        form.children.add(section("Appearance"))
+        form.children.add(editorUi.section("Appearance"))
         listOf(panelColor, frameColor, accentColor).forEach { picker ->
             picker.valueProperty().addListener { _, _, _ -> if (!suppressEditorUpdates) updateFromEditor() }
         }
-        form.children.add(row("Panel", panelColor))
-        form.children.add(row("Frame", frameColor))
-        form.children.add(row("Accent", accentColor))
-        form.children.add(row("Border", border))
-        form.children.add(row("Corner radius", radius))
-        form.children.add(sliderRow("Description background opacity", panelOpacity, Label(), "%.2f"))
-        form.children.add(row("Title size", titleSize))
-        form.children.add(row("Body size", bodySize))
+        form.children.add(editorUi.row("Panel", panelColor))
+        form.children.add(editorUi.row("Frame", frameColor))
+        form.children.add(editorUi.row("Accent", accentColor))
+        form.children.add(editorUi.row("Border", border))
+        form.children.add(editorUi.row("Corner radius", radius))
+        form.children.add(editorUi.sliderRow("Description background opacity", panelOpacity, Label(), "%.2f"))
+        form.children.add(editorUi.row("Title size", titleSize))
+        form.children.add(editorUi.row("Body size", bodySize))
 
         return ScrollPane(form).apply { isFitToWidth = true }
-    }
-
-    private fun statusCell() = object : ListCell<CardStatus>() {
-        override fun updateItem(item: CardStatus?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = if (empty || item == null) null else statusLabel(item)
-        }
-    }
-
-    private fun schemeCell() = object : ListCell<ColorScheme>() {
-        override fun updateItem(item: ColorScheme?, empty: Boolean) {
-            super.updateItem(item, empty)
-            if (empty || item == null) {
-                text = null
-                graphic = null
-                tooltip = null
-                return
-            }
-            val tone = if (item.resolvedTone == SchemeTone.LIGHT) "☀ Light" else "◐ Dark"
-            text = "$tone · ${item.name}"
-            graphic = HBox(4.0).apply {
-                listOf(item.backgroundColor, item.panelColor, item.frameColor, item.accentColor, item.overlayColor).forEach { hex ->
-                    children.add(Region().apply {
-                        minWidth = 12.0; maxWidth = 12.0; minHeight = 12.0; maxHeight = 12.0
-                        style = "-fx-background-color:$hex;-fx-background-radius:3px;-fx-border-color:rgba(255,255,255,0.25);-fx-border-radius:3px;"
-                    })
-                }
-            }
-            val warnings = SchemeContrast.warnings(item)
-            tooltip = Tooltip(buildString {
-                append(item.description)
-                append("\nCard background: ${item.backgroundColor}\nOverlay tint: ${item.overlayColor}")
-                if (warnings.isNotEmpty()) {
-                    append("\n\nContrast warnings:")
-                    warnings.forEach { append("\n• ").append(it) }
-                }
-            })
-        }
-    }
-
-    private fun templateCell() = object : ListCell<CardTemplate>() {
-        override fun updateItem(item: CardTemplate?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = if (empty || item == null) null else item.name
-            tooltip = if (empty || item == null) null else Tooltip(item.description)
-        }
-    }
-
-    private fun imageModeCell() = object : ListCell<ImageMode>() {
-        override fun updateItem(item: ImageMode?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = when {
-                empty || item == null -> null
-                item == ImageMode.COVER -> "Crop to Fill"
-                item == ImageMode.CONTAIN -> "Fit + Pad"
-                else -> "Stretch"
-            }
-        }
-    }
-
-    private fun overlayCell() = object : ListCell<BackgroundOverlay>() {
-        override fun updateItem(item: BackgroundOverlay?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = if (empty || item == null) null else item.name
-            tooltip = if (empty || item == null) null else Tooltip(item.description)
-        }
-    }
-
-    private fun overlayPlacementCell() = object : ListCell<OverlayPlacement>() {
-        override fun updateItem(item: OverlayPlacement?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = when {
-                empty || item == null -> null
-                item == OverlayPlacement.FRAMES_ONLY -> "Frames only"
-                else -> "Over content"
-            }
-        }
     }
 
     private fun statusLabel(status: CardStatus): String = when (status) {
@@ -1426,16 +1350,6 @@ class MainApp : Application() {
         CardStatus.READY -> "Ready"
         CardStatus.EXPORTED -> "Exported"
         CardStatus.ARCHIVED -> "Archived"
-    }
-
-    private fun helperLabel(text: String) = Label(text).apply {
-        isWrapText = true
-        textFill = Color.web("#8B949E")
-        style = "-fx-font-size:12px;"
-    }
-
-    private fun section(text: String) = Label(text).apply {
-        style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-padding:8 0 3 0;"
     }
 
     private fun doubleSpinner(minimum: Double, maximum: Double, initial: Double, amount: Double): Spinner<Double> =
@@ -1475,38 +1389,6 @@ class MainApp : Application() {
         }
     }
 
-    private fun row(label: String, node: Node): HBox = HBox(8.0).apply {
-        alignment = Pos.CENTER_LEFT
-        children.add(Label(label).apply { minWidth = 112.0 })
-        HBox.setHgrow(node, Priority.ALWAYS)
-        children.add(node)
-    }
-
-    private fun rowWithDice(label: String, node: Node, action: () -> Unit): HBox = HBox(6.0).apply {
-        alignment = Pos.CENTER_LEFT
-        children.add(Label(label).apply { minWidth = 112.0 })
-        children.add(Button("⚄").apply {
-            accessibleText = "Randomize $label"
-            tooltip = Tooltip("Randomize $label")
-            minWidth = 28.0
-            maxWidth = 28.0
-            setOnAction { action() }
-        })
-        HBox.setHgrow(node, Priority.ALWAYS)
-        children.add(node)
-    }
-
-    private fun sliderRow(label: String, slider: Slider, value: Label, format: String): HBox = HBox(8.0).apply {
-        alignment = Pos.CENTER_LEFT
-        children.add(Label(label).apply { minWidth = 112.0 })
-        children.add(slider)
-        children.add(value)
-        HBox.setHgrow(slider, Priority.ALWAYS)
-        updateValueLabel(value, slider.value, format)
-    }
-
-    private fun updateValueLabel(label: Label, value: Double, format: String) { label.text = format.format(value) }
-
     private fun statusBar() = HBox(statusBarLabel).apply { padding = Insets(6.0, 12.0, 6.0, 12.0) }
 
     private fun randomGenerator(): kotlin.random.Random {
@@ -1539,8 +1421,8 @@ class MainApp : Application() {
         suppressEditorUpdates = true
         try {
             schemeChoice.items.setAll(schemes)
-            schemeChoice.setCellFactory { schemeCell() }
-            schemeChoice.buttonCell = schemeCell()
+            schemeChoice.setCellFactory { editorUi.schemeCell() }
+            schemeChoice.buttonCell = editorUi.schemeCell()
             schemeChoice.value = schemes.firstOrNull { it.name == currentData.schemeName } ?: schemes.firstOrNull()
         } finally {
             suppressEditorUpdates = false
