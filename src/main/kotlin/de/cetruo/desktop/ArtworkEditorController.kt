@@ -43,7 +43,7 @@ class ArtworkEditorController(
             offsetX.value = 0.0
             offsetY.value = 0.0
         }
-        updatePanLabels()
+        updatePanLabelsFromControls()
     }
 
     fun recalculatePanControls(resetPan: Boolean, syncFromData: Boolean = false) {
@@ -105,7 +105,7 @@ class ArtworkEditorController(
         recalculatePanControls(resetPan = false)
     }
 
-    private fun updatePanLabels() {
+    fun updatePanLabelsFromControls() {
         val layout = layout() ?: return
         updatePanLabels(
             ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX),
