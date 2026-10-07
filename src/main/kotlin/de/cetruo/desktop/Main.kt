@@ -76,20 +76,9 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
-private enum class ImageBrowserMode {
-    LIST,
-    THUMBNAILS
-}
-
 private enum class UiTheme {
     LIGHT, DARK
 }
-
-private enum class BrowserPreviewMode {
-    ORIGINAL, CARD
-}
-
-private data class CollectionOption(val root: Path, val label: String)
 
 class MainApp : Application() {
     private val imageScanner = CollectionImageScanner()
@@ -284,9 +273,22 @@ class MainApp : Application() {
         )
     }
 
-    private val folderTree = TreeView<Path>()
-    private val imageList = ListView<Path>()
-    private val gridList = ListView<GridRow>()
+    private val browserPane = BrowserPane(
+        initialMode = ImageBrowserMode.LIST,
+        initialPreviewMode = BrowserPreviewMode.ORIGINAL,
+        initialSort = runCatching {
+            BrowserSort.valueOf(AppPreferences.get("browserSort", BrowserSort.FILE_NAME.name))
+        }.getOrDefault(BrowserSort.FILE_NAME),
+        initialSortDescending = AppPreferences.getBoolean("browserSortDescending", false)
+    )
+    private val folderTree get() = browserPane.folderTree
+    private val imageList get() = browserPane.imageList
+    private val gridList get() = browserPane.gridList
+    private val filterField get() = browserPane.filterField
+    private val collectionChoice get() = browserPane.collectionChoice
+    private val browserCountLabel get() = browserPane.countLabel
+    private val browserSortChoice get() = browserPane.sortChoice
+    private val browserSortDescending get() = browserPane.sortDescending
     private val browserSelection by lazy {
         BrowserSelectionCoordinator(
             listView = imageList,
@@ -314,18 +316,6 @@ class MainApp : Application() {
             }
         )
     }
-    private lateinit var browserStack: StackPane
-    private val filterField = TextField()
-    private val collectionChoice = ComboBox<CollectionOption>()
-    private lateinit var browserModeToggleGroup: ToggleGroup
-    private lateinit var browserPreviewToggleGroup: ToggleGroup
-    private lateinit var browserListToggle: ToggleButton
-    private lateinit var browserGridToggle: ToggleButton
-    private lateinit var browserOriginalToggle: ToggleButton
-    private lateinit var browserCardToggle: ToggleButton
-    private val browserCountLabel = Label("0 images")
-    private val browserSortChoice = ComboBox<BrowserSort>()
-    private val browserSortDescending = CheckBox("Descending")
     private val statusBarLabel = Label("Open an image directory.")
     private val fields = linkedMapOf<String, TextField>()
     private val description = TextArea()
@@ -623,113 +613,61 @@ class MainApp : Application() {
         }
     }
 
-    private fun browser(): VBox {
-        filterField.promptText = "Filter cards, images and folders…"
-        filterField.styleClass.add("browser-filter")
-        filterField.tooltip = Tooltip("Search across filenames, folders, IDs, status and every stored card property.")
-        filterField.textProperty().addListener { _, _, _ ->
+    private fun browser(): BrowserPane {
+        browserPane.onFilterChanged = {
             filterApplyPause.stop()
             filterApplyPause.setOnFinished { applyBrowserFilter() }
             filterApplyPause.playFromStart()
         }
-
-        browserModeToggleGroup = ToggleGroup()
-        browserListToggle = ToggleButton("☷").apply {
-            toggleGroup = browserModeToggleGroup
-            isSelected = imageBrowserMode == ImageBrowserMode.LIST
-            accessibleText = "List view"
-            tooltip = Tooltip("List view")
-            setOnAction {
-                val old = imageBrowserMode
-                switchBrowserMode(ImageBrowserMode.LIST)
-                if (imageBrowserMode != ImageBrowserMode.LIST) isSelected = old == ImageBrowserMode.LIST
-            }
+        browserPane.onModeRequested = ::switchBrowserMode
+        browserPane.onPreviewModeRequested = ::switchBrowserPreviewMode
+        browserPane.onCollectionSelected = { option ->
+            if (!suppressCollectionChoice) openCollectionPath(option.root)
         }
-        browserGridToggle = ToggleButton("▦").apply {
-            toggleGroup = browserModeToggleGroup
-            isSelected = imageBrowserMode == ImageBrowserMode.THUMBNAILS
-            accessibleText = "Thumbnail grid"
-            tooltip = Tooltip("Thumbnail grid")
-            setOnAction {
-                val old = imageBrowserMode
-                switchBrowserMode(ImageBrowserMode.THUMBNAILS)
-                if (imageBrowserMode != ImageBrowserMode.THUMBNAILS) isSelected = old == ImageBrowserMode.THUMBNAILS
-            }
+        browserPane.onSortChanged = { value ->
+            AppPreferences.put("browserSort", value.name)
+            rebuildVisibleSorted()
         }
-
-        browserPreviewToggleGroup = ToggleGroup()
-        browserOriginalToggle = ToggleButton("◎").apply {
-            toggleGroup = browserPreviewToggleGroup
-            isSelected = browserPreviewMode == BrowserPreviewMode.ORIGINAL
-            accessibleText = "Original image previews"
-            tooltip = Tooltip("Original image previews")
-            setOnAction { switchBrowserPreviewMode(BrowserPreviewMode.ORIGINAL) }
+        browserPane.onSortDescendingChanged = { value ->
+            AppPreferences.putBoolean("browserSortDescending", value)
+            rebuildVisibleSorted()
         }
-        browserCardToggle = ToggleButton("▣").apply {
-            toggleGroup = browserPreviewToggleGroup
-            isSelected = browserPreviewMode == BrowserPreviewMode.CARD
-            accessibleText = "Card previews"
-            tooltip = Tooltip("Card previews")
-            setOnAction { switchBrowserPreviewMode(BrowserPreviewMode.CARD) }
-        }
-        collectionChoice.apply {
-            setCellFactory { collectionOptionCell() }
-            buttonCell = collectionOptionCell()
-            prefWidth = 260.0
-            tooltip = Tooltip("Switch between the selected collection and collections discovered in its subfolders.")
-            valueProperty().addListener { _, old, value ->
-                if (!suppressCollectionChoice && value != null && value != old) openCollectionPath(value.root)
-            }
-        }
-        browserSortChoice.apply {
-            items.setAll(BrowserSort.entries)
-            value = runCatching {
-                BrowserSort.valueOf(AppPreferences.get("browserSort", BrowserSort.FILE_NAME.name))
-            }.getOrDefault(BrowserSort.FILE_NAME)
-            setCellFactory { browserSortCell() }
-            buttonCell = browserSortCell()
-            tooltip = Tooltip("Sort visible cards by title, last word, card number, folder, status, or filename.")
-            valueProperty().addListener { _, old, value ->
-                if (value != null && value != old) {
-                    AppPreferences.put("browserSort", value.name)
-                    rebuildVisibleSorted()
+        browserPane.onFolderSelected = { folder ->
+            if (!suppressFolderSelection) {
+                val normalizedFolder = folder.toAbsolutePath().normalize()
+                if (nestedCollectionRoots.contains(normalizedFolder)) {
+                    openCollectionPath(normalizedFolder)
+                } else if (folder != selectedFolder) {
+                    if (currentIndex !in visibleImages.indices || autosaveGuard.ensureSaved()) {
+                        selectedFolder = folder
+                        requestVisibleImagesRebuild()
+                    }
                 }
             }
         }
-        browserSortDescending.apply {
-            isSelected = AppPreferences.getBoolean("browserSortDescending", false)
-            tooltip = Tooltip("Reverse the current card ordering.")
-            selectedProperty().addListener { _, _, value ->
-                AppPreferences.putBoolean("browserSortDescending", value)
-                rebuildVisibleSorted()
+        browserPane.onBrowserFocused = ::refreshBrowserSelectionStyles
+        browserPane.onGridWidthChanged = {
+            val newColumns = calculateBrowserColumns()
+            if (newColumns != browserColumns) {
+                val anchor = firstVisibleBrowserPath(gridList, true)
+                browserColumns = newColumns
+                rebuildGrid(anchor)
             }
         }
 
-        val tools = VBox(6.0,
-            HBox(8.0, Label("Collection"), collectionChoice).apply { alignment = Pos.CENTER_LEFT },
-            HBox(8.0, filterField, HBox(2.0, browserListToggle, browserGridToggle), HBox(2.0, browserOriginalToggle, browserCardToggle)).apply {
-                alignment = Pos.CENTER_LEFT
-                HBox.setHgrow(filterField, Priority.ALWAYS)
-            },
-            HBox(8.0, Label("Sort"), browserSortChoice, browserSortDescending).apply {
-                alignment = Pos.CENTER_LEFT
-            }
-        )
-        val header = HBox(8.0, Label("Images"), browserCountLabel).apply {
-            alignment = Pos.CENTER_LEFT
-            browserCountLabel.styleClass.add("browser-meta")
-        }
-
-        folderTree.isShowRoot = true
         folderTree.setCellFactory {
             object : TreeCell<Path>() {
                 override fun updateItem(item: Path?, empty: Boolean) {
                     super.updateItem(item, empty)
                     if (empty || item == null) {
-                        text = null; tooltip = null; graphic = null; return
+                        text = null
+                        tooltip = null
+                        graphic = null
+                        return
                     }
                     val root = collectionRoot
-                    val isCollection = item != root && nestedCollectionRoots.contains(item.toAbsolutePath().normalize())
+                    val isCollection =
+                        item != root && nestedCollectionRoots.contains(item.toAbsolutePath().normalize())
                     text = when {
                         root != null && item == root -> "📁 ${item.fileName} · All Images"
                         isCollection -> "◈ ${item.fileName} · Collection"
@@ -738,119 +676,36 @@ class MainApp : Application() {
                     tooltip = Tooltip(if (root != null) relativePath(item) else item.toString())
                     contextMenu = ContextMenu(
                         MenuItem("Open in Finder").apply { setOnAction { revealInFinder(item) } },
-                        MenuItem("Copy Path").apply { setOnAction {
-                            val content = ClipboardContent().apply { putString(item.toAbsolutePath().toString()) }
-                            Clipboard.getSystemClipboard().setContent(content)
-                        } }
+                        MenuItem("Copy Path").apply {
+                            setOnAction {
+                                val content = ClipboardContent().apply {
+                                    putString(item.toAbsolutePath().toString())
+                                }
+                                Clipboard.getSystemClipboard().setContent(content)
+                            }
+                        }
                     )
                 }
             }
         }
-        folderTree.selectionModel.selectedItemProperty().addListener { _, _, item ->
-            if (suppressFolderSelection) return@addListener
-            val folder = item?.value ?: return@addListener
-            val normalizedFolder = folder.toAbsolutePath().normalize()
-            if (nestedCollectionRoots.contains(normalizedFolder)) {
-                openCollectionPath(normalizedFolder)
-                return@addListener
-            }
-            if (folder != selectedFolder) {
-                if (currentIndex in visibleImages.indices && !autosaveGuard.ensureSaved()) return@addListener
-                selectedFolder = folder
-                requestVisibleImagesRebuild()
-            }
-        }
 
-        configureListView(imageList)
-        configureGridView(gridList)
-        browserStack = StackPane(imageList, gridList).apply {
-            minHeight = 220.0
-            maxWidth = Double.MAX_VALUE
-        }
-        imageList.isVisible = true
-        imageList.isManaged = true
-        gridList.isVisible = false
-        gridList.isManaged = false
-
-        val root = VBox(10.0, tools, header, folderTree, browserStack).apply {
-            padding = Insets(12.0)
-            minWidth = 300.0
-            prefWidth = 470.0
-            maxWidth = Double.MAX_VALUE
-            folderTree.prefHeight = 190.0
-            VBox.setVgrow(browserStack, Priority.ALWAYS)
-        }
-        return root
+        browserPane.configureCells(
+            listCellFactory = { browserTiles.listCell() },
+            gridCellFactory = { browserTiles.gridCell() }
+        )
+        return browserPane
     }
 
-    private fun configureListView(view: ListView<Path>) {
-        view.placeholder = Label("No images match the current filter.")
-        view.styleClass.add("image-browser-list")
-        view.isFocusTraversable = true
-        view.setCellFactory { browserTiles.listCell() }
-        view.focusedProperty().addListener { _, _, focused -> if (focused) refreshBrowserSelectionStyles() }
-    }
-
-    private fun configureGridView(view: ListView<GridRow>) {
-        view.placeholder = Label("No images match the current filter.")
-        view.styleClass.add("image-browser-grid")
-        view.isFocusTraversable = true
-        view.setCellFactory { browserTiles.gridCell() }
-        view.focusedProperty().addListener { _, _, focused -> if (focused) refreshBrowserSelectionStyles() }
-        view.widthProperty().addListener { _, _, newWidth ->
-            if (newWidth.toDouble() > 0.0) {
-                val newColumns = calculateBrowserColumns()
-                if (newColumns != browserColumns) {
-                    val anchor = firstVisibleBrowserPath(view, true)
-                    browserColumns = newColumns
-                    rebuildGrid(anchor)
-                }
-            }
-        }
-    }
-
-    private fun browserSortCell() = object : ListCell<BrowserSort>() {
-        override fun updateItem(item: BrowserSort?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = when {
-                empty || item == null -> null
-                item == BrowserSort.NAME -> "Name"
-                item == BrowserSort.LAST_WORD -> "Last word"
-                item == BrowserSort.COLLECTOR_NUMBER -> "Card number"
-                item == BrowserSort.FOLDER -> "Folder"
-                item == BrowserSort.STATUS -> "Status"
-                item == BrowserSort.FILE_NAME -> "File name"
-                else -> "Unknown"
-            }
-        }
-    }
-
-    private fun collectionOptionCell() = object : ListCell<CollectionOption>() {
-        override fun updateItem(item: CollectionOption?, empty: Boolean) {
-            super.updateItem(item, empty)
-            text = if (empty || item == null) null else item.label
-            tooltip = if (empty || item == null) null else Tooltip(item.root.toString())
-        }
-    }
-
-    private fun calculateBrowserColumns(): Int {
-        val available = gridList.width - 36.0
-        return floor((available + 10.0) / 166.0).toInt().coerceAtLeast(1)
-    }
+    private fun calculateBrowserColumns(): Int = browserPane.calculateColumns()
 
     private fun switchBrowserPreviewMode(mode: BrowserPreviewMode) {
         if (mode == browserPreviewMode) return
         if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) {
-            suppressEditorUpdates = true
-            try {
-                browserOriginalToggle.isSelected = browserPreviewMode == BrowserPreviewMode.ORIGINAL
-                browserCardToggle.isSelected = browserPreviewMode == BrowserPreviewMode.CARD
-            } finally { suppressEditorUpdates = false }
+            browserPane.syncPreviewMode(browserPreviewMode)
             return
         }
         browserPreviewMode = mode
-        browserOriginalToggle.isSelected = mode == BrowserPreviewMode.ORIGINAL
-        browserCardToggle.isSelected = mode == BrowserPreviewMode.CARD
+        browserPane.syncPreviewMode(mode)
 
         // Preview mode is part of tile content, not just selection styling. Recreate the
         // visible cells once so each tile requests the newly selected preview type immediately.
@@ -863,16 +718,14 @@ class MainApp : Application() {
 
     private fun switchBrowserMode(mode: ImageBrowserMode) {
         if (mode == imageBrowserMode) return
-        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
+        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) {
+            browserPane.syncMode(imageBrowserMode)
+            return
+        }
         val anchor = firstVisibleBrowserPath(activeBrowserNodeList(), imageBrowserMode == ImageBrowserMode.THUMBNAILS)
         imageBrowserMode = mode
-        browserListToggle.isSelected = mode == ImageBrowserMode.LIST
-        browserGridToggle.isSelected = mode == ImageBrowserMode.THUMBNAILS
+        browserPane.syncMode(mode)
         browserColumns = calculateBrowserColumns()
-        imageList.isVisible = mode == ImageBrowserMode.LIST
-        imageList.isManaged = mode == ImageBrowserMode.LIST
-        gridList.isVisible = mode == ImageBrowserMode.THUMBNAILS
-        gridList.isManaged = mode == ImageBrowserMode.THUMBNAILS
         if (mode == ImageBrowserMode.LIST) {
             rebuildImageList(anchor)
         } else {
