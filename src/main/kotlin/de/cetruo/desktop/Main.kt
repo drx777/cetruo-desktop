@@ -385,6 +385,38 @@ class MainApp : Application() {
             currentPathLabel = { visibleImages.getOrNull(currentIndex)?.let(::relativePath).orEmpty() }
         )
     }
+    private val collectionMutationController by lazy {
+        CollectionMutationController(
+            database = { database },
+            actions = { collectionActions() },
+            currentData = { currentData },
+            hasSelection = { currentIndex in visibleImages.indices },
+            saveCurrent = { saveCurrent(showStatus = false) },
+            currentTemplate = { currentTemplate() },
+            selectedTemplate = { templateChoice.value },
+            templateOverrideSelected = { templateOverride.isSelected },
+            collectionTemplateChoice = collectionTemplateChoice,
+            setCollectionDefaultTemplateName = { collectionDefaultTemplateName = it },
+            clearCardPreviews = { browserPreviews.clearCards() },
+            withSuppressedUpdates = { action ->
+                val previous = suppressEditorUpdates
+                suppressEditorUpdates = true
+                try {
+                    action()
+                } finally {
+                    suppressEditorUpdates = previous
+                }
+            },
+            reloadCurrentTemplate = {
+                loadTemplateAndOverlay()
+                recalculatePanControls(resetPan = false)
+                render()
+                populateEditor()
+            },
+            refreshAfterMutation = ::refreshAfterCollectionMutation,
+            setStatus = { statusBarLabel.text = it }
+        )
+    }
     private val filterApplyPause = PauseTransition(Duration.millis(180.0))
     private val generation = AtomicInteger()
     private var scanTask: Task<CollectionScanResult>? = null
@@ -1015,8 +1047,8 @@ class MainApp : Application() {
                 persistCollectionPresentation()
                 render()
             },
-            onApplySetNameToAll = { applyCurrentSetNameToAll() },
-            onNormalizeCollectorTotals = { normalizeCollectorTotals() }
+            onApplySetNameToAll = { collectionMutationController.applyCurrentSetNameToAll() },
+            onNormalizeCollectorTotals = { collectionMutationController.normalizeCollectorTotals() }
         )
         collectionSettingsPane.setCardCount(allImages.size)
         form.children.add(collectionSettingsPane)
@@ -1100,7 +1132,7 @@ class MainApp : Application() {
         collectionTemplateChoice.buttonCell = templateCell()
         collectionTemplateChoice.valueProperty().addListener { _, old, value ->
             if (!suppressEditorUpdates && value != null && value != old) {
-                setCollectionDefaultTemplate(value)
+                collectionMutationController.setCollectionDefaultTemplate(value)
             }
         }
         form.children.add(row("This card template", templateChoice))
@@ -1117,7 +1149,7 @@ class MainApp : Application() {
             children.add(Button("Apply this template to all cards").apply {
                 maxWidth = Double.MAX_VALUE
                 tooltip = Tooltip("Write the selected This card template explicitly to every card and also make it the collection default.")
-                setOnAction { applyCollectionDefaultTemplateToAll() }
+                setOnAction { collectionMutationController.applyCollectionDefaultTemplateToAll() }
                 HBox.setHgrow(this, Priority.ALWAYS)
             })
         })
@@ -1537,27 +1569,6 @@ class MainApp : Application() {
         }
     }
 
-    private fun setCollectionDefaultTemplate(template: CardTemplate) {
-        val db = database ?: return
-        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
-        collectionDefaultTemplateName = template.name
-        db.setDefaultTemplateName(template.name)
-        browserPreviews.clearCards()
-        suppressEditorUpdates = true
-        try {
-            collectionTemplateChoice.value = template
-        } finally {
-            suppressEditorUpdates = false
-        }
-        if (!templateOverride.isSelected && currentIndex in visibleImages.indices) {
-            loadTemplateAndOverlay()
-            recalculatePanControls(resetPan = false)
-            render()
-            populateEditor()
-        }
-        statusBarLabel.text = "Collection layout: ${template.name} · cards without overrides will follow it"
-    }
-
     private fun currentTemplate(): CardTemplate? = templateForData(currentData)
 
 
@@ -1591,47 +1602,6 @@ class MainApp : Application() {
             images = { allImages.toList() },
             initializeCard = { path -> newCardDefaults(path) }
         )
-    }
-
-    private fun applyCollectionDefaultTemplateToAll() {
-        val selected = if (templateOverride.isSelected) {
-            templateChoice.value ?: currentTemplate()
-        } else {
-            currentTemplate() ?: templateChoice.value
-        } ?: run {
-            statusBarLabel.text = "Choose a card template first."
-            return
-        }
-        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
-
-        val result = collectionActions()?.applyTemplateToAll(selected.name) ?: return
-        collectionDefaultTemplateName = selected.name
-        suppressEditorUpdates = true
-        try {
-            collectionTemplateChoice.value = selected
-        } finally {
-            suppressEditorUpdates = false
-        }
-
-        refreshAfterCollectionMutation()
-        statusBarLabel.text =
-            "Applied template '${selected.name}' to ${result.changedCards} card(s); it is also the collection default."
-    }
-
-    private fun applyCurrentSetNameToAll() {
-        val setName = currentData.setName.trim()
-        if (setName.isBlank()) { statusBarLabel.text = "Enter a set name on the selected card first."; return }
-        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
-        val result = collectionActions()?.applySetNameToAll(setName) ?: return
-        refreshAfterCollectionMutation()
-        statusBarLabel.text = "Set name applied to ${result.changedCards} card(s)."
-    }
-
-    private fun normalizeCollectorTotals() {
-        if (currentIndex in visibleImages.indices && !saveCurrent(showStatus = false)) return
-        val result = collectionActions()?.normalizeCollectorTotals() ?: return
-        refreshAfterCollectionMutation()
-        statusBarLabel.text = "Collector-number totals fixed on ${result.changedCards} card(s)."
     }
 
     private fun refreshAfterCollectionMutation() {
