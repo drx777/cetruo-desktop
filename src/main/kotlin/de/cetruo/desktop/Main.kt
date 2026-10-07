@@ -1857,6 +1857,8 @@ class MainApp : Application() {
         filterTask?.cancel()
         val token = generation.get()
         val snapshot = browserSearchIndex.snapshot()
+        val sort = browserSortChoice.value ?: BrowserSort.NAME
+        val descending = browserSortDescending.isSelected
         statusBarLabel.text = "Filtering ${allImages.size} images…"
         val task = object : Task<List<Path>>() {
             override fun call(): List<Path> =
@@ -1864,8 +1866,8 @@ class MainApp : Application() {
                     paths = allImages,
                     scope = scope,
                     query = query,
-                    sort = browserSortChoice.value ?: BrowserSort.NAME,
-                    descending = browserSortDescending.isSelected,
+                    sort = sort,
+                    descending = descending,
                     snapshot = snapshot,
                     isCancelled = { isCancelled }
                 )
