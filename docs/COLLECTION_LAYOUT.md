@@ -1,6 +1,6 @@
 # Collection layout and schemes
 
-Cetruo Desktop stores the collection-wide default template in the legacy-compatible `.cardforge.sqlite` database (`collection_meta.default_template`).
+Cetruo Desktop stores the collection-wide default template in `.cetruo.sqlite` (`collection_meta.default_template`). A legacy `.cardforge.sqlite` database is migrated to the new filename on first open.
 
 A card with an empty `templateName` follows the collection default. A card with a non-empty `templateName` uses that template as a per-card override.
 
