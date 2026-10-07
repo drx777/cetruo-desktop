@@ -291,6 +291,29 @@ class MainApp : Application() {
     private val xValueLabel = Label("0 px")
     private val yValueLabel = Label("0 px")
     private val zoomValueLabel = Label("1.00×")
+    private val artworkEditorController by lazy {
+        ArtworkEditorController(
+            imageMode = imageMode,
+            zoom = zoom,
+            offsetX = offsetX,
+            offsetY = offsetY,
+            xValueLabel = xValueLabel,
+            yValueLabel = yValueLabel,
+            zoomValueLabel = zoomValueLabel,
+            currentData = { currentData },
+            currentImage = { cropImage },
+            currentTemplate = { currentTemplate() },
+            withSuppressedUpdates = { action ->
+                val previous = suppressEditorUpdates
+                suppressEditorUpdates = true
+                try {
+                    action()
+                } finally {
+                    suppressEditorUpdates = previous
+                }
+            }
+        )
+    }
     private val filterApplyPause = PauseTransition(Duration.millis(180.0))
     private val generation = AtomicInteger()
     private var scanTask: Task<CollectionScanResult>? = null
@@ -2034,98 +2057,36 @@ class MainApp : Application() {
 
     private fun setArtwork(mode: ImageMode, newZoom: Double, normalizedX: Double, normalizedY: Double) {
         captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            imageMode.value = mode
-            zoom.value = newZoom.coerceIn(zoom.min, zoom.max)
-            offsetX.value = normalizedX.coerceIn(-1.0, 1.0)
-            offsetY.value = normalizedY.coerceIn(-1.0, 1.0)
-        } finally {
-            suppressEditorUpdates = false
-        }
-        recalculatePanControls(resetPan = false)
+        artworkEditorController.setArtwork(mode, newZoom, normalizedX, normalizedY)
         updateFromEditor(renderPreview = false)
         refreshArtworkOnly()
     }
 
     private fun resetArtworkPositionAndZoom() {
         captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            zoom.value = 1.0
-            offsetX.value = 0.0
-            offsetY.value = 0.0
-        } finally {
-            suppressEditorUpdates = false
-        }
-        recalculatePanControls(resetPan = false)
-        updateValueLabel(zoomValueLabel, zoom.value, "%.2f×")
+        artworkEditorController.resetPositionAndZoom()
         updateFromEditor(renderPreview = false)
         refreshArtworkOnly()
     }
 
     private fun centerArtwork() {
         captureUndoSnapshot()
-        suppressEditorUpdates = true
-        try {
-            offsetX.value = 0.0
-            offsetY.value = 0.0
-        } finally {
-            suppressEditorUpdates = false
-        }
-        updateValueLabelFromActualPan()
+        artworkEditorController.center()
         updateFromEditor(renderPreview = false)
         refreshArtworkOnly()
     }
 
     private fun recalculatePanControls(resetPan: Boolean, syncFromData: Boolean = false) {
-        currentData.imageZoom = zoom.value
-        currentData.imageMode = imageMode.value ?: currentData.imageMode
-        val template = currentTemplate() ?: return
-        val layout = CardRenderer.imageLayout(cropImage, currentData, template)
-        suppressEditorUpdates = true
-        try {
-            if (resetPan) {
-                offsetX.value = 0.0
-                offsetY.value = 0.0
-            } else if (syncFromData) {
-                offsetX.value = ArtworkPanMath.actualToSlider(currentData.imageOffsetX, layout.minOffsetX, layout.maxOffsetX)
-                offsetY.value = ArtworkPanMath.actualToSlider(currentData.imageOffsetY, layout.minOffsetY, layout.maxOffsetY)
-            } else {
-                offsetX.value = offsetX.value.coerceIn(-1.0, 1.0)
-                offsetY.value = offsetY.value.coerceIn(-1.0, 1.0)
-            }
-        } finally {
-            suppressEditorUpdates = false
-        }
-        val actualX = ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX)
-        val actualY = ArtworkPanMath.sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY)
-        currentData.imageOffsetX = actualX
-        currentData.imageOffsetY = actualY
-        updateValueLabel(xValueLabel, actualX, "%+.0f px")
-        updateValueLabel(yValueLabel, actualY, "%+.0f px")
+        artworkEditorController.recalculatePanControls(resetPan, syncFromData)
     }
 
     private fun updateValueLabelFromActualPan() {
-        val template = currentTemplate() ?: return
-        val layout = CardRenderer.imageLayout(cropImage, currentData.copy(imageZoom = zoom.value, imageMode = imageMode.value ?: currentData.imageMode), template)
-        updateValueLabel(xValueLabel, ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX), "%+.0f px")
-        updateValueLabel(yValueLabel, ArtworkPanMath.sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY), "%+.0f px")
+        artworkEditorController.updatePanLabelsFromControls()
     }
 
-    private fun currentActualPanX(): Double {
-        val template = currentTemplate() ?: return 0.0
-        val dataForLayout = currentData.copy(imageZoom = zoom.value, imageMode = imageMode.value ?: currentData.imageMode)
-        val layout = CardRenderer.imageLayout(cropImage, dataForLayout, template)
-        return ArtworkPanMath.sliderToActual(offsetX.value, layout.minOffsetX, layout.maxOffsetX)
-    }
+    private fun currentActualPanX(): Double = artworkEditorController.currentActualPanX()
 
-    private fun currentActualPanY(): Double {
-        val template = currentTemplate() ?: return 0.0
-        val dataForLayout = currentData.copy(imageZoom = zoom.value, imageMode = imageMode.value ?: currentData.imageMode)
-        val layout = CardRenderer.imageLayout(cropImage, dataForLayout, template)
-        return ArtworkPanMath.sliderToActual(offsetY.value, layout.minOffsetY, layout.maxOffsetY)
-    }
+    private fun currentActualPanY(): Double = artworkEditorController.currentActualPanY()
 
     private fun cardSnapshotSignature(data: CardData): String = JsonSupport.mapper.writeValueAsString(data)
 
@@ -2216,31 +2177,12 @@ class MainApp : Application() {
             backgroundOverlay = backgroundOverlayImage,
             collectionPresentation = collectionPresentation,
             onImageDragged = { dx, dy ->
-                val layout = CardRenderer.imageLayout(image, currentData, template)
-                val actualX = (currentData.imageOffsetX + dx).coerceIn(layout.minOffsetX, layout.maxOffsetX)
-                val actualY = (currentData.imageOffsetY + dy).coerceIn(layout.minOffsetY, layout.maxOffsetY)
-                suppressEditorUpdates = true
-                try {
-                    offsetX.value = ArtworkPanMath.actualToSlider(actualX, layout.minOffsetX, layout.maxOffsetX)
-                    offsetY.value = ArtworkPanMath.actualToSlider(actualY, layout.minOffsetY, layout.maxOffsetY)
-                } finally {
-                    suppressEditorUpdates = false
-                }
-                currentData.imageOffsetX = actualX
-                currentData.imageOffsetY = actualY
-                updateValueLabel(xValueLabel, actualX, "%+.0f px")
-                updateValueLabel(yValueLabel, actualY, "%+.0f px")
+                artworkEditorController.dragBy(dx, dy)
                 updateFromEditor(renderPreview = false)
                 refreshArtworkOnly()
             },
             onImageZoomed = { delta ->
-                suppressEditorUpdates = true
-                try {
-                    zoom.value = (zoom.value + delta).coerceIn(zoom.min, zoom.max)
-                } finally {
-                    suppressEditorUpdates = false
-                }
-                recalculatePanControls(resetPan = false)
+                artworkEditorController.zoomBy(delta)
                 updateFromEditor(renderPreview = false)
                 refreshArtworkOnly()
             },
