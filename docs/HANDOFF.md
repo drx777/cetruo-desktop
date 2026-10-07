@@ -60,7 +60,7 @@ A moved or renamed asset may retain its catalog identity when the detached asset
 - The collection SQLite database is authoritative.
 - Do not write sidecars automatically.
 - Sidecars remain an explicit sharing/export action.
-- The legacy database filename `.cardforge.sqlite` is a compatibility identifier and should not be renamed casually.
+- The canonical catalog filename is `.cetruo.sqlite`; legacy `.cardforge.sqlite` catalogs are migrated on first open. Keep that migration path intact.
 
 ### Card initialization
 
@@ -115,20 +115,20 @@ Run the application with:
 Normal launches are quiet. Enable profiling with either:
 
 ```text
--Dcardforge.profileStartup=true
+-Dcetruo.profileStartup=true
 ```
 
 or:
 
 ```text
-CARDFORGE_PROFILE_STARTUP=1
+CETRUO_PROFILE_STARTUP=1
 ```
 
-These legacy property/environment names are internal compatibility identifiers for now.
+The legacy `cardforge.profileStartup` / `CARDFORGE_PROFILE_STARTUP` names remain accepted as compatibility fallbacks.
 
 ## Source map
 
-- `src/main/kotlin/com/example/cardforge/Main.kt` — application shell, editor/browser orchestration, collection lifecycle.
+- `src/main/kotlin/de/cetruo/desktop/Main.kt` — application shell, editor/browser orchestration, collection lifecycle.
 - `CardRenderer.kt` / `ExportRenderer.kt` — live/raster rendering.
 - `VectorCardSvgRenderer.kt` — SVG/PDF vector rendering.
 - `CollectionDatabase.kt` / `CollectionCardStore.kt` — authoritative collection persistence.
@@ -141,4 +141,4 @@ These legacy property/environment names are internal compatibility identifiers f
 
 ## Naming note
 
-The product/project name is **Cetruo Desktop**. Some internal identifiers still use `cardforge` for compatibility or because renaming them would create unnecessary migration risk. Treat those as implementation identifiers, not product branding.
+The product/project name and Kotlin namespace are **Cetruo Desktop** / `de.cetruo.desktop`. Remaining `cardforge` strings are compatibility fallbacks only (legacy catalog/tombstone names, profiler keys, and old export-folder detection).
