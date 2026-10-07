@@ -3,6 +3,7 @@ package de.cetruo.desktop
 import javafx.scene.control.CheckBox
 import javafx.scene.control.ColorPicker
 import javafx.scene.control.ComboBox
+import javafx.scene.control.Label
 import javafx.scene.control.Slider
 import javafx.scene.control.Spinner
 import javafx.scene.control.TextArea
@@ -83,11 +84,13 @@ class CardEditorBinding(
     private val description: TextArea,
     private val flavor: TextArea,
     private val statusChoice: ComboBox<CardStatus>,
+    private val schemeChoice: ComboBox<ColorScheme>,
     private val templateChoice: ComboBox<CardTemplate>,
     private val templateOverride: CheckBox,
     private val imageMode: ComboBox<ImageMode>,
     private val imageBleedOverFrame: CheckBox,
     private val imageBleedOpacity: Slider,
+    private val imageBleedOpacityValue: Label,
     private val zoom: Slider,
     private val imagePadColor: ColorPicker,
     private val backgroundColor: ColorPicker,
@@ -104,6 +107,58 @@ class CardEditorBinding(
     private val titleSize: Spinner<Double>,
     private val bodySize: Spinner<Double>
 ) {
+    fun populate(
+        data: CardData,
+        schemes: List<ColorScheme>,
+        effectiveTemplate: CardTemplate?,
+        overlays: List<BackgroundOverlay>
+    ) {
+        fields["title"]?.text = data.title
+        fields["cost"]?.text = data.cost
+        fields["typeLine"]?.text = data.typeLine
+        fields["rarity"]?.text = data.rarity
+        fields["stats"]?.text = data.stats
+        fields["artist"]?.text = data.artist
+        fields["setName"]?.text = data.setName
+        fields["collectorNumber"]?.text = data.collectorNumber
+        description.text = data.description
+        flavor.text = data.flavorText
+        statusChoice.value = data.status
+        schemeChoice.value = schemes.firstOrNull { it.name == data.schemeName } ?: schemes.firstOrNull()
+        templateChoice.value = effectiveTemplate
+        templateOverride.isSelected = data.templateName.isNotBlank()
+        imageMode.value = data.imageMode
+        imageBleedOverFrame.isSelected = data.imageBleedOverFrame
+        imageBleedOpacity.value = data.imageBleedOpacity.coerceIn(0.0, 1.0)
+        imageBleedOpacityValue.text = "%.0f%%".format(imageBleedOpacity.value * 100.0)
+        zoom.value = data.imageZoom.coerceIn(0.1, 4.0)
+        populateColors(data)
+        border.valueFactory.value = data.borderWidth
+        radius.valueFactory.value = data.cornerRadius
+        panelOpacity.value = data.panelOpacity
+        overlayOpacity.value = data.backgroundOverlayOpacity.coerceIn(0.0, 1.0)
+        titleSize.valueFactory.value = data.titleFontSize
+        bodySize.valueFactory.value = data.bodyFontSize
+        backgroundOverlayChoice.value =
+            overlays.firstOrNull { it.path?.fileName?.toString() == data.backgroundOverlay }
+                ?: overlays.firstOrNull { it.path == null }
+                ?: overlays.firstOrNull()
+        overlayPlacementChoice.value = data.backgroundOverlayPlacement
+    }
+
+    fun populateColors(data: CardData) {
+        imagePadColor.value = safeColor(data.imagePadColor, "#0A0D10")
+        backgroundColor.value = safeColor(data.backgroundColor, "#161B22")
+        panelColor.value = safeColor(data.panelColor, "#EFE8D7")
+        frameColor.value = safeColor(data.frameColor, "#D9C28E")
+        accentColor.value = safeColor(data.accentColor, "#8C8068")
+        overlayColor.value = safeColor(data.overlayColor, "#C9B37A")
+    }
+
+    private fun safeColor(hex: String, fallback: String) =
+        runCatching { javafx.scene.paint.Color.web(hex) }
+            .getOrElse { javafx.scene.paint.Color.web(fallback) }
+
     fun read(current: CardData, imageOffsetX: Double, imageOffsetY: Double): CardEditorValues =
         CardEditorValues(
             title = fields["title"]?.text ?: current.title,
