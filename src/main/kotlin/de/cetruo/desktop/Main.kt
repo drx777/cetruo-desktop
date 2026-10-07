@@ -264,11 +264,13 @@ class MainApp : Application() {
             description = description,
             flavor = flavor,
             statusChoice = statusChoice,
+            schemeChoice = schemeChoice,
             templateChoice = templateChoice,
             templateOverride = templateOverride,
             imageMode = imageMode,
             imageBleedOverFrame = imageBleedOverFrame,
             imageBleedOpacity = imageBleedOpacity,
+            imageBleedOpacityValue = imageBleedOpacityValue,
             zoom = zoom,
             imagePadColor = imagePadColor,
             backgroundColor = backgroundColor,
@@ -2005,52 +2007,27 @@ class MainApp : Application() {
     private fun populateEditor() {
         suppressEditorUpdates = true
         try {
-            fields["title"]?.text = currentData.title
-            fields["cost"]?.text = currentData.cost
-            fields["typeLine"]?.text = currentData.typeLine
-            fields["rarity"]?.text = currentData.rarity
-            fields["stats"]?.text = currentData.stats
-            fields["artist"]?.text = currentData.artist
-            fields["setName"]?.text = currentData.setName
-            fields["collectorNumber"]?.text = currentData.collectorNumber
-            description.text = currentData.description
-            flavor.text = currentData.flavorText
-            statusChoice.value = currentData.status
-            schemeChoice.value = schemes.firstOrNull { it.name == currentData.schemeName } ?: schemes.firstOrNull()
-            val effectiveTemplate = currentTemplate()
-            templateChoice.value = effectiveTemplate
-            templateOverride.isSelected = currentData.templateName.isNotBlank()
-            imageMode.value = currentData.imageMode
-            imageBleedOverFrame.isSelected = currentData.imageBleedOverFrame
-            imageBleedOpacity.value = currentData.imageBleedOpacity.coerceIn(0.0, 1.0)
-            imageBleedOpacityValue.text = "%.0f%%".format(imageBleedOpacity.value * 100.0)
-            zoom.value = currentData.imageZoom.coerceIn(0.1, 4.0)
-            populateColorPickersFromData()
-            border.valueFactory.value = currentData.borderWidth
-            radius.valueFactory.value = currentData.cornerRadius
-            panelOpacity.value = currentData.panelOpacity
-            overlayOpacity.value = currentData.backgroundOverlayOpacity.coerceIn(0.0, 1.0)
-            titleSize.valueFactory.value = currentData.titleFontSize
-            bodySize.valueFactory.value = currentData.bodyFontSize
-            backgroundOverlayChoice.value = overlays.firstOrNull { it.path?.fileName?.toString() == currentData.backgroundOverlay }
-                ?: overlays.firstOrNull { it.path == null }
-                ?: overlays.firstOrNull()
-            overlayPlacementChoice.value = currentData.backgroundOverlayPlacement
+            cardEditorBinding.populate(
+                data = currentData,
+                schemes = schemes,
+                effectiveTemplate = currentTemplate(),
+                overlays = overlays
+            )
         } finally {
             suppressEditorUpdates = false
         }
         recalculatePanControls(resetPan = false, syncFromData = true)
         suppressUndoCapture = true
-        try { updateFromEditor(renderPreview = false) } finally { suppressUndoCapture = false; ignoreNextUndoCapture = false }
+        try {
+            updateFromEditor(renderPreview = false)
+        } finally {
+            suppressUndoCapture = false
+            ignoreNextUndoCapture = false
+        }
     }
 
     private fun populateColorPickersFromData() {
-        imagePadColor.value = safeColor(currentData.imagePadColor, "#0A0D10")
-        backgroundColor.value = safeColor(currentData.backgroundColor, "#161B22")
-        panelColor.value = safeColor(currentData.panelColor, "#EFE8D7")
-        frameColor.value = safeColor(currentData.frameColor, "#D9C28E")
-        accentColor.value = safeColor(currentData.accentColor, "#8C8068")
-        overlayColor.value = safeColor(currentData.overlayColor, "#C9B37A")
+        cardEditorBinding.populateColors(currentData)
     }
 
     private fun safeColor(hex: String, fallback: String): Color = runCatching { Color.web(hex) }.getOrElse { Color.web(fallback) }
