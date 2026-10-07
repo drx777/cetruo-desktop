@@ -16,7 +16,7 @@ class CardRandomizerTest {
             val cost = CardRandomizer.cost(random).toInt()
             assertTrue(cost in 0..9)
 
-            val parts = CardRandomizer.stats(random).split(" / ").map(String::toInt)
+            val parts = CardRandomizer.stats(random).split(" / ").map { it.toInt() }
             assertEquals(2, parts.size)
             assertTrue(parts.all { it in 0..12 })
         }
