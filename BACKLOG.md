@@ -51,6 +51,7 @@ Only pursue these when they solve a concrete product need:
 
 ## Naming / compatibility follow-up
 
-- [ ] Decide separately whether internal `com.example.cardforge` packages and `cardforge` resource/property names are worth migrating. Do not mix that migration into visual/template work.
-- [ ] Keep `.cardforge.sqlite` compatible unless there is an explicit catalog migration plan.
-- [ ] Revisit the legacy `CardForge.icns` filename only together with an intentional branding/icon asset update.
+- [x] Rename the Kotlin package and Gradle group to `de.cetruo.desktop`.
+- [x] Rename resources and macOS packaging identifiers to Cetruo names.
+- [x] Use `.cetruo.sqlite` for catalogs and migrate legacy `.cardforge.sqlite` files on first open.
+- [x] Preserve legacy missing-asset tombstones and startup-profiler keys as compatibility fallbacks.
