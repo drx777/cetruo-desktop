@@ -8,9 +8,37 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 
 class CollectionDatabaseIdentityTest {
+
+    @Test
+    fun legacyCatalogIsMigratedToCetruoFilenameOnOpen() {
+        val root = createTempDirectory("cetruo-db-migration-test")
+        val image = root.resolve("card.png")
+        Files.write(image, byteArrayOf(1, 3, 3, 7))
+
+        CollectionDatabase.open(root).use { db ->
+            val data = CardData(title = "Migrated")
+            db.save(image, data)
+        }
+
+        val current = root.resolve(CollectionDatabase.FILE_NAME)
+        val legacy = root.resolve(CollectionDatabase.LEGACY_FILE_NAME)
+        Files.move(current, legacy)
+
+        assertEquals(true, Files.exists(legacy))
+        assertEquals(false, Files.exists(current))
+
+        CollectionDatabase.open(root).use { db ->
+            assertEquals("Migrated", db.dataSnapshotForPath(image)?.title)
+            assertEquals(current, db.path)
+        }
+
+        assertEquals(true, Files.exists(current))
+        assertEquals(false, Files.exists(legacy))
+    }
+
     @Test
     fun moveOrRenameReattachesMatchingFileToSameAsset() {
-        val root = createTempDirectory("cardforge-db-test")
+        val root = createTempDirectory("cetruo-db-test")
         val original = root.resolve("original.png")
         Files.write(original, byteArrayOf(1, 2, 3, 4))
 
@@ -33,7 +61,7 @@ class CollectionDatabaseIdentityTest {
 
     @Test
     fun unrelatedReplacementAtOldFilenameDoesNotInheritMetadata() {
-        val root = createTempDirectory("cardforge-db-test")
+        val root = createTempDirectory("cetruo-db-test")
         val original = root.resolve("card.png")
         Files.write(original, byteArrayOf(5, 6, 7, 8))
 
