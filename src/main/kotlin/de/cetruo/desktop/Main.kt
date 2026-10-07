@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import javafx.animation.PauseTransition
 import javafx.application.Application
