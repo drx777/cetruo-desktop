@@ -1,5 +1,7 @@
 package de.cetruo.desktop
 
+import de.cetruo.desktop.browser.*
+import de.cetruo.desktop.editor.*
 import javafx.animation.PauseTransition
 import javafx.application.Application
 import javafx.application.Platform
