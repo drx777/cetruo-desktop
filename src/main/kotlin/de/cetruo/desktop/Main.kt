@@ -136,6 +136,7 @@ class MainApp : Application() {
         )
     }
     private val browserImageFilter by lazy { BrowserImageFilter(browserSearchIndex) }
+    private val browserFolderTreeBuilder = BrowserFolderTreeBuilder()
     private val cardStore = CollectionCardStore(
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
@@ -1905,54 +1906,20 @@ class MainApp : Application() {
     }
 
     private fun buildFolderTree(rootPath: Path, selected: Path) {
-        val expandedBefore = mutableSetOf<Path>()
-        folderTree.root?.let { rememberExpanded(it, expandedBefore) }
-        val rootItem = TreeItem(rootPath)
-        val directoryItems = mutableMapOf(rootPath to rootItem)
-        val dirs = mutableSetOf(rootPath)
-        allImages.forEach { image ->
-            var dir = image.parent
-            while (dir != null && dir.startsWith(rootPath) && dir != rootPath) {
-                dirs.add(dir)
-                dir = dir.parent
-            }
-        }
-        nestedCollectionRoots.forEach { collection ->
-            var dir: Path? = collection
-            while (dir != null && dir.startsWith(rootPath) && dir != rootPath) {
-                dirs.add(dir)
-                dir = dir.parent
-            }
-        }
-        dirs.filter { it != rootPath }
-            .sortedBy { rootPath.relativize(it).toString().lowercase() }
-            .forEach { dir ->
-                val parentItem = directoryItems[dir.parent] ?: return@forEach
-                val item = TreeItem(dir)
-                directoryItems[dir] = item
-                parentItem.children.add(item)
-            }
-        fun sort(item: TreeItem<Path>) {
-            item.children.sortBy { it.value.fileName.toString().lowercase() }
-            item.children.forEach(::sort)
-        }
-        sort(rootItem)
-        directoryItems.values.forEach { item ->
-            val path = item.value
-            item.isExpanded = path in expandedBefore || path == rootPath || selected.startsWith(path)
-        }
+        val tree = browserFolderTreeBuilder.build(
+            rootPath = rootPath,
+            images = allImages,
+            nestedCollections = nestedCollectionRoots,
+            selected = selected,
+            expandedBefore = browserFolderTreeBuilder.expandedPaths(folderTree.root)
+        )
         suppressFolderSelection = true
         try {
-            folderTree.root = rootItem
-            folderTree.selectionModel.select(directoryItems[selected] ?: rootItem)
+            folderTree.root = tree.root
+            folderTree.selectionModel.select(tree.itemsByPath[selected] ?: tree.root)
         } finally {
             suppressFolderSelection = false
         }
-    }
-
-    private fun rememberExpanded(item: TreeItem<Path>, into: MutableSet<Path>) {
-        if (item.isExpanded) into.add(item.value)
-        item.children.forEach { rememberExpanded(it, into) }
     }
 
     private fun applyBrowserFilter() {
