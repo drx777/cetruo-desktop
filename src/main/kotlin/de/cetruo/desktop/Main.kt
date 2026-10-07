@@ -2,6 +2,7 @@ package de.cetruo.desktop
 
 import de.cetruo.desktop.browser.*
 import de.cetruo.desktop.editor.*
+import de.cetruo.desktop.visual.CardVisualDefaults
 import javafx.animation.PauseTransition
 import javafx.application.Application
 import javafx.application.Platform
@@ -338,18 +339,18 @@ class MainApp : Application() {
     private val zoom = Slider(0.1, 4.0, 1.0).apply { blockIncrement = 0.1; majorTickUnit = 1.0 }
     private val offsetX = Slider(-1.0, 1.0, 0.0).apply { blockIncrement = 0.1 }
     private val offsetY = Slider(-1.0, 1.0, 0.0).apply { blockIncrement = 0.1 }
-    private val imagePadColor = ColorPicker(Color.web("#0A0D10"))
-    private val backgroundColor = ColorPicker(Color.web("#161B22"))
-    private val panelColor = ColorPicker(Color.web("#EFE8D7"))
-    private val frameColor = ColorPicker(Color.web("#D9C28E"))
-    private val accentColor = ColorPicker(Color.web("#8C8068"))
-    private val overlayColor = ColorPicker(Color.web("#C9B37A"))
-    private val border = doubleSpinner(0.0, 20.0, 8.0, 0.5)
-    private val radius = doubleSpinner(0.0, 80.0, 24.0, 1.0)
-    private val panelOpacity = Slider(0.1, 1.0, 0.96)
+    private val imagePadColor = ColorPicker(Color.web(CardVisualDefaults.IMAGE_PAD_COLOR))
+    private val backgroundColor = ColorPicker(Color.web(CardVisualDefaults.BACKGROUND_COLOR))
+    private val panelColor = ColorPicker(Color.web(CardVisualDefaults.PANEL_COLOR))
+    private val frameColor = ColorPicker(Color.web(CardVisualDefaults.FRAME_COLOR))
+    private val accentColor = ColorPicker(Color.web(CardVisualDefaults.ACCENT_COLOR))
+    private val overlayColor = ColorPicker(Color.web(CardVisualDefaults.OVERLAY_COLOR))
+    private val border = doubleSpinner(0.0, 20.0, CardVisualDefaults.BORDER_WIDTH, 0.5)
+    private val radius = doubleSpinner(0.0, 80.0, CardVisualDefaults.CORNER_RADIUS, 1.0)
+    private val panelOpacity = Slider(0.1, 1.0, CardVisualDefaults.PANEL_OPACITY)
     private val overlayOpacity = Slider(0.0, 1.0, 1.0)
-    private val titleSize = doubleSpinner(14.0, 42.0, 27.0, 1.0)
-    private val bodySize = doubleSpinner(10.0, 24.0, 16.0, 1.0)
+    private val titleSize = doubleSpinner(14.0, 42.0, CardVisualDefaults.TITLE_FONT_SIZE, 1.0)
+    private val bodySize = doubleSpinner(10.0, 24.0, CardVisualDefaults.BODY_FONT_SIZE, 1.0)
     private val cardEditorBinding by lazy {
         CardEditorBinding(
             fields = fields,
@@ -804,7 +805,6 @@ class MainApp : Application() {
     private fun configureListView(view: ListView<Path>) {
         view.placeholder = Label("No images match the current filter.")
         view.styleClass.add("image-browser-list")
-        view.style = "-fx-background-color:transparent;-fx-control-inner-background:transparent;-fx-selection-bar:transparent;-fx-selection-bar-non-focused:transparent;"
         view.isFocusTraversable = true
         view.setCellFactory { browserTiles.listCell() }
         view.focusedProperty().addListener { _, _, focused -> if (focused) refreshBrowserSelectionStyles() }
@@ -813,7 +813,6 @@ class MainApp : Application() {
     private fun configureGridView(view: ListView<GridRow>) {
         view.placeholder = Label("No images match the current filter.")
         view.styleClass.add("image-browser-grid")
-        view.style = "-fx-background-color:transparent;-fx-control-inner-background:transparent;-fx-selection-bar:transparent;-fx-selection-bar-non-focused:transparent;"
         view.isFocusTraversable = true
         view.setCellFactory { browserTiles.gridCell() }
         view.focusedProperty().addListener { _, _, focused -> if (focused) refreshBrowserSelectionStyles() }
@@ -1064,7 +1063,7 @@ class MainApp : Application() {
 
     private fun previewPane(): VBox {
         previewHost.alignment = Pos.CENTER
-        previewHost.style = "-fx-background-color:#20242A;"
+        previewHost.styleClass.add("card-preview-host")
         previewHost.widthProperty().addListener { _, _, _ -> resizePreview() }
         previewHost.heightProperty().addListener { _, _, _ -> resizePreview() }
         val inspectSource = Button("⤢ Source").apply {
