@@ -135,6 +135,7 @@ class MainApp : Application() {
             cardDataFor = { path -> database?.dataSnapshotForPath(path) ?: lightweightCardData(path) }
         )
     }
+    private val browserImageFilter by lazy { BrowserImageFilter(browserSearchIndex) }
     private val cardStore = CollectionCardStore(
         databaseProvider = { database },
         newCardFactory = { path -> newCardDefaults(path) }
@@ -1833,7 +1834,7 @@ class MainApp : Application() {
         val query = filterField.text.trim().lowercase()
         val previousPath = imagesCurrentPath()
         visibleImages.clear()
-        visibleImages.addAll(allImages.filter { it.startsWith(scope) }.filter { query.isBlank() || browserSearchIndex.textFor(it).contains(query) })
+        visibleImages.addAll(browserImageFilter.filter(allImages, scope, query))
         sortVisibleImagesInPlace()
         val targetIndex = previousPath?.let { visibleImages.indexOf(it) } ?: -1
         browserCountLabel.text = if (query.isBlank() && scope == rootPath) "${visibleImages.size} images" else "${visibleImages.size}/${allImages.size} images"
@@ -1864,15 +1865,14 @@ class MainApp : Application() {
         val snapshot = browserSearchIndex.snapshot()
         statusBarLabel.text = "Filtering ${allImages.size} images…"
         val task = object : Task<List<Path>>() {
-            override fun call(): List<Path> {
-                val result = ArrayList<Path>()
-                for (path in allImages) {
-                    if (isCancelled) return emptyList()
-                    if (!path.startsWith(scope)) continue
-                    if (browserSearchIndex.textFor(path, snapshot).contains(query)) result.add(path)
-                }
-                return result
-            }
+            override fun call(): List<Path> =
+                browserImageFilter.filter(
+                    paths = allImages,
+                    scope = scope,
+                    query = query,
+                    snapshot = snapshot,
+                    isCancelled = { isCancelled }
+                )
         }
         filterTask = task
         task.setOnSucceeded {
