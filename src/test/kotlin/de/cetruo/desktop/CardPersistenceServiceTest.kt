@@ -7,14 +7,26 @@ import kotlin.test.assertTrue
 class CardPersistenceServiceTest {
     @Test
     fun meaningfulCardDataRequiresAtLeastThreePopulatedFields() {
+        val sparse = CardData(
+            title = "",
+            cost = "",
+            typeLine = "",
+            rarity = "",
+            description = "",
+            flavorText = "",
+            artist = "",
+            setName = "",
+            collectorNumber = "",
+            stats = ""
+        )
         assertFalse(
             CardPersistenceService.hasMeaningfulCardData(
-                CardData(title = "Title", rarity = "RARE")
+                sparse.copy(title = "Title", rarity = "RARE")
             )
         )
         assertTrue(
             CardPersistenceService.hasMeaningfulCardData(
-                CardData(title = "Title", rarity = "RARE", typeLine = "TYPE")
+                sparse.copy(title = "Title", rarity = "RARE", typeLine = "TYPE")
             )
         )
     }
