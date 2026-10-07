@@ -841,16 +841,11 @@ class MainApp : Application() {
         analyzeImageIfNeeded: Boolean = true
     ): CardData {
         val normalized = path.toAbsolutePath().normalize()
-        cardStore.snapshot(normalized)?.takeIf(::hasMeaningfulCardData)?.let { return it.copy() }
+        cardStore.snapshot(normalized)?.takeIf(CardPersistenceService::hasMeaningfulCardData)?.let { return it.copy() }
         val result = newCardDefaults(normalized, derivedColorOverride, analyzeImageIfNeeded)
         cardStore.put(normalized, result)
         return result
     }
-
-    private fun hasMeaningfulCardData(data: CardData): Boolean = listOf(
-        data.title, data.cost, data.typeLine, data.rarity, data.description,
-        data.flavorText, data.artist, data.setName, data.collectorNumber, data.stats
-    ).count { it.isNotBlank() } >= 3
 
     private fun templateForData(data: CardData): CardTemplate? {
         val effectiveName = data.templateName.ifBlank { collectionDefaultTemplateName }
@@ -1918,29 +1913,16 @@ class MainApp : Application() {
         requestVisibleImagesRebuild()
     }
 
-    private fun resolveCardDataForSelection(path: Path): CardData? {
-        val normalized = path.toAbsolutePath().normalize()
-        val db = database ?: return cardStore.snapshot(normalized)?.copy() ?: newCardDefaults(normalized)
-        val dbData = db.dataSnapshotForPath(normalized)
-        if (dbData != null && hasMeaningfulCardData(dbData)) {
-            if (dbData.collectorNumber.isBlank()) {
-                dbData.collectorNumber = cardDefaultsGenerator.nextUnusedCollectorNumber(randomGenerator())
-                db.save(normalized, dbData)
+    private fun resolveCardDataForSelection(path: Path): CardData =
+        cardPersistence.resolveForSelection(
+            database = database,
+            cardStore = cardStore,
+            path = path,
+            newCard = { newCardDefaults(it) },
+            nextCollectorNumber = {
+                cardDefaultsGenerator.nextUnusedCollectorNumber(randomGenerator())
             }
-            return dbData
-        }
-        // Unsaved cards may already have deterministic in-memory defaults generated for a
-        // card thumbnail. Reuse them so selecting the card does not randomize it again or
-        // decode the image a second time.
-        cardStore.cached(normalized)?.let { cached ->
-            return cached.copy().also { data ->
-                dbData?.assetId?.takeIf { it.isNotBlank() }?.let { data.assetId = it }
-            }
-        }
-        return newCardDefaults(normalized).also { defaults ->
-            dbData?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
-        }
-    }
+        )
 
     private fun dataEquivalent(a: CardData, b: CardData): Boolean = runCatching {
         JsonSupport.mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(a) ==
@@ -2320,7 +2302,7 @@ class MainApp : Application() {
             val legacy = Sidecar.load(image)
             if (legacy != null) {
                 val existing = db.dataSnapshotForPath(image)
-                if (existing == null || !hasMeaningfulCardData(existing)) {
+                if (existing == null || !CardPersistenceService.hasMeaningfulCardData(existing)) {
                     db.save(image, legacy)
                     imported++
                 }
