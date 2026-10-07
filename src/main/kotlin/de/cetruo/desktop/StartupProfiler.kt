@@ -1,4 +1,4 @@
-package com.example.cardforge
+package de.cetruo.desktop
 
 import javafx.application.Platform
 import java.util.concurrent.ConcurrentHashMap
