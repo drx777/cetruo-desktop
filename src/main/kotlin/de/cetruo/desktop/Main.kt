@@ -158,6 +158,43 @@ class MainApp : Application() {
     private lateinit var appRoot: BorderPane
     private val sourceImageInspector = SourceImageInspector(MainApp::class.java) { uiTheme == UiTheme.DARK }
     private val exportCoordinator = ExportCoordinator()
+    private val exportController by lazy {
+        ExportController(
+            coordinator = exportCoordinator,
+            currentData = { currentData },
+            currentPath = { visibleImages.getOrNull(currentIndex) },
+            visiblePaths = { visibleImages.toList() },
+            collectionRoot = { collectionRoot },
+            currentTemplate = { currentTemplate() },
+            templateForData = ::templateForData,
+            savedDataForPath = { path -> savedDataForPath(path) },
+            cachedFullImage = ::cachedFullImage,
+            loadTemplateAndOverlay = ::loadTemplateAndOverlay,
+            templateImage = { templateImage },
+            backgroundOverlayImage = { backgroundOverlayImage },
+            collectionPresentation = { collectionPresentation },
+            saveCurrent = { saveCurrent(showStatus = false) },
+            recordActivity = { assetId, action, details ->
+                database?.recordActivity(assetId, action, details)
+            },
+            statusChoice = statusChoice,
+            withSuppressedUpdates = { action ->
+                val previous = suppressEditorUpdates
+                suppressEditorUpdates = true
+                try {
+                    action()
+                } finally {
+                    suppressEditorUpdates = previous
+                }
+            },
+            setStatus = { statusBarLabel.text = it },
+            showError = ::showError,
+            installSliderReset = ::installSliderReset,
+            isDarkTheme = { uiTheme == UiTheme.DARK },
+            requestCardThumbnail = { path, callback -> requestCardThumbnail(path, callback) },
+            resourceOwner = MainApp::class.java
+        )
+    }
     private val collectionWatcher by lazy {
         CollectionWatcher(
             onImageModified = ::invalidateImageCaches,
@@ -501,19 +538,19 @@ class MainApp : Application() {
             tooltip = Tooltip("Explicitly create a portable .card.json sidecar for the selected card. Normal saves use SQLite only.")
             setOnAction { createSharingSidecar() }
         }
-        val exportSvg = Button("Export SVG").apply { setOnAction { exportSvg(stage) } }
-        val exportPng = Button("Export PNG").apply { setOnAction { exportPng(stage) } }
+        val exportSvg = Button("Export SVG").apply { setOnAction { exportController.exportSvg(stage) } }
+        val exportPng = Button("Export PNG").apply { setOnAction { exportController.exportPng(stage) } }
         val exportPdf = Button("A4 Contact Sheet PDF").apply {
             tooltip = Tooltip("Export all currently visible cards (current folder/filter scope) onto A4 pages at the card's physical size.")
-            setOnAction { exportPdf(stage) }
+            setOnAction { exportController.exportContactSheetPdf(stage) }
         }
         val exportCardsPdf = Button("Cards PDF").apply {
             tooltip = Tooltip("Export all currently visible cards as a PDF with one borderless card-sized page per card.")
-            setOnAction { exportCardsPdf(stage) }
+            setOnAction { exportController.exportCardsPdf(stage) }
         }
         val contactSheet = Button("Contact Sheet").apply {
             tooltip = Tooltip("Open a paged visual contact sheet for the current image scope.")
-            setOnAction { showContactSheet(stage) }
+            setOnAction { exportController.showContactSheet(stage) }
         }
         return ToolBar(open, Separator(), previous, next, Separator(), save, undo, redo, randomize, uiThemeButton, history, databaseInfo, backup, shareSidecar, Separator(), exportSvg, exportPng, exportPdf, exportCardsPdf, contactSheet)
     }
@@ -2241,184 +2278,6 @@ class MainApp : Application() {
             statusBarLabel.text = "Catalog backup created • ${target.fileName}"
         } catch (e: Exception) {
             showError("Could not create catalog backup", e)
-        }
-    }
-
-    private fun defaultExportDirectory(): Path? {
-        val root = collectionRoot ?: return null
-        // Keep generated files in a visible, purpose-named folder. The browser excludes
-        // this folder from source-image discovery, so exported cards do not become assets.
-        val dir = root.resolve("Cetruo Desktop Exports")
-        return runCatching { Files.createDirectories(dir); dir }.getOrNull()
-    }
-
-    private fun exportSvg(stage: Stage) {
-        if (currentIndex !in visibleImages.indices) return
-        if (!saveCurrent(showStatus = false)) return
-        val path = visibleImages[currentIndex]
-        val template = currentTemplate() ?: return
-        val target = ExportUi.chooseTarget(
-            owner = stage,
-            title = "Export SVG",
-            filterLabel = "SVG",
-            extensionPattern = "*.svg",
-            initialDirectory = defaultExportDirectory(),
-            initialFileName = path.fileName.toString().substringBeforeLast('.') + ".card.svg"
-        ) ?: return
-        try {
-            loadTemplateAndOverlay()
-            val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
-            exportCoordinator.exportSvg(
-                target,
-                ExportCardInput(
-                    image = image,
-                    data = currentData,
-                    template = template,
-                    templateImage = templateImage,
-                    backgroundOverlay = backgroundOverlayImage,
-                    collectionPresentation = collectionPresentation
-                )
-            )
-            database?.recordActivity(currentData.assetId, "EXPORT_SVG", target.toAbsolutePath().toString())
-            markExported()
-            saveCurrent(showStatus = false)
-            statusBarLabel.text = "Exported ${target.fileName} • full card SVG"
-        } catch (e: Exception) {
-            showError("Could not export SVG", e)
-        }
-    }
-
-    private fun exportPng(stage: Stage) {
-        if (currentIndex !in visibleImages.indices) return
-        if (!saveCurrent(showStatus = false)) return
-        val path = visibleImages[currentIndex]
-        val template = currentTemplate() ?: return
-        val target = ExportUi.chooseTarget(
-            owner = stage,
-            title = "Export PNG",
-            filterLabel = "PNG",
-            extensionPattern = "*.png",
-            initialDirectory = defaultExportDirectory(),
-            initialFileName = path.fileName.toString().substringBeforeLast('.') + ".card.png"
-        ) ?: return
-        try {
-            loadTemplateAndOverlay()
-            val image = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
-            exportCoordinator.exportPng(
-                target,
-                ExportCardInput(
-                    image = image,
-                    data = currentData,
-                    template = template,
-                    templateImage = templateImage,
-                    backgroundOverlay = backgroundOverlayImage,
-                    collectionPresentation = collectionPresentation
-                )
-            )
-            database?.recordActivity(currentData.assetId, "EXPORT_PNG", target.toAbsolutePath().toString())
-            markExported()
-            saveCurrent(showStatus = false)
-            statusBarLabel.text = "Exported ${target.fileName} • full card PNG"
-        } catch (e: Exception) {
-            showError("Could not export PNG", e)
-        }
-    }
-
-    private fun exportPdf(stage: Stage) {
-        if (visibleImages.isEmpty()) return
-        if (!saveCurrent(showStatus = false)) return
-        val target = ExportUi.chooseTarget(
-            owner = stage,
-            title = "Export A4 Contact Sheet PDF",
-            filterLabel = "PDF",
-            extensionPattern = "*.pdf",
-            initialDirectory = defaultExportDirectory(),
-            initialFileName = "cetruo-contact-sheet.pdf"
-        ) ?: return
-        val paths = visibleImages.toList()
-        val options = ExportUi.promptPdfOptions(stage) { slider, resetValue ->
-            installSliderReset(slider, resetValue)
-        } ?: return
-        val plans = exportCoordinator.planPdf(paths, options) { path -> pdfCardSpec(path) }
-        statusBarLabel.text = "Exporting ${paths.size} card(s) to PDF at ${"%.0f".format(options.scale * 100)}%…"
-        exportCoordinator.exportPdfAsync(
-            target = target,
-            plans = plans,
-            renderSvgOnFxThread = { path -> renderCardSvgForPdf(path) },
-            onSucceeded = {
-                database?.recordActivity(currentData.assetId, "EXPORT_PDF", target.toAbsolutePath().toString())
-                statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} full card(s)"
-            },
-            onFailed = { error -> showError("Could not export PDF", error) }
-        )
-    }
-
-    private fun exportCardsPdf(stage: Stage) {
-        if (visibleImages.isEmpty()) return
-        if (!saveCurrent(showStatus = false)) return
-        val target = ExportUi.chooseTarget(
-            owner = stage,
-            title = "Export Borderless Cards PDF",
-            filterLabel = "PDF",
-            extensionPattern = "*.pdf",
-            initialDirectory = defaultExportDirectory(),
-            initialFileName = "cetruo-cards.pdf"
-        ) ?: return
-
-        val paths = visibleImages.toList()
-        val plans = exportCoordinator.planSingleCardPdf(paths) { path -> pdfCardSpec(path) }
-        statusBarLabel.text = "Exporting ${paths.size} card(s) as borderless PDF pages…"
-        exportCoordinator.exportPdfAsync(
-            target = target,
-            plans = plans,
-            renderSvgOnFxThread = { path -> renderCardSvgForPdf(path) },
-            onSucceeded = {
-                database?.recordActivity(currentData.assetId, "EXPORT_PDF_CARDS", target.toAbsolutePath().toString())
-                statusBarLabel.text = "Exported ${target.fileName} • ${paths.size} borderless card page(s)"
-            },
-            onFailed = { error -> showError("Could not export cards PDF", error) }
-        )
-    }
-
-    private fun pdfCardSpec(path: Path): PdfContactSheetExporter.CardSpec? {
-        val data = savedDataForPath(path)
-        val template = templateForData(data) ?: return null
-        val widthPt = (template.width / 10.0) * 72.0 / 25.4
-        val heightPt = (template.height / 10.0) * 72.0 / 25.4
-        return PdfContactSheetExporter.CardSpec(path, widthPt, heightPt)
-    }
-
-    private fun renderCardSvgForPdf(path: Path): String {
-        check(Platform.isFxApplicationThread()) { "PDF card SVG rendering must run on the JavaFX application thread" }
-        val data = savedDataForPath(path)
-        val template = templateForData(data) ?: error("No card template available for ${path.fileName}")
-        val sourceImage = cachedFullImage(path) ?: error("Could not load image ${path.fileName}")
-        return VectorCardSvgRenderer.svgFor(
-            image = sourceImage,
-            data = data,
-            template = template,
-            collectionPresentation = collectionPresentation,
-            artworkHref = path.toAbsolutePath().normalize().toUri().toString()
-        )
-    }
-
-    private fun showContactSheet(owner: Stage) {
-        if (visibleImages.isEmpty()) return
-        if (!saveCurrent(showStatus = false)) return
-        ContactSheetWindow(
-            resourceOwner = MainApp::class.java,
-            isDarkTheme = { uiTheme == UiTheme.DARK },
-            requestPreview = { path, callback -> requestCardThumbnail(path, callback) }
-        ).show(owner, visibleImages.toList())
-    }
-
-    private fun markExported() {
-        suppressEditorUpdates = true
-        try {
-            currentData.status = CardStatus.EXPORTED
-            statusChoice.value = CardStatus.EXPORTED
-        } finally {
-            suppressEditorUpdates = false
         }
     }
 
