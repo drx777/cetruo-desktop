@@ -17,6 +17,39 @@ data class CardSaveOutcome(
 )
 
 class CardPersistenceService {
+
+    fun resolveForSelection(
+        database: CollectionDatabase?,
+        cardStore: CollectionCardStore,
+        path: Path,
+        newCard: (Path) -> CardData,
+        nextCollectorNumber: () -> String
+    ): CardData {
+        val normalized = path.toAbsolutePath().normalize()
+        if (database == null) {
+            return cardStore.snapshot(normalized)?.copy() ?: newCard(normalized)
+        }
+
+        val databaseData = database.dataSnapshotForPath(normalized)
+        if (databaseData != null && hasMeaningfulCardData(databaseData)) {
+            if (databaseData.collectorNumber.isBlank()) {
+                databaseData.collectorNumber = nextCollectorNumber()
+                database.save(normalized, databaseData)
+            }
+            return databaseData
+        }
+
+        cardStore.cached(normalized)?.let { cached ->
+            return cached.copy().also { data ->
+                databaseData?.assetId?.takeIf { it.isNotBlank() }?.let { data.assetId = it }
+            }
+        }
+
+        return newCard(normalized).also { defaults ->
+            databaseData?.assetId?.takeIf { it.isNotBlank() }?.let { defaults.assetId = it }
+        }
+    }
+
     fun prepare(
         database: CollectionDatabase,
         path: Path,
@@ -78,6 +111,19 @@ class CardPersistenceService {
     }
 
     companion object {
+        fun hasMeaningfulCardData(data: CardData): Boolean = listOf(
+            data.title,
+            data.cost,
+            data.typeLine,
+            data.rarity,
+            data.description,
+            data.flavorText,
+            data.artist,
+            data.setName,
+            data.collectorNumber,
+            data.stats
+        ).count { it.isNotBlank() } >= 3
+
         internal fun wouldClearCardAccidentally(before: CardData, after: CardData): Boolean {
             val beforeValues = listOf(
                 before.title,
