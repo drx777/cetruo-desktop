@@ -1,5 +1,7 @@
 package de.cetruo.desktop
 
+import de.cetruo.desktop.browser.*
+import de.cetruo.desktop.editor.*
 import javafx.scene.control.TreeItem
 import java.nio.file.Path
 import kotlin.test.Test

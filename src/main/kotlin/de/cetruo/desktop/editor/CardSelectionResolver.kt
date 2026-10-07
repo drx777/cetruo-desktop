@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.editor
 
+import de.cetruo.desktop.*
 import java.nio.file.Path
 
 class CardSelectionResolver {

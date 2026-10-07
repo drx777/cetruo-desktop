@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.browser
 
+import de.cetruo.desktop.*
 import javafx.application.Platform
 import javafx.scene.control.ListCell
 import javafx.scene.control.ListView

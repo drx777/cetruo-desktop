@@ -1,5 +1,6 @@
 package de.cetruo.desktop
 
+import de.cetruo.desktop.visual.CardVisualDefaults
 data class CardData(
     var assetId: String = "",
     var status: CardStatus = CardStatus.NEW,
@@ -19,24 +20,24 @@ data class CardData(
     var imageOffsetX: Double = 0.0,
     var imageOffsetY: Double = 0.0,
     var imageMode: ImageMode = ImageMode.COVER,
-    var imagePadColor: String = "#0A0D10",
+    var imagePadColor: String = CardVisualDefaults.IMAGE_PAD_COLOR,
     var imageBleedOverFrame: Boolean = false,
     var imageBleedOpacity: Double = 1.0,
     var backgroundOverlay: String = "",
     var backgroundOverlayPlacement: OverlayPlacement = OverlayPlacement.FRAMES_ONLY,
     var backgroundOverlayOpacity: Double = 1.0,
-    var backgroundColor: String = "#161B22",
-    var panelColor: String = "#EFE8D7",
-    var frameColor: String = "#D9C28E",
-    var accentColor: String = "#8C8068",
-    var overlayColor: String = "#C9B37A",
-    var textColor: String = "#29251F",
-    var darkTextColor: String = "#F3EAD6",
-    var borderWidth: Double = 8.0,
-    var cornerRadius: Double = 24.0,
-    var panelOpacity: Double = 0.96,
-    var titleFontSize: Double = 27.0,
-    var bodyFontSize: Double = 16.0
+    var backgroundColor: String = CardVisualDefaults.BACKGROUND_COLOR,
+    var panelColor: String = CardVisualDefaults.PANEL_COLOR,
+    var frameColor: String = CardVisualDefaults.FRAME_COLOR,
+    var accentColor: String = CardVisualDefaults.ACCENT_COLOR,
+    var overlayColor: String = CardVisualDefaults.OVERLAY_COLOR,
+    var textColor: String = CardVisualDefaults.TEXT_COLOR,
+    var darkTextColor: String = CardVisualDefaults.DARK_TEXT_COLOR,
+    var borderWidth: Double = CardVisualDefaults.BORDER_WIDTH,
+    var cornerRadius: Double = CardVisualDefaults.CORNER_RADIUS,
+    var panelOpacity: Double = CardVisualDefaults.PANEL_OPACITY,
+    var titleFontSize: Double = CardVisualDefaults.TITLE_FONT_SIZE,
+    var bodyFontSize: Double = CardVisualDefaults.BODY_FONT_SIZE
 )
 
 enum class ImageMode { COVER, CONTAIN, STRETCH }

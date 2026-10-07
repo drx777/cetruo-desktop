@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.editor
 
+import de.cetruo.desktop.*
 object ArtworkPanMath {
     fun sliderToActual(value: Double, min: Double, max: Double): Double {
         if (max - min <= 1e-9) return 0.0

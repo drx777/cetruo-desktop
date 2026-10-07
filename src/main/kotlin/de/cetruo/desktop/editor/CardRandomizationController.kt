@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.editor
 
+import de.cetruo.desktop.*
 import javafx.scene.control.ComboBox
 import javafx.scene.control.TextField
 import kotlin.random.Random

@@ -1,5 +1,7 @@
 package de.cetruo.desktop
 
+import de.cetruo.desktop.browser.*
+import de.cetruo.desktop.editor.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.editor
 
+import de.cetruo.desktop.*
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Button
@@ -10,7 +11,6 @@ import javafx.scene.control.Tooltip
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
-import javafx.scene.paint.Color
 
 class EditorUiFactory(
     private val statusLabel: (CardStatus) -> String
@@ -40,7 +40,8 @@ class EditorUiFactory(
                         maxWidth = 12.0
                         minHeight = 12.0
                         maxHeight = 12.0
-                        style = "-fx-background-color:$hex;-fx-background-radius:3px;-fx-border-color:rgba(255,255,255,0.25);-fx-border-radius:3px;"
+                        styleClass.add("scheme-swatch")
+                        style = "-fx-background-color:$hex;"
                     })
                 }
             }
@@ -97,12 +98,11 @@ class EditorUiFactory(
 
     fun helperLabel(text: String) = Label(text).apply {
         isWrapText = true
-        textFill = Color.web("#8B949E")
-        style = "-fx-font-size:12px;"
+        styleClass.add("editor-helper")
     }
 
     fun section(text: String) = Label(text).apply {
-        style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-padding:8 0 3 0;"
+        styleClass.add("editor-section")
     }
 
     fun row(label: String, node: Node): HBox = HBox(8.0).apply {

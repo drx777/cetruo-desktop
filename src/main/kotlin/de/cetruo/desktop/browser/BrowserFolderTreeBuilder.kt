@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.browser
 
+import de.cetruo.desktop.*
 import javafx.scene.control.TreeItem
 import java.nio.file.Path
 

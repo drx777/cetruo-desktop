@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.editor
 
+import de.cetruo.desktop.*
 import java.util.ArrayDeque
 
 /** Per-card in-memory undo/redo history. Persistence remains the responsibility of the caller. */

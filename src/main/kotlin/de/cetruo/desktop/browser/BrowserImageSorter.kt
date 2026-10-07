@@ -1,5 +1,6 @@
-package de.cetruo.desktop
+package de.cetruo.desktop.browser
 
+import de.cetruo.desktop.*
 import java.math.BigInteger
 import java.nio.file.Path
 import kotlin.math.min
