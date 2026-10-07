@@ -15,7 +15,8 @@ out/
 *.card.json
 
 # Generated exports
-Card Forge Exports/\nCetruo Desktop Exports/
+Card Forge Exports/
+Cetruo Desktop Exports/
 *.card.png
 *.card.svg
 *.pdf
