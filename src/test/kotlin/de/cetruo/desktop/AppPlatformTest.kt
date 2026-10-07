@@ -32,7 +32,7 @@ class AppPlatformTest {
 
     @Test
     fun packagedUiResourcesArePresent() {
-        assertNotNull(AppPlatform::class.java.getResource("/icons/card-forge-icon.png"))
-        assertNotNull(AppPlatform::class.java.getResource("/cardforge.css"))
+        assertNotNull(AppPlatform::class.java.getResource("/icons/cetruo-icon.png"))
+        assertNotNull(AppPlatform::class.java.getResource("/cetruo.css"))
     }
 }
