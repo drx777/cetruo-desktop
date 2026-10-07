@@ -93,10 +93,9 @@ class VectorCardSvgRendererTest {
             artworkHref = "file:/tmp/art.png"
         )
 
-        assertTrue(svg.contains("""stroke="#D6B45A""""))
-        assertTrue(svg.contains("""fill="${data.panelColor}" stroke="#D6B45A""""))
+        assertTrue(svg.contains("""stroke="${CardVisualSystem.GOLD}""""))
+        assertTrue(svg.contains("""fill="${data.panelColor}" fill-opacity="0.96" stroke="${CardVisualSystem.GOLD}" stroke-width="4""""))
         assertTrue(svg.contains("""<rect x="35" y="580" width="560" height="220" rx="14" ry="14""""))
-        assertTrue(svg.contains("""stroke-width="4""""))
         assertTrue(svg.contains("""<rect x="480" y="778" width="115" height="70" rx="12" ry="12""""))
         assertTrue(svg.contains("""stroke-width="3""""))
     }
